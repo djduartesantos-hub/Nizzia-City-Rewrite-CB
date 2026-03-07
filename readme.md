@@ -212,6 +212,30 @@ Once running, the app is available at `http://localhost:5050` and serves both `/
 
 ---
 
+## Managing admin roles
+
+Players are tied to `User` documents via the Mongo ObjectId stored in `player.user`. If esse campo ficar como string (por ex., após edição manual), o backend não encontra o jogador ao fazer `Player.findOne({ user: req.authUserId })` e `/api/player/me` passa a devolver 404.
+
+Use o utilitário `backend/tools/player_tools/setRole.js` para promover contas garantindo que a referência fica correta:
+
+```sh
+node backend/tools/player_tools/setRole.js --email admin@example.com --role Admin
+```
+
+Opções:
+
+- `--role <Player|Moderator|Admin|Developer>` – enum válido.
+- `--create-if-missing` – cria um player mínimo (com id sequencial) se o utilizador ainda não tiver um.
+
+O script:
+1. Liga-se à mesma base definida em `MONGODB_URI`.
+2. Corrige o campo `player.user` para o ObjectId real do `User`.
+3. Atualiza `playerRole` para o valor pedido.
+
+Depois de correr o script, faz logout/login para obter um token novo e aceder ao painel de administração.
+
+---
+
 ## Project Structure
 
 ```
