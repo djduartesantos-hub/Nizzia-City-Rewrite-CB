@@ -1,6 +1,7 @@
 <template>
   <div class="app-shell">
     <div class="app-sheen" aria-hidden="true">
+      <AmbientField />
       <span class="orb orb--one"></span>
       <span class="orb orb--two"></span>
       <span class="orb orb--three"></span>
@@ -24,6 +25,7 @@
 import Topbar from '../components/Topbar.vue'
 import Sidebar from '../components/Sidebar.vue'
 import AppFooter from '../components/AppFooter.vue'
+import AmbientField from '../components/AmbientField.vue'
 import '../assets/layout.css'
 </script>
 
