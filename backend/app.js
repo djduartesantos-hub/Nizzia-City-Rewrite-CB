@@ -73,10 +73,8 @@ const distDir = path.join(__dirname, '../frontend-vue/dist');
 if (fs.existsSync(distDir)) {
   app.use(express.static(distDir));
 
-  app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api')) {
-      return next();
-    }
+  // Express 5 no longer supports bare '*' routes; use a regex instead.
+  app.get(/^(?!\/api).*/, (_req, res) => {
     res.sendFile(path.join(distDir, 'index.html'));
   });
 }
