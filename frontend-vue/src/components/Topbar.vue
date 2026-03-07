@@ -1,27 +1,49 @@
 <template>
   <div class="topbar">
-    <div class="brand">Nizzia City</div>
-    <div class="spacer"></div>
-    <div class="buttons">
-      <button v-if="isAdmin" @click="goAdmin" title="Admin">Admin</button>
-      <!-- Wiki button -->
-      <button @click="openWiki" title="Wiki">Wiki</button>
-      <button @click="rules" title="Rules">Rules</button>
-      <button @click="forums" title="Forums">Forums</button>
-      <button @click="discord" title="Discord">Discord</button>
-      <button @click="staff" title="Staff">Staff</button>
-      <button @click="credits" title="Credits">Credits</button>
+    <div class="brand-block" @click="router.push('/')">
+      <div class="brand-logo">NC</div>
+      <div>
+        <p class="brand-label">Nizzia City</p>
+        <p class="brand-sub">Neon Underworld Command</p>
+      </div>
     </div>
-    <div class="topbar-center">
+
+    <div class="topbar-news">
       <div class="ticker" :class="{ 'ticker--single': tickerMode==='single' }">
         <div class="ticker__track" :style="trackStyle">{{ tickerText }}</div>
       </div>
     </div>
-    <div class="spacer"></div>
-    <div class="actions">
-      <button @click="toggleTheme" :title="isDark ? 'Switch to light' : 'Switch to dark'">{{ isDark ? '[LIGHT]' : '[DARK]' }}</button>
-      <button @click="goProfile" title="Profile">Profile</button>
-      <button @click="logout" title="Log out">Log out</button>
+
+    <div class="topbar-controls">
+      <div class="quick-links">
+        <button v-if="isAdmin" class="chip-btn chip-btn--accent" @click="goAdmin">
+          <span>🛡</span><span>Admin</span>
+        </button>
+        <button
+          v-for="link in quickLinks"
+          :key="link.label"
+          class="chip-btn"
+          type="button"
+          @click="link.handler()"
+        >
+          <span>{{ link.icon }}</span>
+          <span>{{ link.label }}</span>
+        </button>
+      </div>
+      <div class="control-actions">
+        <button class="icon-btn" @click="toggleTheme" :title="isDark ? 'Switch to light' : 'Switch to dark'">
+          <span v-if="isDark">🌤</span>
+          <span v-else>🌙</span>
+        </button>
+        <div class="profile-chip" @click="goProfile" role="button">
+          <span class="avatar">{{ playerInitials }}</span>
+          <div class="profile-meta">
+            <span class="profile-name">{{ store.player?.name || 'Agent' }}</span>
+            <small class="profile-id">#{{ playerTag }}</small>
+          </div>
+        </div>
+        <button class="icon-btn icon-btn--danger" @click="logout" title="Log out">⏻</button>
+      </div>
     </div>
   </div>
 </template>
@@ -44,6 +66,14 @@ function goAdmin(){
   router.push('/admin')
 }
 const hp = ref(0)
+const playerInitials = computed(() => {
+  const fallback = 'NC'
+  const name = store.player?.name?.trim()
+  if (!name) return fallback
+  const parts = name.split(/\s+/).slice(0, 2)
+  return parts.map(part => part.charAt(0).toUpperCase()).join('') || fallback
+})
+const playerTag = computed(() => store.player?.id ?? '—')
 
 // ── Theme toggle ──
 const isDark = ref(document.documentElement.getAttribute('data-theme') !== 'light')
@@ -70,6 +100,14 @@ const newsItems = ref([
 const idx = ref(0)
 const tickerText = computed(() => tickerMode.value==='single' ? (newsItems.value[idx.value] || '') : newsItems.value.concat(newsItems.value).join(' — '))
 const trackStyle = computed(() => tickerMode.value==='scroll' ? { animationDuration: '60s' } : { animation: 'none', paddingLeft: '0' })
+const quickLinks = [
+  { label: 'Wiki', icon: '📖', handler: openWiki },
+  { label: 'Rules', icon: '⚖️', handler: rules },
+  { label: 'Forums', icon: '💬', handler: forums },
+  { label: 'Discord', icon: '🛰', handler: discord },
+  { label: 'Staff', icon: '👥', handler: staff },
+  { label: 'Credits', icon: '🎞', handler: credits }
+]
 
 let timer
 onMounted(() => {
