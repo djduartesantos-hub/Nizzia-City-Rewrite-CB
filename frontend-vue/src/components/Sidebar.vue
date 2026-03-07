@@ -48,10 +48,24 @@
       <li v-for="item in navItems" :key="item.to">
         <RouterLink :to="item.to">
           <span class="nav-icon" aria-hidden="true">{{ item.icon }}</span>
-          <span>{{ item.label }}</span>
+          <div class="nav-text">
+            <span class="nav-label">{{ item.label }}</span>
+            <small class="nav-desc">{{ item.desc }}</small>
+          </div>
+          <span class="nav-arrow" aria-hidden="true">→</span>
         </RouterLink>
       </li>
     </ul>
+
+    <div class="sidebar-poster">
+      <div class="poster-art" aria-hidden="true"></div>
+      <div class="poster-copy">
+        <p class="poster-kicker">City spotlight</p>
+        <h3>Skyline Parade</h3>
+        <p>Night markets, cartel intel e missões especiais em destaque esta semana.</p>
+        <button class="btn btn--primary" @click="openSpotlight">Ver agenda</button>
+      </div>
+    </div>
 
     <div id="dev-menu" class="info u-mt-16" v-show="isDev">
       <h3>Developer</h3>
@@ -133,26 +147,26 @@ const hasStocks = computed(() => (store.player?.portfolio || []).some(p => Numbe
 
 const navItems = computed(() => {
   const base = [
-    { to: '/', label: 'Home', icon: '🏠' },
-    { to: '/inventory', label: 'Inventory', icon: '🎒' },
-    { to: '/city', label: 'City', icon: '🌆' },
-    { to: '/job', label: 'Job', icon: '💼' },
-    { to: '/education', label: 'Education', icon: '📚' },
-    { to: '/gym', label: 'Gym', icon: '💪' },
-    { to: '/casino', label: 'Casino', icon: '🎰' },
-    { to: '/stocks', label: 'Stocks', icon: '📈' },
-    { to: '/crimes', label: 'Crimes', icon: '⚠️' },
-    { to: '/money', label: 'Money', icon: '💰' },
-    { to: '/property', label: 'Property', icon: '🏢' },
-    { to: '/pets', label: 'Pets', icon: '🐾' },
-    { to: '/market', label: 'Market', icon: '🛒' },
-    { to: '/vault', label: 'Vault', icon: '🔐' }
+    { to: '/', label: 'HQ', desc: 'Painel geral', icon: '🏠' },
+    { to: '/inventory', label: 'Inventário', desc: 'Gear & drops', icon: '🎒' },
+    { to: '/city', label: 'Cidade', desc: 'Distritos e eventos', icon: '🌆' },
+    { to: '/job', label: 'Emprego', desc: 'Contratos oficiais', icon: '💼' },
+    { to: '/education', label: 'Educação', desc: 'Cursos & perks', icon: '📚' },
+    { to: '/gym', label: 'Ginásio', desc: 'Stats & treino', icon: '💪' },
+    { to: '/casino', label: 'Cassino', desc: 'Luck & jackpots', icon: '🎰' },
+    { to: '/stocks', label: 'Bolsa', desc: 'Mercado & holdings', icon: '📈' },
+    { to: '/crimes', label: 'Crimes', desc: 'Operações rápidas', icon: '⚠️' },
+    { to: '/money', label: 'Finanças', desc: 'Fluxo de cash', icon: '💰' },
+    { to: '/property', label: 'Propriedades', desc: 'Bases & upgrades', icon: '🏢' },
+    { to: '/pets', label: 'Companheiros', desc: 'Pets & buffs', icon: '🐾' },
+    { to: '/market', label: 'Mercado', desc: 'Leilões & troca', icon: '🛒' },
+    { to: '/vault', label: 'Cofre', desc: 'Segurança máxima', icon: '🔐' }
   ]
 
   const extended = [
-    { to: '/grow', label: 'Grow Operation', icon: '🌿', show: hasWarehouse.value },
-    { to: '/real-estate?tab=businesses', label: 'Business', icon: '🏭', show: hasBusiness.value },
-    { to: '/cartel', label: 'Drug Empire', icon: '🧪', show: hasCartel.value }
+    { to: '/grow', label: 'Grow Ops', desc: 'Laboratórios & colheitas', icon: '🌿', show: hasWarehouse.value },
+    { to: '/real-estate?tab=businesses', label: 'Negócios', desc: 'Império corporativo', icon: '🏭', show: hasBusiness.value },
+    { to: '/cartel', label: 'Cartel', desc: 'Reputação & conselhos', icon: '🧪', show: hasCartel.value }
   ]
 
   return base
@@ -268,6 +282,10 @@ async function doDev(path, amount) {
   } catch (e) {
     toast.error(e?.response?.data?.error || e?.message || 'Error')
   }
+}
+
+function openSpotlight() {
+  router.push('/news')
 }
 </script>
 
