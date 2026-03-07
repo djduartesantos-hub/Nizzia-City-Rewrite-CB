@@ -1,0 +1,14 @@
+{
+  "builds": [
+    { "src": "api/index.js", "use": "@vercel/node", "config": { "includeFiles": "backend/**" } },
+    {
+      "src": "frontend-vue/package.json",
+      "use": "@vercel/static-build",
+      "config": { "distDir": "dist" }
+    }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/api/index.js" },
+    { "src": "/(.*)", "dest": "/frontend-vue/dist/$1" }
+  ]
+}

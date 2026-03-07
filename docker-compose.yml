@@ -1,0 +1,28 @@
+version: '3.9'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: nizzia-city-app:latest
+    ports:
+      - "5050:5050"
+    environment:
+      # Override these in production; defaults make local dev easy
+      MONGODB_URI: mongodb://mongo:27017/nizziacity
+      JWT_SECRET: local_dev_secret
+      PORT: "5050"
+    depends_on:
+      - mongo
+
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+volumes:
+  mongo_data:

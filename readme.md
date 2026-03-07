@@ -156,6 +156,62 @@ The application will be available at `http://localhost:5173`.
 
 ---
 
+## Deploying to Vercel
+
+The repository now ships with a `vercel.json` that deploys both the Express API and the Vue frontend on Vercel:
+
+1. **Install Vercel CLI (optional):** `npm i -g vercel`.
+2. **Configure environment variables** in the Vercel dashboard (Project Settings → Environment Variables):
+   - `MONGODB_URI` – connection string to your managed MongoDB instance.
+   - `JWT_SECRET` – secret used to sign player tokens.
+   - `CORS_ALLOWLIST` *(optional)* – comma-separated origins allowed to call the API (e.g. `https://nizzia-city.vercel.app`). Leave empty to fall back to localhost defaults.
+   - `DISABLE_CRON` – leave unset (cron is automatically disabled on Vercel) or set to `true` for other serverless targets.
+3. **Deploy:** run `vercel` (or use the dashboard) from the repo root. The configuration will:
+   - build the Vue SPA via `frontend-vue/package.json` and serve `/frontend-vue/dist` as static assets;
+   - expose all `/api/*` requests through `api/index.js`, which reuses `backend/app.js`.
+
+Local development continues to work via `npm run dev` (backend) plus `npm run dev` inside `frontend-vue/`.
+
+---
+
+## Deploying to Railway (Docker)
+
+Railway can build and run the repository directly from the provided `Dockerfile`:
+
+1. **Push the repo** to a Git provider (GitHub/GitLab) and create a new Railway service from that repo.
+2. Railway auto-detects the `Dockerfile` and builds it using the multi-stage setup:
+   - Stage 1 installs both backend and frontend dependencies and runs `npm run build` inside `frontend-vue/`.
+   - Stage 2 copies only the production artifacts and runs `node backend/server.js`.
+3. **Set environment variables** in the Railway service:
+   - `MONGODB_URI` – the connection string to Railway’s own Mongo add-on or to MongoDB Atlas.
+   - `JWT_SECRET` – secret for signing JWTs.
+   - `PORT` *(optional)* – defaults to `5050`. Railway injects `PORT`, so leave it unset to use their value.
+   - `CORS_ALLOWLIST` *(optional)* – comma-separated list of origins you want to allow (e.g. Railway domain).
+4. **Expose the port**: Railway maps the container `5050` automatically; no extra config needed thanks to `EXPOSE 5050` in the `Dockerfile`.
+5. **Cron jobs**: containers run continuously on Railway, so you can leave `DISABLE_CRON` unset (the cron scheduler will boot). If you run a secondary worker, set `DISABLE_CRON=true` there to avoid duplicate jobs.
+
+After deployment, Railway will give you a public URL that serves both the API (`/api/*`) and the built SPA (all other routes), because the backend automatically serves `frontend-vue/dist` when present.
+
+---
+
+## Docker Compose (local parity)
+
+For local or staging environments, `docker-compose.yml` provisions both the app container and a MongoDB instance:
+
+```sh
+docker compose up --build
+```
+
+The compose file:
+
+- Mounts MongoDB 7 with a persisted volume (`mongo_data`).
+- Builds the same multi-stage image defined in `Dockerfile`.
+- Injects env vars (`MONGODB_URI=mongodb://mongo:27017/nizziacity`, `JWT_SECRET=local_dev_secret`, `PORT=5050`). Override them in a `.env` file or via the CLI for production.
+
+Once running, the app is available at `http://localhost:5050` and serves both `/api` and the SPA build. This setup mirrors what Railway will run, making it easy to debug locally before pushing.
+
+---
+
 ## Project Structure
 
 ```
