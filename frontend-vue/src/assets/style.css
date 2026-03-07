@@ -1,68 +1,78 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
 /* ═══════════════════════════════════════════════════
-   NIZZIA CITY — Terminal / Newspaper Theme
-   Monospace · Green accent · Light + Dark
+   NIZZIA CITY — Neon Dispatch Theme
+   Bold Sans · Futuristic gradient shell · Dual theme
    ═══════════════════════════════════════════════════ */
 
 /* ── Dark mode (default) ── */
 [data-theme="dark"], :root {
-  --bg:       #0a0a0a;
-  --bg-alt:   #111111;
-  --panel:    #141414;
-  --panel-hover: #1a1a1a;
-  --text:     #d4d4d4;
-  --text-strong: #e5e5e5;
-  --muted:    #737373;
-  --accent:   #22c55e;
-  --accent-hover: #16a34a;
-  --accent-muted: rgba(34,197,94,0.12);
-  --border:   #262626;
-  --border-heavy: #333333;
-  --danger:   #ef4444;
-  --danger-muted: rgba(239,68,68,0.12);
-  --warn:     #eab308;
-  --warn-muted: rgba(234,179,8,0.12);
-  --ok:       #22c55e;
-  --ok-muted: rgba(34,197,94,0.12);
-  --input-bg: #0f0f0f;
-  --kbd-bg:   #1a1a1a;
-  --shadow:   none;
-  --bar-energy: #22c55e;
-  --bar-nerve: #ef4444;
-  --bar-happy: #eab308;
-  --bar-life:  #3b82f6;
-  --bar-track: #1a1a1a;
-  --selection: rgba(34,197,94,0.18);
+  --bg:             #040510;
+  --bg-alt:         rgba(13, 18, 41, 0.4);
+  --panel:          rgba(14, 18, 37, 0.82);
+  --panel-hover:    rgba(25, 32, 63, 0.92);
+  --text:           #eff0ff;
+  --text-strong:    #ffffff;
+  --muted:          #9aa6c8;
+  --accent:         #ff8ad6;
+  --accent-hover:   #ff64c8;
+  --accent-muted:   rgba(255, 138, 214, 0.16);
+  --accent-secondary:#7cf5ff;
+  --border:         rgba(255, 255, 255, 0.06);
+  --border-heavy:   rgba(255, 255, 255, 0.18);
+  --danger:         #ff6b6b;
+  --danger-muted:   rgba(255, 107, 107, 0.18);
+  --warn:           #ffd166;
+  --warn-muted:     rgba(255, 209, 102, 0.16);
+  --ok:             #7df9c6;
+  --ok-muted:       rgba(125, 249, 198, 0.15);
+  --input-bg:       rgba(5, 6, 16, 0.7);
+  --kbd-bg:         rgba(255, 255, 255, 0.06);
+  --shadow:         0 18px 40px rgba(0, 0, 0, 0.35);
+  --bar-energy:     #7cf5ff;
+  --bar-nerve:      #ff6b6b;
+  --bar-happy:      #ffd166;
+  --bar-life:       #8b83ff;
+  --bar-track:      rgba(255, 255, 255, 0.08);
+  --selection:      rgba(255, 138, 214, 0.22);
+  --glow-strong:    rgba(124, 245, 255, 0.5);
+  --glow-soft:      rgba(255, 138, 214, 0.3);
+  --grid-line:      rgba(255, 255, 255, 0.05);
 }
 
 /* ── Light mode ── */
 [data-theme="light"] {
-  --bg:       #fafafa;
-  --bg-alt:   #f5f5f5;
-  --panel:    #ffffff;
-  --panel-hover: #f9f9f9;
-  --text:     #171717;
-  --text-strong: #0a0a0a;
-  --muted:    #737373;
-  --accent:   #16a34a;
-  --accent-hover: #15803d;
-  --accent-muted: rgba(22,163,74,0.10);
-  --border:   #e5e5e5;
-  --border-heavy: #d4d4d4;
-  --danger:   #dc2626;
-  --danger-muted: rgba(220,38,38,0.10);
-  --warn:     #ca8a04;
-  --warn-muted: rgba(202,138,4,0.10);
-  --ok:       #16a34a;
-  --ok-muted: rgba(22,163,74,0.10);
-  --input-bg: #ffffff;
-  --kbd-bg:   #f0f0f0;
-  --shadow:   0 1px 2px rgba(0,0,0,0.06);
-  --bar-energy: #16a34a;
-  --bar-nerve: #dc2626;
-  --bar-happy: #ca8a04;
-  --bar-life:  #2563eb;
-  --bar-track: #e5e5e5;
-  --selection: rgba(22,163,74,0.12);
+  --bg:             #fbfbfe;
+  --bg-alt:         rgba(255, 255, 255, 0.7);
+  --panel:          rgba(255, 255, 255, 0.92);
+  --panel-hover:    rgba(255, 255, 255, 0.98);
+  --text:           #1b1b2f;
+  --text-strong:    #050315;
+  --muted:          #6d6f92;
+  --accent:         #d946ef;
+  --accent-hover:   #c026d3;
+  --accent-muted:   rgba(217, 70, 239, 0.12);
+  --accent-secondary:#0891b2;
+  --border:         rgba(5, 3, 21, 0.08);
+  --border-heavy:   rgba(5, 3, 21, 0.14);
+  --danger:         #e11d48;
+  --danger-muted:   rgba(225, 29, 72, 0.12);
+  --warn:           #d97706;
+  --warn-muted:     rgba(217, 119, 6, 0.12);
+  --ok:             #0f9d58;
+  --ok-muted:       rgba(15, 157, 88, 0.12);
+  --input-bg:       rgba(255, 255, 255, 0.9);
+  --kbd-bg:         rgba(5, 3, 21, 0.05);
+  --shadow:         0 25px 50px rgba(15, 23, 42, 0.08);
+  --bar-energy:     #0ea5e9;
+  --bar-nerve:      #e11d48;
+  --bar-happy:      #f97316;
+  --bar-life:       #6366f1;
+  --bar-track:      rgba(15, 23, 42, 0.08);
+  --selection:      rgba(14, 165, 233, 0.18);
+  --glow-strong:    rgba(14, 165, 233, 0.4);
+  --glow-soft:      rgba(217, 70, 239, 0.25);
+  --grid-line:      rgba(15, 23, 42, 0.04);
 }
 
 /* ── Reset / Global ── */
@@ -71,12 +81,15 @@ html, body, #app { height: 100%; }
 ::selection { background: var(--selection); }
 
 body {
-  background: var(--bg) !important;
+  background: radial-gradient(circle at 20% 20%, rgba(255, 138, 214, 0.15), transparent 45%),
+              radial-gradient(circle at 80% 0%, rgba(124, 245, 255, 0.18), transparent 40%),
+              linear-gradient(120deg, rgba(6, 9, 23, 0.95), rgba(6, 5, 20, 0.9));
   color: var(--text) !important;
-  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'SF Mono', 'Consolas', 'Liberation Mono', monospace;
+  font-family: 'Space Grotesk', 'JetBrains Mono', 'Cascadia Code', 'SF Mono', system-ui, sans-serif;
   font-size: 13px;
-  line-height: 1.6;
+  line-height: 1.65;
   -webkit-font-smoothing: antialiased;
+  min-height: 100%;
 }
 
 /* ── Typography ── */
@@ -130,18 +143,19 @@ a:hover { text-decoration: underline; }
 button, .btn {
   font-family: inherit;
   font-size: 12px;
-  padding: 6px 12px;
+  padding: 8px 14px;
   border: 1px solid var(--border);
-  border-radius: 2px;
-  background: var(--panel);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
   color: var(--text);
   cursor: pointer;
-  transition: background 80ms, border-color 80ms;
+  transition: transform 120ms ease, background 160ms ease, border-color 120ms;
   line-height: 1.4;
 }
 button:hover, .btn:hover {
-  background: var(--panel-hover);
+  background: rgba(255, 255, 255, 0.08);
   border-color: var(--border-heavy);
+  transform: translateY(-1px);
 }
 button:disabled, .btn:disabled, .btn[disabled] {
   opacity: 0.4;
@@ -186,8 +200,18 @@ th {
 /* ── Scrollbar (dark mode polishing) ── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border-heavy); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+::-webkit-scrollbar-thumb { background: var(--border-heavy); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+/* Prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 
 /* ═══════════════════════════════════════════════════
    SHARED COMPONENT CLASSES

@@ -1,5 +1,11 @@
 <template>
-  <div>
+  <div class="app-shell">
+    <div class="app-sheen" aria-hidden="true">
+      <span class="orb orb--one"></span>
+      <span class="orb orb--two"></span>
+      <span class="orb orb--three"></span>
+      <div class="grid-overlay"></div>
+    </div>
     <Topbar />
     <div class="app-wrap">
       <Sidebar />

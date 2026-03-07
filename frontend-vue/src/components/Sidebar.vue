@@ -1,5 +1,37 @@
 <template>
   <aside class="sidebar">
+    <div class="sidebar-hero">
+      <div class="hero-meta">
+        <span class="hero-chip">{{ store.player?.playerRole || 'Citizen' }}</span>
+        <span class="hero-chip hero-chip--accent">Lvl {{ store.player?.level || 1 }}</span>
+      </div>
+      <h2>{{ store.player?.name || 'Newcomer' }}</h2>
+      <p class="hero-balance">{{ money }}</p>
+      <div class="hero-bars">
+        <div class="hero-bar" v-for="bar in heroBars" :key="bar.label">
+          <div class="hero-bar__label">{{ bar.label }} · {{ bar.value }}</div>
+          <div class="progress-bar hero-track">
+            <div class="progress-fill" :class="bar.class" :style="{ width: bar.fill + '%' }"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-grid">
+      <div class="fact">
+        <p class="label">Points</p>
+        <p class="value">{{ store.player?.points ?? 0 }}</p>
+      </div>
+      <div class="fact">
+        <p class="label">Player ID</p>
+        <p class="value">#{{ store.player?.id ?? '—' }}</p>
+      </div>
+      <div class="fact">
+        <p class="label">Job</p>
+        <p class="value">{{ store.player?.job?.title || 'Unassigned' }}</p>
+      </div>
+    </div>
+
     <div class="status-effects" v-if="effects.length">
       <span
         v-for="(e, i) in effects"
@@ -11,45 +43,14 @@
         :aria-label="e.title"
       >{{ e.symbol }}</span>
     </div>
-    <div class="info">
-      <p id="ui-name">Name: {{ store.player?.name || '—' }}</p>
-      <p id="ui-money">Money: {{ money }}</p>
-      <p id="ui-level">Level: {{ store.player?.level || 1 }}</p>
-      <p id="ui-points">Points: {{ store.player?.points || 0 }}</p>
-    </div>
 
-    <div class="info">
-      <p id="ui-energy-label">Energy: {{ eNow }}/{{ eMax }}</p>
-      <div class="progress-bar"><div class="progress-fill energy" :style="{ width: pct(eNow, eMax) + '%' }"></div></div>
-
-      <p id="ui-nerve-label">Nerve: {{ nNow }}/{{ nMax }}</p>
-      <div class="progress-bar"><div class="progress-fill nerve" :style="{ width: pct(nNow, nMax) + '%' }"></div></div>
-
-      <p id="ui-happy-label">Happy: {{ hNow }}/{{ hMax }}</p>
-      <div class="progress-bar"><div class="progress-fill happy" :style="{ width: pct(hNow, hMax) + '%' }"></div></div>
-
-  <p id="ui-hp-label">HP: {{ hpNow }}/{{ hpMax }}</p>
-  <div class="progress-bar"><div class="progress-fill life" :style="{ width: pct(hpNow, hpMax) + '%' }"></div></div>
-    </div>
-
-    <ul>
-      <li><RouterLink to="/">Home</RouterLink></li>
-      <li><RouterLink to="/inventory">Inventory</RouterLink></li>
-      <li><RouterLink to="/city">City</RouterLink></li>
-      <li><RouterLink to="/job">Job</RouterLink></li>
-      <li><RouterLink to="/education">Education</RouterLink></li>
-      <li><RouterLink to="/gym">Gym</RouterLink></li>
-      <li><RouterLink to="/casino">Casino</RouterLink></li>
-      <li><RouterLink to="/stocks">Stocks</RouterLink></li>
-      <li><RouterLink to="/crimes">Crimes</RouterLink></li>
-      <li><RouterLink to="/money">Money</RouterLink></li>
-      <li><RouterLink to="/property">Property</RouterLink></li>
-      <li v-if="hasWarehouse"><RouterLink to="/grow">Grow Operation</RouterLink></li>
-      <li v-if="hasBusiness"><RouterLink to="/real-estate?tab=businesses">Business</RouterLink></li>
-      <li><RouterLink to="/pets">Pets</RouterLink></li>
-      <li><RouterLink to="/market">Market</RouterLink></li>
-      <li><RouterLink to="/vault">Vault</RouterLink></li>
-      <li v-if="hasCartel"><RouterLink to="/cartel">Drug Empire</RouterLink></li>
+    <ul class="nav-list">
+      <li v-for="item in navItems" :key="item.to">
+        <RouterLink :to="item.to">
+          <span class="nav-icon" aria-hidden="true">{{ item.icon }}</span>
+          <span>{{ item.label }}</span>
+        </RouterLink>
+      </li>
     </ul>
 
     <div id="dev-menu" class="info u-mt-16" v-show="isDev">
@@ -107,6 +108,13 @@ const devMoney = ref(100000)
 const devEnergy = ref(10)
 const devNerve = ref(5)
 
+const heroBars = computed(() => [
+  { label: 'Energy', value: `${eNow.value}/${eMax.value}`, fill: pct(eNow.value, eMax.value), class: 'energy' },
+  { label: 'Nerve', value: `${nNow.value}/${nMax.value}`, fill: pct(nNow.value, nMax.value), class: 'nerve' },
+  { label: 'Happy', value: `${hNow.value}/${hMax.value}`, fill: pct(hNow.value, hMax.value), class: 'happy' },
+  { label: 'HP', value: `${hpNow.value}/${hpMax}`, fill: pct(hpNow.value, hpMax), class: 'life' }
+])
+
 function pct(cur, max){ return max > 0 ? Math.min(100, Math.round((cur/max)*100)) : 0 }
 
 // ── Live clock for cooldown countdowns ──
@@ -122,6 +130,35 @@ const hasWarehouse = ref(false)
 const hasBusiness = ref(false)
 const hasCartel = computed(() => !!cartelRank.value)
 const hasStocks = computed(() => (store.player?.portfolio || []).some(p => Number(p?.shares || 0) > 0))
+
+const navItems = computed(() => {
+  const base = [
+    { to: '/', label: 'Home', icon: '🏠' },
+    { to: '/inventory', label: 'Inventory', icon: '🎒' },
+    { to: '/city', label: 'City', icon: '🌆' },
+    { to: '/job', label: 'Job', icon: '💼' },
+    { to: '/education', label: 'Education', icon: '📚' },
+    { to: '/gym', label: 'Gym', icon: '💪' },
+    { to: '/casino', label: 'Casino', icon: '🎰' },
+    { to: '/stocks', label: 'Stocks', icon: '📈' },
+    { to: '/crimes', label: 'Crimes', icon: '⚠️' },
+    { to: '/money', label: 'Money', icon: '💰' },
+    { to: '/property', label: 'Property', icon: '🏢' },
+    { to: '/pets', label: 'Pets', icon: '🐾' },
+    { to: '/market', label: 'Market', icon: '🛒' },
+    { to: '/vault', label: 'Vault', icon: '🔐' }
+  ]
+
+  const extended = [
+    { to: '/grow', label: 'Grow Operation', icon: '🌿', show: hasWarehouse.value },
+    { to: '/real-estate?tab=businesses', label: 'Business', icon: '🏭', show: hasBusiness.value },
+    { to: '/cartel', label: 'Drug Empire', icon: '🧪', show: hasCartel.value }
+  ]
+
+  return base
+    .concat(extended)
+    .filter(item => (typeof item.show === 'boolean' ? item.show : true))
+})
 
 async function loadBank() {
   try {
