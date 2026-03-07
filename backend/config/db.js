@@ -4,6 +4,34 @@ require('dotenv').config();
 
 // Prefer IPv4 loopback to avoid macOS ::1 resolution issues
 const DEFAULT_URI = 'mongodb://127.0.0.1:27017/nizziacity';
+const URI_ENV_CANDIDATES = [
+  'MONGODB_URI', // primary
+  'MONGO_URL',
+  'MONGO_URI',
+  'DATABASE_URL',
+];
+
+function resolveMongoUri() {
+  for (const key of URI_ENV_CANDIDATES) {
+    if (process.env[key]) {
+      return { uri: process.env[key], source: key };
+    }
+  }
+  return { uri: DEFAULT_URI, source: 'DEFAULT' };
+}
+
+function redactUri(uri) {
+  try {
+    const parsed = new URL(uri);
+    if (parsed.password) {
+      parsed.password = '***';
+    }
+    return parsed.toString();
+  } catch (err) {
+    // Not a standard URI (could be mongodb+srv); fall back to raw string with credentials stripped
+    return uri.replace(/(mongodb(?:\+srv)?:\/\/)(.+?)@/, '$1***@');
+  }
+}
 
 function logConn(){
     const c = mongoose.connection;
@@ -18,7 +46,7 @@ function wireDiagnostics(){
 }
 
 const connectDB = async () => {
-    const uri = process.env.MONGODB_URI || DEFAULT_URI;
+    const { uri, source } = resolveMongoUri();
     const opts = {
         // Reduce long hangs and prefer IPv4
         serverSelectionTimeoutMS: 10000,
@@ -29,6 +57,7 @@ const connectDB = async () => {
         autoIndex: true,
     };
     wireDiagnostics();
+    console.log(`[Mongo] Using URI from ${source}: ${redactUri(uri)}`);
 
     const maxAttempts = 5;
     let attempt = 0;
