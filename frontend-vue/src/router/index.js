@@ -11,6 +11,9 @@ const Education = () => import('../pages/Education.vue')
 const Stocks = () => import('../pages/Stocks.vue')
 const Crimes = () => import('../pages/Crimes.vue')
 const CrimeSearchForCash = () => import('../pages/crime/SearchForCash.vue')
+const CrimePickpocket = () => import('../pages/crime/Pickpocket.vue')
+const CrimeBurglary = () => import('../pages/crime/Burglary.vue')
+const CrimeSmuggling = () => import('../pages/crime/Smuggling.vue')
 const Property = () => import('../pages/Property.vue')
 const Bank = () => import('../pages/Bank.vue')
 const Profile = () => import('../pages/Profile.vue')
@@ -48,6 +51,9 @@ const routes = [
   { path: '/stocks', name: 'stocks', component: Stocks },
   { path: '/crimes', name: 'crimes', component: Crimes },
   { path: '/crimes/search-for-cash', name: 'crime-search-for-cash', component: CrimeSearchForCash },
+  { path: '/crimes/pickpocket', name: 'crime-pickpocket', component: CrimePickpocket },
+  { path: '/crimes/burglary', name: 'crime-burglary', component: CrimeBurglary },
+  { path: '/crimes/smuggling', name: 'crime-smuggling', component: CrimeSmuggling },
   { path: '/property', name: 'property', component: Property },
   { path: '/bank', name: 'bank', component: Bank },
   { path: '/profile', name: 'profile', component: Profile },

@@ -141,8 +141,9 @@ const crimes = computed(() => ([
     cooldown: '4m',
     icon: '🧤',
     tag: 'Stealth',
-    status: 'soon',
-    cta: 'Brevemente'
+    status: 'available',
+    cta: 'Iniciar',
+    route: { name: 'crime-pickpocket' }
   },
   {
     id: 'burglary',
@@ -153,8 +154,9 @@ const crimes = computed(() => ([
     cooldown: '12m',
     icon: '🕵️‍♂️',
     tag: 'Heist',
-    status: 'soon',
-    cta: 'Fila de espera'
+    status: 'available',
+    cta: 'Iniciar',
+    route: { name: 'crime-burglary' }
   },
   {
     id: 'smuggling',
@@ -165,8 +167,9 @@ const crimes = computed(() => ([
     cooldown: '1h',
     icon: '🚁',
     tag: 'Logistics',
-    status: 'locked',
-    cta: 'Requer reputação'
+    status: 'available',
+    cta: 'Iniciar',
+    route: { name: 'crime-smuggling' }
   }
 ]))
 
