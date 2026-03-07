@@ -5,6 +5,16 @@ const { CRIMES, LOCATION } = require('../config/crimes/search_for_cash');
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)] }
 function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min }
 
+function ensureCrimeMap(player) {
+	if (!player.crime) player.crime = { last: new Map() };
+	if (!player.crime.last) player.crime.last = new Map();
+	// Handle legacy plain-object storage
+	if (typeof player.crime.last.get !== 'function') {
+		player.crime.last = new Map(Object.entries(player.crime.last || {}));
+	}
+	return player.crime.last;
+}
+
 function findLocationById(id) {
 	const entries = Object.values(LOCATION || {})
 	return entries.find(l => l.id === id || l.id === String(id)) || null
@@ -27,8 +37,23 @@ async function searchForCash(req, res) {
 		const crime = CRIMES.search_for_cash
 		const allowedLocs = Array.isArray(crime.location) ? crime.location : [crime.location].filter(Boolean)
 		const nerveCost = Number(crime.nerveCost || 1)
+		const cooldownSeconds = Number(crime.cooldownSeconds || 0)
 		const nerve = Number(player.nerveStats?.nerve || 0)
 		if (nerve < nerveCost) return res.status(400).json({ error: 'Not enough nerve' })
+
+		let lastAttempt = null
+		if (cooldownSeconds > 0) {
+			const crimeMap = ensureCrimeMap(player)
+			lastAttempt = crimeMap.get(crime.id)
+			const lastMs = lastAttempt ? new Date(lastAttempt).getTime() : 0
+			if (lastMs > 0) {
+				const diffSeconds = Math.floor((Date.now() - lastMs) / 1000)
+				const remaining = cooldownSeconds - diffSeconds
+				if (remaining > 0) {
+					return res.status(429).json({ error: 'Cooldown ativo', secondsLeft: remaining })
+				}
+			}
+		}
 
 		// Resolve location: require selection and validate against config list
 		if (!locationId) return res.status(400).json({ error: 'locationId is required' })
@@ -91,13 +116,18 @@ async function searchForCash(req, res) {
 			}
 
 		// Apply gains and costs
-				if (outcome === 'success') {
-				player.$locals._txMeta = { type: 'crime', description: `Crime payout` };
-				player.money = Number((Number(player.money || 0) + Number(awarded.money || 0)).toFixed(2))
-			}
+			if (outcome === 'success') {
+			player.$locals._txMeta = { type: 'crime', description: `Crime payout` };
+			player.money = Number((Number(player.money || 0) + Number(awarded.money || 0)).toFixed(2))
+		}
 		if (player.nerveStats) player.nerveStats.nerve = Math.max(0, Number(nerve - nerveCost))
 
-				// No cooldown recorded
+		// Record cooldown timestamp for this crime
+		if (cooldownSeconds > 0) {
+			const crimeMap = ensureCrimeMap(player)
+			crimeMap.set(crime.id, new Date())
+			player.markModified('crime')
+		}
 
 			// Update counters and XP
 			player.crimesCommitted = Number(player.crimesCommitted || 0) + 1
@@ -133,43 +163,49 @@ async function searchForCash(req, res) {
 
 		await player.save()
 
-				const response = {
-				ok: true,
-				location: loc.id,
-				awarded,
-				warnings,
-					outcome,
-					xpGained,
-				money: player.money,
-				nerve: player.nerveStats?.nerve || 0,
+		const response = {
+			ok: true,
+			location: loc.id,
+			awarded,
+			warnings,
+			outcome,
+			xpGained,
+			money: player.money,
+			nerve: player.nerveStats?.nerve || 0,
+		}
+		if (cooldownSeconds > 0) {
+			response.cooldown = {
+				secondsLeft: cooldownSeconds,
+				endsAt: new Date(Date.now() + cooldownSeconds * 1000).toISOString(),
 			}
+		}
 		return res.json(response)
 	} catch (e) {
 		return res.status(500).json({ error: e.message })
 	}
 }
 
-		async function getLocations(req, res) {
-			try {
-				// Return locations for search_for_cash based on config list
-				const crime = CRIMES.search_for_cash
-				const allowedIds = Array.isArray(crime.location) ? crime.location : [crime.location].filter(Boolean)
-				// Helper to determine time-of-day bucket
-				const hour = new Date().getHours()
-				const bucket = hour >= 6 && hour < 12 ? 'morning' : hour >= 12 && hour < 18 ? 'afternoon' : hour >= 18 && hour < 22 ? 'evening' : 'night'
-				const list = allowedIds
-					.map((id) => Object.values(LOCATION || {}).find((l) => l.id === id))
-					.filter(Boolean)
-					.map((l) => {
-						const table = l.PopularityAt || {}
-						const perc = Number(table[bucket] || 50)
-						const popularity = Math.max(0, Math.min(1, perc / 100))
-						return { id: l.id, name: l.name, popularity }
-					})
-				res.json({ locations: list })
-			} catch (e) {
-				res.status(500).json({ error: e.message })
-			}
+	async function getLocations(req, res) {
+		try {
+			// Return locations for search_for_cash based on config list
+			const crime = CRIMES.search_for_cash
+			const allowedIds = Array.isArray(crime.location) ? crime.location : [crime.location].filter(Boolean)
+			// Helper to determine time-of-day bucket
+			const hour = new Date().getHours()
+			const bucket = hour >= 6 && hour < 12 ? 'morning' : hour >= 12 && hour < 18 ? 'afternoon' : hour >= 18 && hour < 22 ? 'evening' : 'night'
+			const list = allowedIds
+				.map((id) => Object.values(LOCATION || {}).find((l) => l.id === id))
+				.filter(Boolean)
+				.map((l) => {
+					const table = l.PopularityAt || {}
+					const perc = Number(table[bucket] || 50)
+					const popularity = Math.max(0, Math.min(1, perc / 100))
+					return { id: l.id, name: l.name, popularity }
+				})
+			res.json({ locations: list })
+		} catch (e) {
+			res.status(500).json({ error: e.message })
 		}
+	}
 
-		module.exports = { searchForCash, getLocations }
+module.exports = { searchForCash, getLocations }

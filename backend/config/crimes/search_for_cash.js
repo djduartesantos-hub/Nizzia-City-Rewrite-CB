@@ -60,6 +60,7 @@ const CRIMES = {
     // Reference by location id string to avoid circular refs
     location: ['subway_station', 'trash', 'junkyard'],
     nerveCost: 2, 
+    cooldownSeconds: 60,
     expPerSuccess: 10,
     expPerFail: 1,
   },

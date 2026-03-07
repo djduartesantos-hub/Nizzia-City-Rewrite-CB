@@ -123,7 +123,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import api from '../../api/client'
 import { usePlayer } from '../../composables/usePlayer'
 import { useToast } from '../../composables/useToast'
@@ -135,11 +135,13 @@ const busy = ref(false)
 const last = ref(null)
 const locations = ref([])
 const selLoc = ref('')
+const cooldownLeft = ref(0)
+let cooldownTimer = null
 
 const nerve = computed(() => store.player?.nerveStats?.nerve ?? 0)
 const nerveMax = computed(() => store.player?.nerveStats?.nerveMax ?? 0)
 const money = computed(() => fmtMoney(store.player?.money || 0))
-const canAct = computed(() => !!store.player?.user && nerve.value >= 1 && !!selLoc.value)
+const canAct = computed(() => !!store.player?.user && nerve.value >= 1 && !!selLoc.value && cooldownLeft.value === 0)
 const currentLocation = computed(() => locations.value.find(l => l.id === selLoc.value))
 const riskLabel = computed(() => {
   const pop = currentLocation.value?.popularity || 0
@@ -168,19 +170,48 @@ async function loadLocations(){
   } catch { locations.value = [] }
 }
 
+function clearCooldownTimer(){
+  if (cooldownTimer) {
+    clearInterval(cooldownTimer)
+    cooldownTimer = null
+  }
+}
+
+function startCooldown(seconds = 0){
+  const duration = Math.max(0, Number(seconds) || 0)
+  clearCooldownTimer()
+  cooldownLeft.value = duration
+  if (!duration) return
+  cooldownTimer = setInterval(() => {
+    if (cooldownLeft.value <= 1) {
+      cooldownLeft.value = 0
+      clearCooldownTimer()
+    } else {
+      cooldownLeft.value -= 1
+    }
+  }, 1000)
+}
+
 async function act(){
   if (!store.player?.user || !selLoc.value) return
   busy.value = true
   try {
     const { data } = await api.post('/crime/search-for-cash', { locationId: selLoc.value })
     last.value = data
+    if (data?.cooldown?.secondsLeft) startCooldown(data.cooldown.secondsLeft)
     store.mergePartial({ money: data.money })
+    if (store.player?.nerveStats) store.player.nerveStats.nerve = data.nerve
   } catch (e) {
-    toast.error(e?.response?.data?.error || e?.message || 'Failed')
+    const err = e?.response?.data?.error || e?.message || 'Failed'
+    const seconds = e?.response?.data?.secondsLeft
+    if (seconds) startCooldown(seconds)
+    last.value = { error: err }
+    toast.error(err)
   } finally { busy.value = false }
 }
 
 onMounted(async () => { await ensurePlayer(); await loadLocations() })
+onUnmounted(() => clearCooldownTimer())
 </script>
 
 <style scoped>
