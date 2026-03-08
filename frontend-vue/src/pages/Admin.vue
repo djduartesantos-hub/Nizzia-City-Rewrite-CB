@@ -375,213 +375,214 @@
             </div>
             <div class="muted" v-if="invStatus">{{ invStatus }}</div>
           </div>
-                <option value="medicine">medicine</option>
-                <option value="clothes">clothes</option>
-                <option value="tools">tools</option>
-                <option value="drugs">drugs</option>
-                <option value="collectibles">collectibles</option>
-              </select>
-            </div>
-            <div><label>Item id</label><input v-model="item.id" placeholder="string or number" /></div>
-            <div><label>Price</label><input v-model.number="item.price" type="number" min="0" /></div>
-            <div><label>Sellable</label>
-              <select v-model="item.sellable"><option :value="true">true</option><option :value="false">false</option></select>
-            </div>
-            <div><label>Usable</label>
-              <select v-model="item.usable"><option :value="true">true</option><option :value="false">false</option></select>
-            </div>
-            <div style="grid-column: 1 / -1"><label>Description</label><input v-model.trim="item.description" /></div>
-          </div>
-
-          <div class="row" v-if="['weapon','armor','clothes'].includes(item.type)">
-            <div>
-              <label>Subtype</label>
-              <select v-model="item.type2">
-                <option value="">— select —</option>
-                <option value="primaryWeapon">Primary Weapon</option>
-                <option value="secondaryWeapon">Secondary Weapon</option>
-                <option value="meleeWeapon">Melee Weapon</option>
-                <option value="head">Head</option>
-                <option value="torso">Torso</option>
-                <option value="pants">Pants</option>
-                <option value="shoes">Shoes</option>
-                <option value="legs">Legs</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="row" v-if="item.type==='weapon'">
-            <div><label>Damage</label><input v-model.number="item.damage" type="number" min="0" /></div>
-            <div><label>Quality</label><input v-model.number="item.quality" type="number" min="0" max="100" /></div>
-          </div>
-
-          <div class="row" v-if="item.type==='armor'">
-            <div><label>Armor</label><input v-model.number="item.armor" type="number" min="0" /></div>
-            <div><label>Coverage (%)</label><input v-model.number="item.coverage" type="number" min="0" max="100" /></div>
-            <div><label>Quality</label><input v-model.number="item.quality" type="number" min="0" max="100" /></div>
-          </div>
-
-          <div v-if="['medicine','alcohol','enhancers','drugs','booster','cache'].includes(item.type)" class="list">
-            <label>Effects</label>
-            <div class="row">
-              <div>
-                <label><input type="checkbox" v-model="ebEnable.energy" /> Energy Δ</label>
-                <input v-model.number="ebEnergy" type="number" placeholder="e.g. 250" />
-              </div>
-              <div>
-                <label><input type="checkbox" v-model="ebEnable.nerve" /> Nerve Δ</label>
-                <input v-model.number="ebNerve" type="number" placeholder="e.g. 5" />
-              </div>
-              <div>
-                <label><input type="checkbox" v-model="ebEnable.happy" /> Happiness Δ</label>
-                <input v-model.number="ebHappy" type="number" placeholder="e.g. 1000" />
-              </div>
-              <div>
-                <label><input type="checkbox" v-model="ebEnable.points" /> Points Δ</label>
-                <input v-model.number="ebPoints" type="number" placeholder="e.g. 5" />
-              </div>
-            </div>
-            <div class="row">
-              <div>
-                <label><input type="checkbox" v-model="ebEnable.b_str" /> Bonus Strength</label>
-                <input v-model.number="ebBonus.strength" type="number" placeholder="e.g. 100" />
-              </div>
-              <div>
-                <label><input type="checkbox" v-model="ebEnable.b_dex" /> Bonus Dexterity</label>
-                <input v-model.number="ebBonus.dexterity" type="number" placeholder="e.g. 100" />
-              </div>
-              <div>
-                <label><input type="checkbox" v-model="ebEnable.b_spd" /> Bonus Speed</label>
-                <input v-model.number="ebBonus.speed" type="number" placeholder="e.g. 100" />
-              </div>
-              <div>
-                <label><input type="checkbox" v-model="ebEnable.b_def" /> Bonus Defense</label>
-                <input v-model.number="ebBonus.defense" type="number" placeholder="e.g. 100" />
-              </div>
-            </div>
-
-            <label>Cooldowns</label>
-            <div class="row">
-              <div>
-                <label><input type="checkbox" v-model="ebEnable.cdAlcohol" /> Alcohol (sec)</label>
-                <input v-model.number="ebCooldowns.alcohol" type="number" placeholder="e.g. 3600" />
-              </div>
-              <div>
-                <label><input type="checkbox" v-model="ebEnable.cdBooster" /> Booster (sec)</label>
-                <input v-model.number="ebCooldowns.booster" type="number" placeholder="e.g. 1800" />
-              </div>
-              <div>
-                <label><input type="checkbox" v-model="ebEnable.cdDrug" /> Drug (sec)</label>
-                <input v-model.number="ebCooldowns.drug" type="number" placeholder="e.g. 43200" />
-              </div>
-              <div>
-                <label><input type="checkbox" v-model="ebEnable.cdMedical" /> Medical (sec)</label>
-                <input v-model.number="ebCooldowns.medical" type="number" placeholder="e.g. 7200" />
-              </div>
-            </div>
-
-            <div v-if="item.type==='cache'" class="list">
-              <label>Cache contents</label>
-              <div class="row">
-                <div><label>Money Min</label><input v-model.number="cacheMoneyMin" type="number" min="0" /></div>
-                <div><label>Money Max</label><input v-model.number="cacheMoneyMax" type="number" min="0" /></div>
-                <div><label>Money Chance (%)</label><input v-model.number="cacheMoneyChancePct" type="number" min="0" max="100" /></div>
-              </div>
-              <div class="row">
-                <div><label>Points Min</label><input v-model.number="cachePointsMin" type="number" min="0" /></div>
-                <div><label>Points Max</label><input v-model.number="cachePointsMax" type="number" min="0" /></div>
-                <div><label>Points Chance (%)</label><input v-model.number="cachePointsChancePct" type="number" min="0" max="100" /></div>
-              </div>
-              <div class="list">
-                <div class="list-row" v-for="(row, idx) in cacheItems" :key="idx">
-                  <div class="inline">
-                    <div><label>Item id</label><input v-model.trim="row.id" placeholder="custom Item.id" /></div>
-                    <div><label>Qty Min</label><input v-model.number="row.qtyMin" type="number" min="1" /></div>
-                    <div><label>Qty Max</label><input v-model.number="row.qtyMax" type="number" min="1" /></div>
-                    <div><label>Chance (%)</label><input v-model.number="row.chancePct" type="number" min="0" max="100" /></div>
-                  </div>
-                  <button class="secondary" @click="removeCacheItem(idx)">Remove</button>
-                </div>
-                <button class="secondary" @click="addCacheItem">+ Add cache item</button>
-              </div>
-            </div>
-          </div>
-
-          <div class="actions">
-            <button class="secondary" @click="presetXanax">Preset: Xanax</button>
-            <button class="secondary" @click="presetEnergy250">Preset: Energy +250</button>
-            <button class="secondary" @click="presetBoosterSmall">Preset: Booster Small</button>
-            <button class="secondary" @click="applyEffectBuilder">Apply to JSON</button>
-          </div>
-          <div class="row">
-            <div style="grid-column: 1 / -1">
-              <label>Effect (JSON)</label>
-              <textarea v-model.trim="effectJson" rows="3" @change="loadEffectFromJson"></textarea>
-            </div>
-          </div>
-
-          <div v-if="['alcohol','drugs'].includes(item.type)" class="row">
-            <div style="grid-column: 1 / -1"><label>Overdose Effect (JSON)</label><textarea v-model.trim="overdoseJson" rows="3"></textarea></div>
-          </div>
-
-          <div v-if="['tools','collectibles'].includes(item.type)" class="row">
-            <div style="grid-column: 1 / -1"><label>Passive Effect (JSON)</label><textarea v-model.trim="passiveJson" rows="3"></textarea></div>
-          </div>
-
-          <div class="actions">
-            <button @click="createItem">Create Item</button>
-            <button class="secondary" @click="downloadAllItems">Download all (JSON)</button>
-            <button class="secondary" @click="fetchItems">Refresh list</button>
-          </div>
-
-          <div class="list muted">{{ createItemStatus }}</div>
-
-          <div class="list">
-            <h4>All Items</h4>
-            <div v-if="items.length===0" class="muted">No items yet</div>
-            <div v-for="i in items" :key="i._id" class="list-row">
-              <div>
-                <div><strong>{{ i.name }}</strong> — {{ i.type }} (id={{ i.id }})</div>
-                <div class="muted" v-if="i.type2">Subtype: {{ i.type2 }}</div>
-              </div>
-              <button class="secondary" @click="deleteItem(i._id)">Delete</button>
-            </div>
-          </div>
-    <div class="tab-panel" v-show="currentTab === 'Mundo'">
-      <section class="section-block">
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow mini">Mercado urbano</p>
-            <h3>Finanças e banca</h3>
-            <p class="muted">Controla ações, contas de poupança e fluxos de juros.</p>
-          </div>
-        </div>
-        <div class="card-grid two-col">
-          <div class="card">
-            <h3>Estoque & Bolsa</h3>
-            <div class="inline">
-              <div><label>Symbol</label><input v-model.trim="stockSymbol" placeholder="e.g. FLY" /></div>
-              <div><label>Shares</label><input v-model.number="stockShares" type="number" min="1" /></div>
-              <div><label>Avg Price (opcional)</label><input v-model.number="stockAvgPrice" type="number" step="0.0001" /></div>
-              <button @click="stockAdd">Add</button>
-              <button class="secondary" @click="stockRemove">Remove</button>
-              <button class="secondary" title="Crash (-40% a -90%)" @click="stockCrash">Crash</button>
-              <button title="Rocket (+40% a +130%)" @click="stockRocket">Rocket</button>
-            </div>
-          </div>
 
           <div class="card card-full">
-            <h3>Accounts Bancárias</h3>
-            <div class="actions"><button @click="loadAccounts">Load Accounts</button></div>
-            <div class="list">
-              <div v-for="ac in bankAccounts" :key="ac._id" class="list-row">
-                <div>{{ ac._id }} | principal ${{ ac.depositedAmount }} | APR {{ ac.interestRate }}% | {{ ac.period }} | start {{ fmt(ac.startDate) }} | end {{ fmt(ac.endDate) }} | withdrawn {{ ac.isWithdrawn }}</div>
-                <button :disabled="ac.isWithdrawn" @click="forceWithdraw(ac._id)">Force Withdraw</button>
+            <h3>Criação de Itens</h3>
+            <div class="inline">
+              <div>
+                <label>Presets salvos</label>
+                <select v-model="selectedItemPresetId">
+                  <option value="">— nenhum —</option>
+                  <option v-for="preset in itemPresets" :key="preset._id" :value="preset._id">{{ preset.name }} — {{ preset.authorName || 'Admin' }}</option>
+                </select>
               </div>
-              <div v-if="bankAccounts.length===0" class="muted">Sem contas.</div>
+              <button class="secondary" :disabled="!selectedItemPresetId" @click="applyItemPreset">Carregar preset</button>
+              <button class="secondary" :disabled="!selectedItemPresetId" @click="deleteItemPresetClient">Apagar preset</button>
+            </div>
+            <div class="inline">
+              <div>
+                <label>Novo preset</label>
+                <input v-model.trim="newPresetName" placeholder="ex: Booster meta" />
+              </div>
+              <button :disabled="!newPresetName" @click="saveItemPreset">Guardar preset</button>
+              <button class="secondary" :disabled="presetsLoading" @click="loadItemPresets">Recarregar lista</button>
+            </div>
+            <div class="row">
+              <div><label>Name</label><input v-model.trim="item.name" /></div>
+              <div><label>Type</label>
+                <select v-model="item.type">
+                  <option value="weapon">weapon</option>
+                  <option value="alcohol">alcohol</option>
+                  <option value="booster">booster</option>
+                  <option value="cache">cache</option>
+                  <option value="armor">armor</option>
+                  <option value="medicine">medicine</option>
+                  <option value="clothes">clothes</option>
+                  <option value="tools">tools</option>
+                  <option value="drugs">drugs</option>
+                  <option value="collectibles">collectibles</option>
+                </select>
+              </div>
+              <div><label>Item id</label><input v-model="item.id" placeholder="string or number" /></div>
+              <div><label>Price</label><input v-model.number="item.price" type="number" min="0" /></div>
+              <div><label>Sellable</label>
+                <select v-model="item.sellable"><option :value="true">true</option><option :value="false">false</option></select>
+              </div>
+              <div><label>Usable</label>
+                <select v-model="item.usable"><option :value="true">true</option><option :value="false">false</option></select>
+              </div>
+              <div style="grid-column: 1 / -1"><label>Description</label><input v-model.trim="item.description" /></div>
+            </div>
+            <!-- restante do editor igual ao bloco completo anterior -->
+            <div class="row" v-if="['weapon','armor','clothes'].includes(item.type)">
+              <div>
+                <label>Subtype</label>
+                <select v-model="item.type2">
+                  <option value="">— select —</option>
+                  <option value="primaryWeapon">Primary Weapon</option>
+                  <option value="secondaryWeapon">Secondary Weapon</option>
+                  <option value="meleeWeapon">Melee Weapon</option>
+                  <option value="head">Head</option>
+                  <option value="torso">Torso</option>
+                  <option value="pants">Pants</option>
+                  <option value="shoes">Shoes</option>
+                  <option value="legs">Legs</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="row" v-if="item.type==='weapon'">
+              <div><label>Damage</label><input v-model.number="item.damage" type="number" min="0" /></div>
+              <div><label>Quality</label><input v-model.number="item.quality" type="number" min="0" max="100" /></div>
+            </div>
+
+            <div class="row" v-if="item.type==='armor'">
+              <div><label>Armor</label><input v-model.number="item.armor" type="number" min="0" /></div>
+              <div><label>Coverage (%)</label><input v-model.number="item.coverage" type="number" min="0" max="100" /></div>
+              <div><label>Quality</label><input v-model.number="item.quality" type="number" min="0" max="100" /></div>
+            </div>
+
+            <div v-if="['medicine','alcohol','enhancers','drugs','booster','cache'].includes(item.type)" class="list">
+              <label>Effects</label>
+              <div class="row">
+                <div>
+                  <label><input type="checkbox" v-model="ebEnable.energy" /> Energy Δ</label>
+                  <input v-model.number="ebEnergy" type="number" placeholder="e.g. 250" />
+                </div>
+                <div>
+                  <label><input type="checkbox" v-model="ebEnable.nerve" /> Nerve Δ</label>
+                  <input v-model.number="ebNerve" type="number" placeholder="e.g. 5" />
+                </div>
+                <div>
+                  <label><input type="checkbox" v-model="ebEnable.happy" /> Happiness Δ</label>
+                  <input v-model.number="ebHappy" type="number" placeholder="e.g. 1000" />
+                </div>
+                <div>
+                  <label><input type="checkbox" v-model="ebEnable.points" /> Points Δ</label>
+                  <input v-model.number="ebPoints" type="number" placeholder="e.g. 5" />
+                </div>
+              </div>
+              <div class="row">
+                <div>
+                  <label><input type="checkbox" v-model="ebEnable.b_str" /> Bonus Strength</label>
+                  <input v-model.number="ebBonus.strength" type="number" placeholder="e.g. 100" />
+                </div>
+                <div>
+                  <label><input type="checkbox" v-model="ebEnable.b_dex" /> Bonus Dexterity</label>
+                  <input v-model.number="ebBonus.dexterity" type="number" placeholder="e.g. 100" />
+                </div>
+                <div>
+                  <label><input type="checkbox" v-model="ebEnable.b_spd" /> Bonus Speed</label>
+                  <input v-model.number="ebBonus.speed" type="number" placeholder="e.g. 100" />
+                </div>
+                <div>
+                  <label><input type="checkbox" v-model="ebEnable.b_def" /> Bonus Defense</label>
+                  <input v-model.number="ebBonus.defense" type="number" placeholder="e.g. 100" />
+                </div>
+              </div>
+
+              <label>Cooldowns</label>
+              <div class="row">
+                <div>
+                  <label><input type="checkbox" v-model="ebEnable.cdAlcohol" /> Alcohol (sec)</label>
+                  <input v-model.number="ebCooldowns.alcohol" type="number" placeholder="e.g. 3600" />
+                </div>
+                <div>
+                  <label><input type="checkbox" v-model="ebEnable.cdBooster" /> Booster (sec)</label>
+                  <input v-model.number="ebCooldowns.booster" type="number" placeholder="e.g. 1800" />
+                </div>
+                <div>
+                  <label><input type="checkbox" v-model="ebEnable.cdDrug" /> Drug (sec)</label>
+                  <input v-model.number="ebCooldowns.drug" type="number" placeholder="e.g. 43200" />
+                </div>
+                <div>
+                  <label><input type="checkbox" v-model="ebEnable.cdMedical" /> Medical (sec)</label>
+                  <input v-model.number="ebCooldowns.medical" type="number" placeholder="e.g. 7200" />
+                </div>
+              </div>
+
+              <div v-if="item.type==='cache'" class="list">
+                <label>Cache contents</label>
+                <div class="row">
+                  <div><label>Money Min</label><input v-model.number="cacheMoneyMin" type="number" min="0" /></div>
+                  <div><label>Money Max</label><input v-model.number="cacheMoneyMax" type="number" min="0" /></div>
+                  <div><label>Money Chance (%)</label><input v-model.number="cacheMoneyChancePct" type="number" min="0" max="100" /></div>
+                </div>
+                <div class="row">
+                  <div><label>Points Min</label><input v-model.number="cachePointsMin" type="number" min="0" /></div>
+                  <div><label>Points Max</label><input v-model.number="cachePointsMax" type="number" min="0" /></div>
+                  <div><label>Points Chance (%)</label><input v-model.number="cachePointsChancePct" type="number" min="0" max="100" /></div>
+                </div>
+                <div class="list">
+                  <div class="list-row" v-for="(row, idx) in cacheItems" :key="idx">
+                    <div class="inline">
+                      <div><label>Item id</label><input v-model.trim="row.id" placeholder="custom Item.id" /></div>
+                      <div><label>Qty Min</label><input v-model.number="row.qtyMin" type="number" min="1" /></div>
+                      <div><label>Qty Max</label><input v-model.number="row.qtyMax" type="number" min="1" /></div>
+                      <div><label>Chance (%)</label><input v-model.number="row.chancePct" type="number" min="0" max="100" /></div>
+                    </div>
+                    <button class="secondary" @click="removeCacheItem(idx)">Remove</button>
+                  </div>
+                  <button class="secondary" @click="addCacheItem">+ Add cache item</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="actions">
+              <button class="secondary" @click="presetXanax">Preset: Xanax</button>
+              <button class="secondary" @click="presetEnergy250">Preset: Energy +250</button>
+              <button class="secondary" @click="presetBoosterSmall">Preset: Booster Small</button>
+              <button class="secondary" @click="applyEffectBuilder">Apply to JSON</button>
+            </div>
+            <div class="row">
+              <div style="grid-column: 1 / -1">
+                <label>Effect (JSON)</label>
+                <textarea v-model.trim="effectJson" rows="3" @change="loadEffectFromJson"></textarea>
+              </div>
+            </div>
+
+            <div v-if="['alcohol','drugs'].includes(item.type)" class="row">
+              <div style="grid-column: 1 / -1"><label>Overdose Effect (JSON)</label><textarea v-model.trim="overdoseJson" rows="3"></textarea></div>
+            </div>
+
+            <div v-if="['tools','collectibles'].includes(item.type)" class="row">
+              <div style="grid-column: 1 / -1"><label>Passive Effect (JSON)</label><textarea v-model.trim="passiveJson" rows="3"></textarea></div>
+            </div>
+
+            <div class="actions">
+              <button @click="createItem">Create Item</button>
+              <button class="secondary" @click="downloadAllItems">Download all (JSON)</button>
+              <button class="secondary" @click="fetchItems">Refresh list</button>
+            </div>
+
+            <div class="list muted">{{ createItemStatus }}</div>
+
+            <div class="list">
+              <h4>All Items</h4>
+              <div v-if="items.length===0" class="muted">No items yet</div>
+              <div v-for="i in items" :key="i._id" class="list-row">
+                <div>
+                  <div><strong>{{ i.name }}</strong> — {{ i.type }} (id={{ i.id }})</div>
+                  <div class="muted" v-if="i.type2">Subtype: {{ i.type2 }}</div>
+                </div>
+                <button class="secondary" @click="deleteItem(i._id)">Delete</button>
+              </div>
             </div>
           </div>
         </div>
+        <div v-if="!profile" class="empty-state">Carrega um jogador para gerir inventário e itens.</div>
+      </section>
+    </div>
       </section>
 
       <section class="section-block">
