@@ -238,9 +238,11 @@ import { useRouter } from 'vue-router'
 import api from '../api/client'
 import { useToast } from '../composables/useToast'
 import { fmtDate as fmt } from '../utils/format'
+import { usePlayer } from '../composables/usePlayer'
 
 const toast = useToast()
 const router = useRouter()
+const { reloadPlayer, ensurePlayer } = usePlayer()
 const DEFAULT_WALKIN_WINDOW_SECONDS = 1800
 
 const patients = ref([])
@@ -508,6 +510,26 @@ async function startWalkInTreatmentAction(){
   try {
     const res = await api.post('/world/hospital/walk-in')
     toast.ok(res.data?.message || 'Tratamento iniciado')
+    if (res.data) {
+      const { health, money, cooldownRemaining } = res.data
+      // Merge quick stats so HUD reflects immediately; fallback to full reload if missing
+      if (Number.isFinite(health) || Number.isFinite(money)) {
+        try {
+          const store = usePlayer().store
+          const patch = {}
+          if (Number.isFinite(health)) patch.health = Number(health)
+          if (Number.isFinite(money)) patch.money = Number(money)
+          if (Number.isFinite(cooldownRemaining)) {
+            patch.cooldowns = { ...(store.player?.cooldowns || {}), medicalCooldown: cooldownRemaining }
+          }
+          if (Object.keys(patch).length) store.mergePartial(patch)
+        } catch {
+          await reloadPlayer()
+        }
+      } else {
+        await reloadPlayer()
+      }
+    }
     await loadWalkInQuote()
     await loadEvents()
   } catch (e) {
@@ -526,6 +548,7 @@ function setupAutoRefresh(){
 }
 
 onMounted(async () => {
+  await ensurePlayer()
   await Promise.all([loadPatients(), loadEvents()])
   await loadWalkInQuote()
   setupAutoRefresh()
