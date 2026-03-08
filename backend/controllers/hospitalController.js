@@ -1,5 +1,6 @@
 const Player = require('../models/Player')
 const HospitalEvent = require('../models/HospitalEvent')
+const { getConfig } = require('../services/worldConfigService')
 
 async function ensureAuthPlayer(req) {
   const userId = req.authUserId
@@ -9,14 +10,23 @@ async function ensureAuthPlayer(req) {
   return player
 }
 
-function calcReviveCost(player) {
-  const seconds = Math.max(120, Number(player.hospitalTime) || 0)
-  const severity = Math.max(1, Math.ceil(seconds / 300))
-  const levelFactor = Math.max(1, Number(player.level) || 1)
-  return severity * 20000 + levelFactor * 500
+async function loadHospitalConfig() {
+  return getConfig('hospital')
 }
 
-function mapPatient(doc, historyMap) {
+function calcReviveCost(player, config) {
+  const cfg = config || {}
+  const base = Number(cfg.reviveBase) || 0
+  const blockSeconds = Math.max(60, Number(cfg.reviveBlockSeconds) || 300)
+  const perBlock = Number(cfg.revivePerBlock) || 0
+  const levelFactor = Number(cfg.reviveLevelFactor) || 0
+  const seconds = Math.max(Number(cfg.minHospitalSeconds) || 0, Number(player.hospitalTime) || 0)
+  const blocks = Math.max(1, Math.ceil(seconds / blockSeconds))
+  const level = Math.max(1, Number(player.level) || 1)
+  return Math.round(base + perBlock * blocks + levelFactor * level)
+}
+
+function mapPatient(doc, historyMap, config) {
   const userId = String(doc.user)
   return {
     userId,
@@ -28,13 +38,14 @@ function mapPatient(doc, historyMap) {
     gang: doc.affiliation?.gang || null,
     cause: doc.lastDamage?.source || 'Grave ferimento',
     lastDamageAt: doc.lastDamage?.ts || null,
-    reviveCost: calcReviveCost(doc),
+    reviveCost: calcReviveCost(doc, config),
     history: historyMap[userId] || [],
   }
 }
 
 async function listPatients(req, res) {
   try {
+    const config = await loadHospitalConfig()
     const page = Math.max(1, Number(req.query.page) || 1)
     const limit = Math.min(50, Math.max(5, Number(req.query.limit) || 20))
     const sort = String(req.query.sort || 'time_desc')
@@ -87,7 +98,7 @@ async function listPatients(req, res) {
       }
     }
 
-    const patients = docs.map((doc) => mapPatient(doc, historyMap))
+    const patients = docs.map((doc) => mapPatient(doc, historyMap, config))
 
     const avgAgg = await Player.aggregate([
       { $match: filter },
@@ -116,15 +127,17 @@ async function listPatients(req, res) {
 
 async function treatPatient(req, res) {
   try {
-    const medic = await ensureAuthPlayer(req)
+    const [medic, config] = await Promise.all([ensureAuthPlayer(req), loadHospitalConfig()])
     if (medic.hospitalized) return res.status(400).json({ error: 'Não podes tratar estando internado.' })
     const { targetUserId } = req.body
     if (!targetUserId) return res.status(400).json({ error: 'targetUserId é obrigatório' })
     const patient = await Player.findOne({ user: targetUserId })
     if (!patient || !patient.hospitalized) return res.status(404).json({ error: 'Jogador não está hospitalizado' })
 
-    const reduceSeconds = Math.min(Math.max(60, Number(req.body.seconds) || 180), patient.hospitalTime)
-    const healthGain = Math.max(5, Math.round(reduceSeconds / 3))
+    const defaultReduce = Math.max(30, Number(config.treatSeconds) || 180)
+    const reduceSeconds = Math.min(patient.hospitalTime, Math.max(30, Number(req.body.seconds) || defaultReduce))
+    const perSecond = Number(config.treatHealthPerSecond) || (1 / 3)
+    const healthGain = Math.max(5, Math.round(reduceSeconds * perSecond))
 
     patient.hospitalTime = Math.max(0, Number(patient.hospitalTime || 0) - reduceSeconds)
     patient.health = Math.min(9999, Number(patient.health || 0) + healthGain)
@@ -161,13 +174,15 @@ async function treatPatient(req, res) {
 
 async function revivePatient(req, res) {
   try {
-    const healer = await ensureAuthPlayer(req)
+    const [healer, config] = await Promise.all([ensureAuthPlayer(req), loadHospitalConfig()])
     const { targetUserId } = req.body
     if (!targetUserId) return res.status(400).json({ error: 'targetUserId é obrigatório' })
     const patient = await Player.findOne({ user: targetUserId })
     if (!patient || !patient.hospitalized) return res.status(404).json({ error: 'Jogador não está hospitalizado' })
 
-    const cost = calcReviveCost(patient)
+    if (config.allowPaidRevive === false) return res.status(403).json({ error: 'Revives pagos estão desativados pelo admin.' })
+
+    const cost = calcReviveCost(patient, config)
     if (Number(healer.money || 0) < cost) return res.status(400).json({ error: 'Saldo insuficiente para reviver' })
 
     healer.money = Number(healer.money || 0) - cost
@@ -180,7 +195,8 @@ async function revivePatient(req, res) {
 
     patient.hospitalized = false
     patient.hospitalTime = 0
-    patient.health = Math.max(150, patient.health || 0)
+    const floor = Math.max(1, Number(config.reviveHealthFloor) || 150)
+    patient.health = Math.max(floor, patient.health || 0)
 
     await Promise.all([healer.save(), patient.save()])
 

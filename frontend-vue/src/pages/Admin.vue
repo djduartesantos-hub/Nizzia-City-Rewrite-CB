@@ -603,6 +603,141 @@
             <button class="secondary" @click="dbPurge">DROP DB</button>
           </div>
         </div>
+
+        <div class="card card-full world-config-card">
+          <div class="card-header">
+            <h3>Gestão de Prisão & Hospital</h3>
+            <small>Parâmetros globais e ações rápidas</small>
+            <div class="actions">
+              <button class="secondary" @click="loadWorldConfigs(true)">Recarregar</button>
+            </div>
+          </div>
+          <div v-if="worldLoading" class="muted">Carregando configurações…</div>
+          <div v-else class="world-sections">
+            <section>
+              <header>
+                <h4>Prisão</h4>
+                <div class="muted">Define fianças, tempos padrão e regras de fuga</div>
+              </header>
+              <div class="row">
+                <div><label>Min (s)</label><input v-model.number="worldConfigs.prison.minJailSeconds" type="number" min="60" /></div>
+                <div><label>Default (s)</label><input v-model.number="worldConfigs.prison.defaultJailSeconds" type="number" min="60" /></div>
+                <div><label>Cap (s)</label><input v-model.number="worldConfigs.prison.jailCapSeconds" type="number" min="60" /></div>
+              </div>
+              <div class="row">
+                <div><label>Bail base</label><input v-model.number="worldConfigs.prison.bailBase" type="number" min="0" /></div>
+                <div><label>Por bloco</label><input v-model.number="worldConfigs.prison.bailPerBlock" type="number" min="0" /></div>
+                <div><label>Tam bloco (s)</label><input v-model.number="worldConfigs.prison.bailBlockSeconds" type="number" min="60" /></div>
+                <div><label>Mult.</label><input v-model.number="worldConfigs.prison.bailMultiplier" type="number" min="0.1" step="0.1" /></div>
+              </div>
+              <div class="row">
+                <div><label>Penalty fuga (s)</label><input v-model.number="worldConfigs.prison.breakoutPenaltySeconds" type="number" min="0" /></div>
+                <div><label>Penalty cap (s)</label><input v-model.number="worldConfigs.prison.breakoutPenaltyCapSeconds" type="number" min="0" /></div>
+                <div><label>Chance base fuga</label><input v-model.number="worldConfigs.prison.breakoutBaseChance" type="number" step="0.01" min="0" max="1" /></div>
+                <div><label>Bónus lvl fuga</label><input v-model.number="worldConfigs.prison.breakoutLevelBonus" type="number" step="0.001" min="0" max="1" /></div>
+              </div>
+              <div class="row">
+                <label class="toggle">
+                  <input type="checkbox" v-model="worldConfigs.prison.breakoutAssistEnabled" />
+                  <span>Permitir assistências de fuga</span>
+                </label>
+              </div>
+              <div class="actions">
+                <button @click="forceJail()">Prender target</button>
+                <button class="secondary" @click="releaseTarget('prison')">Libertar target</button>
+                <button :disabled="worldSaving.prison" @click="savePrisonConfig">Guardar Prisão</button>
+              </div>
+            </section>
+
+            <section>
+              <header>
+                <h4>Hospital</h4>
+                <div class="muted">Custos de revive, tratamentos e limites</div>
+              </header>
+              <div class="row">
+                <div><label>Min (s)</label><input v-model.number="worldConfigs.hospital.minHospitalSeconds" type="number" min="60" /></div>
+                <div><label>Default (s)</label><input v-model.number="worldConfigs.hospital.defaultHospitalSeconds" type="number" min="60" /></div>
+                <div><label>Cap (s)</label><input v-model.number="worldConfigs.hospital.hospitalCapSeconds" type="number" min="60" /></div>
+              </div>
+              <div class="row">
+                <div><label>Tratamento (s)</label><input v-model.number="worldConfigs.hospital.treatSeconds" type="number" min="30" /></div>
+                <div><label>HP/s tratamento</label><input v-model.number="worldConfigs.hospital.treatHealthPerSecond" type="number" step="0.1" min="0" /></div>
+                <div><label>Revive base</label><input v-model.number="worldConfigs.hospital.reviveBase" type="number" min="0" /></div>
+                <div><label>Revive por bloco</label><input v-model.number="worldConfigs.hospital.revivePerBlock" type="number" min="0" /></div>
+              </div>
+              <div class="row">
+                <div><label>Tam bloco (s)</label><input v-model.number="worldConfigs.hospital.reviveBlockSeconds" type="number" min="60" /></div>
+                <div><label>Factor lvl</label><input v-model.number="worldConfigs.hospital.reviveLevelFactor" type="number" min="0" /></div>
+                <div><label>HP mínimo revive</label><input v-model.number="worldConfigs.hospital.reviveHealthFloor" type="number" min="1" /></div>
+              </div>
+              <div class="row">
+                <label class="toggle">
+                  <input type="checkbox" v-model="worldConfigs.hospital.allowPaidRevive" />
+                  <span>Permitir revives pagos</span>
+                </label>
+              </div>
+              <div class="actions">
+                <button @click="forceHospital()">Hospitalizar target</button>
+                <button class="secondary" @click="releaseTarget('hospital')">Dar alta</button>
+                <button :disabled="worldSaving.hospital" @click="saveHospitalConfig">Guardar Hospital</button>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <div class="card card-full world-config-card">
+          <div class="card-header">
+            <h3>Punições de Crimes</h3>
+            <small>Controla dano, hospitalizações e prisão automática</small>
+          </div>
+          <div v-if="worldLoading" class="muted">Carregando…</div>
+          <div v-else class="world-sections single">
+            <section>
+              <div class="row">
+                <label class="toggle">
+                  <input type="checkbox" v-model="worldConfigs.crime.enableHealthLoss" />
+                  <span>Perder vida em critic fail</span>
+                </label>
+                <label class="toggle">
+                  <input type="checkbox" v-model="worldConfigs.crime.enableHospitalize" />
+                  <span>Enviar para hospital</span>
+                </label>
+                <label class="toggle">
+                  <input type="checkbox" v-model="worldConfigs.crime.enableJail" />
+                  <span>Possível prisão</span>
+                </label>
+                <label class="toggle">
+                  <input type="checkbox" v-model="worldConfigs.crime.logEvents" />
+                  <span>Logar eventos</span>
+                </label>
+              </div>
+              <div class="row">
+                <div><label>Dano %</label><input v-model.number="worldConfigs.crime.criticalHpLossPercent" type="number" min="0" max="100" /></div>
+                <div><label>Dano fixo</label><input v-model.number="worldConfigs.crime.criticalHpLossFlat" type="number" min="0" /></div>
+                <div><label>HP mínimo antes hospital</label><input v-model.number="worldConfigs.crime.hospitalizeBelowHealth" type="number" min="0" /></div>
+              </div>
+              <div class="row">
+                <div><label>Hospital base (s)</label><input v-model.number="worldConfigs.crime.hospitalSeconds" type="number" min="0" /></div>
+                <div><label>Hospital var (s)</label><input v-model.number="worldConfigs.crime.hospitalVarianceSeconds" type="number" min="0" /></div>
+                <div><label>HP mínimo ao internar</label><input v-model.number="worldConfigs.crime.hospitalHealthFloor" type="number" min="0" /></div>
+              </div>
+              <div class="row">
+                <div><label>Prisão chance (%)</label><input v-model.number="worldConfigs.crime.jailChancePercent" type="number" min="0" max="100" /></div>
+                <div><label>Prisão base (s)</label><input v-model.number="worldConfigs.crime.jailSeconds" type="number" min="0" /></div>
+                <div><label>Prisão var (s)</label><input v-model.number="worldConfigs.crime.jailVarianceSeconds" type="number" min="0" /></div>
+                <div><label>Prisão cap (s)</label><input v-model.number="worldConfigs.crime.jailMaxSeconds" type="number" min="0" /></div>
+              </div>
+              <div class="row">
+                <div><label>Severidade (minor)</label><input v-model.number="worldConfigs.crime.severityMultipliers.minor" type="number" step="0.1" min="0" /></div>
+                <div><label>Severidade (moderate)</label><input v-model.number="worldConfigs.crime.severityMultipliers.moderate" type="number" step="0.1" min="0" /></div>
+                <div><label>Severidade (major)</label><input v-model.number="worldConfigs.crime.severityMultipliers.major" type="number" step="0.1" min="0" /></div>
+              </div>
+              <div class="actions">
+                <button :disabled="worldSaving.crime" @click="saveCrimeConfig">Guardar Crimes</button>
+              </div>
+            </section>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -697,7 +832,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, reactive, onMounted, watch, computed } from 'vue'
 import api from '../api/client'
 import { useToast } from '../composables/useToast'
 import { fmtInt as num, fmtDate as fmt } from '../utils/format'
@@ -816,6 +951,163 @@ const cartelRanks = [
   { level: 8, name: 'El Padrino',         xpRequired: 200000 },
   { level: 9, name: 'The One Who Knocks', xpRequired: 500000 },
 ]
+
+const worldBase = {
+  prison: {
+    jailCapSeconds: 86400,
+    minJailSeconds: 300,
+    defaultJailSeconds: 3600,
+    bailBase: 25000,
+    bailPerBlock: 5000,
+    bailBlockSeconds: 300,
+    bailMultiplier: 1,
+    breakoutPenaltySeconds: 180,
+    breakoutPenaltyCapSeconds: 1800,
+    breakoutBaseChance: 0.35,
+    breakoutLevelBonus: 0.01,
+    breakoutAssistEnabled: true,
+  },
+  hospital: {
+    hospitalCapSeconds: 86400,
+    minHospitalSeconds: 120,
+    defaultHospitalSeconds: 900,
+    treatSeconds: 180,
+    treatHealthPerSecond: 0.4,
+    reviveBase: 20000,
+    revivePerBlock: 4000,
+    reviveBlockSeconds: 300,
+    reviveLevelFactor: 500,
+    reviveHealthFloor: 150,
+    allowPaidRevive: true,
+  },
+  crime: {
+    enableHealthLoss: true,
+    criticalHpLossPercent: 25,
+    criticalHpLossFlat: 0,
+    enableHospitalize: true,
+    hospitalSeconds: 900,
+    hospitalVarianceSeconds: 120,
+    hospitalHealthFloor: 35,
+    hospitalizeBelowHealth: 20,
+    enableJail: true,
+    jailChancePercent: 35,
+    jailSeconds: 1200,
+    jailVarianceSeconds: 180,
+    jailMaxSeconds: 6400,
+    logEvents: true,
+    severityMultipliers: { minor: 0.6, moderate: 1, major: 1.4 },
+  },
+}
+
+function cloneWorldBase() {
+  return JSON.parse(JSON.stringify(worldBase))
+}
+
+const worldConfigs = reactive(cloneWorldBase())
+const worldLoading = ref(false)
+const worldLoaded = ref(false)
+const worldSaving = reactive({ prison: false, hospital: false, crime: false })
+
+function mergeWorldSection(section, incoming = {}) {
+  if (section === 'crime') {
+    const severity = incoming.severityMultipliers || {}
+    const rest = { ...incoming }
+    delete rest.severityMultipliers
+    Object.assign(worldConfigs.crime, rest)
+    worldConfigs.crime.severityMultipliers = {
+      ...worldConfigs.crime.severityMultipliers,
+      ...severity,
+    }
+    return
+  }
+  Object.assign(worldConfigs[section], incoming || {})
+}
+
+async function loadWorldConfigs(force = false) {
+  if (worldLoading.value) return
+  if (worldLoaded.value && !force) return
+  try {
+    worldLoading.value = true
+    const res = await api.get('/admin/world/config')
+    const configs = res.data?.configs || {}
+    mergeWorldSection('prison', configs.prison)
+    mergeWorldSection('hospital', configs.hospital)
+    mergeWorldSection('crime', configs.crime)
+    worldLoaded.value = true
+  } catch (e) {
+    toast.error(e?.response?.data?.error || 'Falha ao carregar configs globais')
+  } finally {
+    worldLoading.value = false
+  }
+}
+
+async function saveWorldSection(section, endpoint, trackerKey) {
+  try {
+    worldSaving[trackerKey] = true
+    await api.post(endpoint, worldConfigs[section])
+    toast.success('Configurações guardadas')
+  } catch (e) {
+    toast.error(e?.response?.data?.error || 'Falha ao guardar configuração')
+  } finally {
+    worldSaving[trackerKey] = false
+  }
+}
+
+const savePrisonConfig = () => saveWorldSection('prison', '/admin/world/config/prison', 'prison')
+const saveHospitalConfig = () => saveWorldSection('hospital', '/admin/world/config/hospital', 'hospital')
+const saveCrimeConfig = () => saveWorldSection('crime', '/admin/world/config/crime', 'crime')
+
+async function forceJail(secondsOverride) {
+  try {
+    const target = ensureTarget()
+    const jailTime = Math.max(60, Number(secondsOverride ?? worldConfigs.prison.defaultJailSeconds || 3600))
+    await api.patch('/admin/player/state', { targetUserId: target, jailed: true, jailTime })
+    toast.success('Jogador preso manualmente')
+  } catch (e) {
+    toast.error(e?.response?.data?.error || e?.message || 'Falha ao prender alvo')
+  }
+}
+
+async function forceHospital(secondsOverride) {
+  try {
+    const target = ensureTarget()
+    const hospitalTime = Math.max(60, Number(secondsOverride ?? worldConfigs.hospital.defaultHospitalSeconds || 900))
+    await api.patch('/admin/player/state', { targetUserId: target, hospitalized: true, hospitalTime })
+    toast.success('Jogador hospitalizado manualmente')
+  } catch (e) {
+    toast.error(e?.response?.data?.error || e?.message || 'Falha ao hospitalizar alvo')
+  }
+}
+
+async function releaseTarget(kind) {
+  try {
+    const target = ensureTarget()
+    const payload = { targetUserId: target }
+    if (kind === 'prison') {
+      payload.jailed = false
+      payload.jailTime = 0
+    } else if (kind === 'hospital') {
+      payload.hospitalized = false
+      payload.hospitalTime = 0
+    }
+    await api.patch('/admin/player/state', payload)
+    toast.success('Estado atualizado')
+  } catch (e) {
+    toast.error(e?.response?.data?.error || e?.message || 'Falha ao atualizar estado')
+  }
+}
+
+watch(currentTab, (tab) => {
+  if (tab === 'Mundo' && !worldLoaded.value) {
+    loadWorldConfigs()
+  }
+})
+
+onMounted(() => {
+  if (currentTab.value === 'Mundo') {
+    loadWorldConfigs()
+  }
+})
 
 
 // Cartel rep admin

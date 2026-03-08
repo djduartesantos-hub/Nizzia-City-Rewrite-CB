@@ -1,5 +1,6 @@
 const Player = require('../models/Player')
 const PrisonEvent = require('../models/PrisonEvent')
+const { getConfig } = require('../services/worldConfigService')
 
 async function ensureAuthPlayer(req) {
   const userId = req.authUserId
@@ -9,13 +10,22 @@ async function ensureAuthPlayer(req) {
   return player
 }
 
-function calcBailCost(player) {
-  const seconds = Math.max(60, Number(player.jailTime) || 0)
-  const severity = Math.max(1, Math.ceil(seconds / 300))
-  return severity * 25000
+async function loadPrisonConfig() {
+  return getConfig('prison')
 }
 
-function mapPrisoner(doc, historyMap) {
+function calcBailCost(player, config) {
+  const cfg = config || {}
+  const blockSeconds = Math.max(60, Number(cfg.bailBlockSeconds) || 300)
+  const jailSeconds = Math.max(Number(cfg.minJailSeconds) || 0, Number(player.jailTime) || 0)
+  const blocks = Math.max(1, Math.ceil(jailSeconds / blockSeconds))
+  const base = Number(cfg.bailBase) || 0
+  const perBlock = Number(cfg.bailPerBlock) || 0
+  const multiplier = Number(cfg.bailMultiplier) || 1
+  return Math.round((base + perBlock * blocks) * multiplier)
+}
+
+function mapPrisoner(doc, historyMap, config) {
   const userId = String(doc.user)
   return {
     userId,
@@ -27,7 +37,7 @@ function mapPrisoner(doc, historyMap) {
     arrestedAt: doc.lastCrime?.ts || null,
     arrestedBy: doc.lastCrime?.actor || null,
     gang: doc.affiliation?.gang || null,
-    bailCost: calcBailCost(doc),
+    bailCost: calcBailCost(doc, config),
     security: doc.securityTier || 'Médio',
     history: historyMap[userId] || [],
   }
@@ -35,6 +45,7 @@ function mapPrisoner(doc, historyMap) {
 
 async function listPrisoners(req, res) {
   try {
+    const config = await loadPrisonConfig()
     const page = Math.max(1, Number(req.query.page) || 1)
     const limit = Math.min(50, Math.max(5, Number(req.query.limit) || 20))
     const sort = String(req.query.sort || 'time_desc')
@@ -86,7 +97,7 @@ async function listPrisoners(req, res) {
       }
     }
 
-    const prisoners = docs.map((doc) => mapPrisoner(doc, historyMap))
+    const prisoners = docs.map((doc) => mapPrisoner(doc, historyMap, config))
 
     const matchStage = { $match: filter }
     const avgAgg = await Player.aggregate([
@@ -116,7 +127,7 @@ async function listPrisoners(req, res) {
 
 async function attemptBreakout(req, res) {
   try {
-    const helper = await ensureAuthPlayer(req)
+    const [helper, config] = await Promise.all([ensureAuthPlayer(req), loadPrisonConfig()])
     if (helper.jailed) return res.status(400).json({ error: 'Não podes libertar alguém estando preso.' })
     const { targetUserId } = req.body
     if (!targetUserId) return res.status(400).json({ error: 'targetUserId is required' })
@@ -124,7 +135,10 @@ async function attemptBreakout(req, res) {
     const prisoner = await Player.findOne({ user: targetUserId })
     if (!prisoner || !prisoner.jailed) return res.status(404).json({ error: 'Jogador não está preso' })
 
-    const baseChance = 0.35 + Math.min(0.4, (helper.level || 1) * 0.01)
+    if (config.breakoutAssistEnabled === false) return res.status(403).json({ error: 'Assistências de fuga estão desativadas.' })
+    const baseChanceRaw = Number(config.breakoutBaseChance)
+    const levelBonus = Number(config.breakoutLevelBonus) || 0
+    const baseChance = Math.max(0.05, Math.min(0.95, (Number.isFinite(baseChanceRaw) ? baseChanceRaw : 0.35) + Math.min(0.4, (helper.level || 1) * levelBonus)))
     const roll = Math.random()
     const success = roll <= baseChance
 
@@ -132,7 +146,9 @@ async function attemptBreakout(req, res) {
       prisoner.jailed = false
       prisoner.jailTime = 0
     } else {
-      prisoner.jailTime = Math.min(86400, Number(prisoner.jailTime || 0) + 120)
+      const penalty = Math.max(0, Number(config.breakoutPenaltySeconds) || 0)
+      const cap = Math.max(penalty, Number(config.breakoutPenaltyCapSeconds) || 86400)
+      prisoner.jailTime = Math.min(cap, Number(prisoner.jailTime || 0) + penalty)
     }
     await prisoner.save()
 
@@ -167,12 +183,12 @@ async function attemptBreakout(req, res) {
 
 async function payBail(req, res) {
   try {
-    const payer = await ensureAuthPlayer(req)
+    const [payer, config] = await Promise.all([ensureAuthPlayer(req), loadPrisonConfig()])
     const { targetUserId } = req.body
     if (!targetUserId) return res.status(400).json({ error: 'targetUserId is required' })
     const prisoner = await Player.findOne({ user: targetUserId })
     if (!prisoner || !prisoner.jailed) return res.status(404).json({ error: 'Jogador não está preso' })
-    const cost = calcBailCost(prisoner)
+    const cost = calcBailCost(prisoner, config)
     if (Number(payer.money || 0) < cost) return res.status(400).json({ error: 'Saldo insuficiente para pagar a fiança' })
 
     payer.money = Number(payer.money || 0) - cost

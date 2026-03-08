@@ -31,6 +31,26 @@ const playerSchema = new mongoose.Schema({
   hospitalTime: { type: Number, default: 0 }, // seconds remaining
   jailed: { type: Boolean, default: false },
   jailTime: { type: Number, default: 0 }, // seconds remaining
+  lastCrime: {
+    type: {
+      type: String,
+      default: null,
+    },
+    actor: { type: String, default: null },
+    actorName: { type: String, default: null },
+    ts: { type: Date, default: null },
+    severity: { type: String, default: null },
+    notes: { type: String, default: null },
+  },
+  lastDamage: {
+    type: {
+      type: String,
+      default: null,
+    },
+    source: { type: String, default: null },
+    ts: { type: Date, default: null },
+    amount: { type: Number, default: 0 },
+  },
 
   money: { type: Number, default: 1000 }, // Player money
   points: { type: Number, default: 30 }, // Player points (premium currency)

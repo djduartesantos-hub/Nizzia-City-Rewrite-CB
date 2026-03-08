@@ -49,6 +49,12 @@ const {
   // database
   purgeDatabase,
 } = require('../controllers/adminController');
+const {
+  getWorldConfigsController,
+  updatePrisonConfig,
+  updateHospitalConfig,
+  updateCrimeConfig,
+} = require('../controllers/worldAdminController');
 
 // All admin routes require authentication
 router.use(requireAuth);
@@ -110,6 +116,12 @@ router.post('/general/give-money', giveMoneyToAll);
 
 // Cartel
 router.patch('/cartel/rep', setCartelRep);
+
+// World management (prisão/hospital/crimes)
+router.get('/world/config', getWorldConfigsController);
+router.post('/world/config/prison', updatePrisonConfig);
+router.post('/world/config/hospital', updateHospitalConfig);
+router.post('/world/config/crime', updateCrimeConfig);
 
 // Database maintenance (danger)
 router.post('/database/purge', purgeDatabase);

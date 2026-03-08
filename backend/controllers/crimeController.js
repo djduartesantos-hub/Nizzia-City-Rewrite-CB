@@ -1,5 +1,8 @@
 const Player = require('../models/Player');
 const Item = require('../models/Item');
+const HospitalEvent = require('../models/HospitalEvent');
+const PrisonEvent = require('../models/PrisonEvent');
+const { getConfig } = require('../services/worldConfigService');
 const { CRIMES, LOCATION } = require('../config/crimes/search_for_cash');
 
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)] }
@@ -13,6 +16,118 @@ function ensureCrimeMap(player) {
 		player.crime.last = new Map(Object.entries(player.crime.last || {}));
 	}
 	return player.crime.last;
+}
+
+const CRIME_CONFIG_TTL = 30 * 1000;
+let cachedCrimePunishConfig = null;
+let crimeConfigLoadedAt = 0;
+
+async function loadCrimePunishConfig(force = false) {
+	const now = Date.now();
+	if (!force && cachedCrimePunishConfig && (now - crimeConfigLoadedAt) < CRIME_CONFIG_TTL) {
+		return cachedCrimePunishConfig;
+	}
+	cachedCrimePunishConfig = await getConfig('crime');
+	crimeConfigLoadedAt = now;
+	return cachedCrimePunishConfig;
+}
+
+function applyVariance(base, variance) {
+	if (!variance) return base;
+	return base + randInt(-Math.abs(variance), Math.abs(variance));
+}
+
+async function applyCrimeCriticalFail(player, {
+	severity = 'major',
+	locationName = 'crime',
+	crimeId = null,
+	notes = '',
+} = {}) {
+	const config = await loadCrimePunishConfig();
+	if (!config) return { damage: 0, hospitalized: false, jailed: false };
+	const severityMultipliers = config.severityMultipliers || {};
+	const severityMultiplier = Number(severityMultipliers[severity]) || 1;
+	let damage = 0;
+	if (config.enableHealthLoss !== false) {
+		const current = Math.max(0, Number(player.health || 0));
+		const pct = Math.max(0, Number(config.criticalHpLossPercent) || 0);
+		const flat = Math.max(0, Number(config.criticalHpLossFlat) || 0);
+		const pctDamage = Math.floor((pct / 100) * current);
+		damage = Math.max(0, Math.round((pctDamage + flat) * severityMultiplier));
+		if (damage > 0) {
+			player.health = Math.max(0, current - damage);
+			player.lastDamage = {
+				type: 'crime_fail',
+				source: notes || `Falha em ${locationName}`,
+				ts: new Date(),
+				amount: damage,
+			};
+		}
+	}
+	let hospitalized = false;
+	if (config.enableHospitalize !== false) {
+		const threshold = Math.max(0, Number(config.hospitalizeBelowHealth) || 0);
+		if (player.health <= threshold) hospitalized = true;
+	}
+	if (player.health <= 0) hospitalized = true;
+	const eventLogs = config.logEvents !== false;
+	if (hospitalized) {
+		const baseSeconds = Math.max(60, Number(config.hospitalSeconds) || 600);
+		const variance = Math.max(0, Number(config.hospitalVarianceSeconds) || 0);
+		const duration = Math.max(60, applyVariance(baseSeconds, variance));
+		player.hospitalized = true;
+		player.hospitalTime = Math.max(duration, Number(player.hospitalTime || 0));
+		const floor = Number(config.hospitalHealthFloor);
+		if (Number.isFinite(floor) && floor > 0) {
+			player.health = Math.max(player.health, floor);
+		}
+		if (eventLogs) {
+			await HospitalEvent.create({
+				type: 'triage',
+				actorUserId: null,
+				actorName: 'Trauma Team',
+				targetUserId: String(player.user),
+				targetName: player.name,
+				success: true,
+				summary: `${player.name} foi internado após falha em ${locationName}.`,
+				meta: { duration, crimeId, severity },
+			});
+		}
+	}
+	let jailed = false;
+	if (config.enableJail !== false) {
+		const chance = Math.max(0, Math.min(100, Number(config.jailChancePercent) || 0));
+		if (Math.random() * 100 < chance) {
+			const baseSeconds = Math.max(60, Number(config.jailSeconds) || 600);
+			const variance = Math.max(0, Number(config.jailVarianceSeconds) || 0);
+			const duration = Math.max(60, applyVariance(baseSeconds, variance));
+			const cap = Math.max(duration, Number(config.jailMaxSeconds) || 86400);
+			player.jailed = true;
+			player.jailTime = Math.min(cap, Math.max(duration, Number(player.jailTime || 0)));
+			player.lastCrime = {
+				type: 'crime_fail',
+				actor: 'sistema',
+				actorName: 'Polícia Metropolitana',
+				severity,
+				ts: new Date(),
+				notes: notes || `Falha em ${locationName}`,
+			};
+			if (eventLogs) {
+				await PrisonEvent.create({
+					type: 'system',
+					actorUserId: null,
+					actorName: 'Sistema',
+					targetUserId: String(player.user),
+					targetName: player.name,
+					success: true,
+					summary: `${player.name} foi detido após falha em ${locationName}.`,
+					meta: { duration, crimeId, severity },
+				});
+			}
+			jailed = true;
+		}
+	}
+	return { damage, hospitalized, jailed };
 }
 
 const PICKPOCKET_TARGETS = [
@@ -343,15 +458,15 @@ async function searchForCash(req, res) {
 					if (failXp > 0) { player.crimeExp = Number(player.crimeExp || 0) + failXp; player.exp = Number(player.exp || 0) + failXp }
 			} else if (outcome === 'critical_fail') {
 				player.crimesCriticalFails = Number(player.crimesCriticalFails || 0) + 1
-					const failXp = Number(crime.expPerFail || 0)
-					if (failXp > 0) { player.crimeExp = Number(player.crimeExp || 0) + failXp; player.exp = Number(player.exp || 0) + failXp }
-					// Apply critical fail event if configured (e.g., injury)
-					const ev = loc.CriticalFailEvent || null
-					if (ev && ev.type === 'injury') {
-						const current = Number(player.health || 0)
-						const damage = Math.max(1, Math.floor(current * 0.2)) // 20% current HP
-						player.health = Math.max(0, current - damage)
-					}
+				const failXp = Number(crime.expPerFail || 0)
+				if (failXp > 0) { player.crimeExp = Number(player.crimeExp || 0) + failXp; player.exp = Number(player.exp || 0) + failXp }
+				const ev = loc.CriticalFailEvent || {}
+				await applyCrimeCriticalFail(player, {
+					severity: ev.severity || 'major',
+					locationName: loc.name,
+					crimeId: crime.id,
+					notes: ev.note || 'Busca por dinheiro deu errado',
+				})
 			}
 
 		await player.save()
@@ -400,7 +515,7 @@ async function getLocations(req, res) {
 }
 
 async function pickpocketCrime(req, res) {
-	return handleCrimeAction(req, res, 'pickpocket', async ({ player, body }) => {
+	return handleCrimeAction(req, res, 'pickpocket', async ({ player, body, crime }) => {
 		const targetId = body?.targetId;
 		const gearId = body?.gearId;
 		const crewId = body?.crewId;
@@ -427,9 +542,12 @@ async function pickpocketCrime(req, res) {
 		}
 		const critical = roll > chance + 25;
 		if (critical) {
-			const current = Number(player.health || 100);
-			const damage = Math.max(5, Math.floor(current * 0.1));
-			player.health = Math.max(0, current - damage);
+			await applyCrimeCriticalFail(player, {
+				severity: 'minor',
+				locationName: target.name,
+				crimeId: crime.id,
+				notes: 'Falha crítica em pickpocket',
+			})
 		}
 		return {
 			success: false,
@@ -445,7 +563,7 @@ async function pickpocketCrime(req, res) {
 }
 
 async function burglaryCrime(req, res) {
-	return handleCrimeAction(req, res, 'burglary', async ({ player, body }) => {
+	return handleCrimeAction(req, res, 'burglary', async ({ player, body, crime }) => {
 		const estateId = body?.estateId;
 		const toolkitId = body?.toolkitId;
 		const entryId = body?.entryId;
@@ -473,9 +591,12 @@ async function burglaryCrime(req, res) {
 		}
 		const critical = roll > chance + 20;
 		if (critical) {
-			const current = Number(player.health || 100);
-			const damage = Math.max(10, Math.floor(current * 0.2));
-			player.health = Math.max(0, current - damage);
+			await applyCrimeCriticalFail(player, {
+				severity: 'major',
+				locationName: estate.name,
+				crimeId: crime.id,
+				notes: 'Invasão fracassou',
+			})
 		}
 		return {
 			success: false,
@@ -492,7 +613,7 @@ async function burglaryCrime(req, res) {
 }
 
 async function smugglingCrime(req, res) {
-	return handleCrimeAction(req, res, 'smuggling', async ({ body }) => {
+	return handleCrimeAction(req, res, 'smuggling', async ({ player, body, crime }) => {
 		const routeId = body?.routeId;
 		const cargoId = body?.cargoId;
 		const escortId = body?.escortId;
@@ -519,6 +640,14 @@ async function smugglingCrime(req, res) {
 			};
 		}
 		const critical = roll > chance + 15;
+		if (critical) {
+			await applyCrimeCriticalFail(player, {
+				severity: 'major',
+				locationName: route.name,
+				crimeId: crime.id,
+				notes: 'Contrabando interceptado',
+			})
+		}
 		return {
 			success: false,
 			payout: 0,
