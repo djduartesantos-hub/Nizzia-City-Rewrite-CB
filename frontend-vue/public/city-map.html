@@ -65,6 +65,17 @@
       display: grid;
       place-items: center;
       border-right: 1px solid #5b5b5b;
+      background: transparent;
+      color: #ececec;
+      cursor: pointer;
+      padding: 0;
+      font: inherit;
+      text-transform: uppercase;
+    }
+
+    .top-tab.active {
+      background: rgba(245, 196, 80, 0.2);
+      color: #ffe2a5;
     }
 
     .top-tab:last-child { border-right: 0; }
@@ -96,7 +107,7 @@
       display: grid;
       gap: 8px;
       z-index: 20;
-      max-width: calc(100% - 90px);
+      max-width: calc(100% - 64px);
     }
 
     .panel {
@@ -115,14 +126,9 @@
       letter-spacing: 0.08em;
     }
 
-    .subtitle { color: var(--muted); font-size: 0.72rem; letter-spacing: 0.05em; margin-top: 4px; }
+    .subtitle { color: var(--muted); font-size: 0.8rem; letter-spacing: 0.05em; margin-top: 4px; }
 
-    .hud-grid {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(86px, 1fr));
-      gap: 6px;
-      margin-top: 7px;
-    }
+    .hud-grid { display: none; }
 
     .stat {
       background: rgba(255, 255, 255, 0.04);
@@ -147,6 +153,7 @@
       bottom: 10px;
       width: 210px;
       z-index: 20;
+      display: none;
     }
 
     #miniMap {
@@ -265,6 +272,35 @@
 
     .symbol-grid li:nth-child(3n) { border-right: 0; }
     .symbol-grid li:nth-last-child(-n+3) { border-bottom: 0; }
+
+    .footer-pane { display: none; }
+    .footer-pane.active { display: grid; gap: 8px; }
+
+    .quick-links {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .quick-links a {
+      display: block;
+      text-decoration: none;
+      color: #f0f0f0;
+      background: rgba(24, 24, 24, 0.84);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 0.9rem;
+    }
+
+    .quick-links a:hover {
+      border-color: rgba(243, 200, 84, 0.55);
+      color: #ffe9bf;
+      transform: translateY(-1px);
+    }
 
     .dot {
       width: 14px;
@@ -403,22 +439,7 @@
       padding: 12px;
     }
 
-    .status-lock {
-      position: absolute;
-      top: 12px;
-      right: 58px;
-      z-index: 30;
-      background: rgba(199, 67, 67, 0.24);
-      border: 1px solid rgba(255, 126, 126, 0.42);
-      color: #ffdede;
-      padding: 6px 10px;
-      border-radius: 999px;
-      font-size: .7rem;
-      letter-spacing: .06em;
-      display: none;
-    }
-
-    .status-lock.show { display: block; }
+    .status-lock { display: none !important; }
 
     @media (max-width: 980px) {
       #app { height: calc(100vh - 12px); width: calc(100vw - 12px); }
@@ -426,6 +447,7 @@
       .symbol-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .symbol-grid li:nth-child(2n) { border-right: 0; }
       .symbol-grid li:nth-last-child(-n+2) { border-bottom: 0; }
+      .quick-links { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .mini-wrap { width: 170px; }
       #miniMap { height: 96px; }
       .map-shell { grid-template-rows: 42px 1fr 126px; }
@@ -436,8 +458,8 @@
   <div id="app">
     <div class="map-shell">
       <div class="map-topbar">
-        <div class="top-tab">Map</div>
-        <div class="top-tab">Quick Links</div>
+        <button class="top-tab active" id="tabMap">Map</button>
+        <button class="top-tab" id="tabQuickLinks">Quick Links</button>
       </div>
 
       <div class="map-stage">
@@ -446,14 +468,8 @@
 
         <div class="hud">
           <div class="panel">
-            <h1 class="title" id="cityName">Cidade</h1>
             <div class="subtitle" id="cityMeta">COORD 0,0</div>
-            <div class="hud-grid">
-              <div class="stat"><b>HP</b><span id="hudHp">100</span></div>
-              <div class="stat"><b>DINHEIRO</b><span id="hudMoney">$5000</span></div>
-              <div class="stat"><b>XP</b><span id="hudXp">0</span></div>
-              <div class="stat"><b>STATUS</b><span id="hudStatus">LIVRE</span></div>
-            </div>
+            <div class="subtitle" id="locationInfo">LOCAL -</div>
           </div>
         </div>
 
@@ -473,8 +489,14 @@
       </div>
 
       <div class="symbol-key">
-        <h3>Key of Symbols</h3>
-        <ul class="symbol-grid" id="legendList"></ul>
+        <div class="footer-pane active" id="paneMap">
+          <h3>Key of Symbols</h3>
+          <ul class="symbol-grid" id="legendList"></ul>
+        </div>
+        <div class="footer-pane" id="paneQuickLinks">
+          <h3>Quick Links</h3>
+          <ul class="quick-links" id="quickLinksList"></ul>
+        </div>
       </div>
     </div>
 
@@ -777,15 +799,39 @@
       view: { x: 0, y: 0, w: CITY_W, h: CITY_H },
     }
 
+    const QUICK_LINKS = [
+      { href: '/', label: '🏠 HQ' },
+      { href: '/inventory', label: '🎒 Inventário' },
+      { href: '/gym', label: '💪 Ginásio' },
+      { href: '/casino', label: '🎰 Casino' },
+      { href: '/crimes', label: '⚠️ Crimes' },
+      { href: '/money', label: '💰 Finanças' },
+      { href: '/bank', label: '🏦 Banco' },
+      { href: '/stocks', label: '📈 Bolsa' },
+      { href: '/job', label: '💼 Emprego' },
+      { href: '/education', label: '📚 Educação' },
+      { href: '/prison', label: '🚔 Prisão' },
+      { href: '/hospital', label: '🏥 Hospital' },
+      { href: '/property', label: '🏢 Propriedades' },
+      { href: '/real-estate', label: '🏘️ Real Estate' },
+      { href: '/pets', label: '🐾 Pets' },
+      { href: '/market', label: '🛒 Mercado' },
+      { href: '/vault', label: '🔐 Cofre' },
+      { href: '/hall-of-fame', label: '🏆 Hall of Fame' },
+    ]
+
     const canvas = document.getElementById('cityCanvas')
     const ctx = canvas.getContext('2d')
-    const mini = document.getElementById('miniMap')
-    const mctx = mini.getContext('2d')
     const eventLayer = document.getElementById('eventLayer')
 
-    const cityNameEl = document.getElementById('cityName')
     const cityMetaEl = document.getElementById('cityMeta')
+    const locationInfoEl = document.getElementById('locationInfo')
     const legendListEl = document.getElementById('legendList')
+    const quickLinksListEl = document.getElementById('quickLinksList')
+    const tabMap = document.getElementById('tabMap')
+    const tabQuickLinks = document.getElementById('tabQuickLinks')
+    const paneMap = document.getElementById('paneMap')
+    const paneQuickLinks = document.getElementById('paneQuickLinks')
     const hudHp = document.getElementById('hudHp')
     const hudMoney = document.getElementById('hudMoney')
     const hudXp = document.getElementById('hudXp')
@@ -827,10 +873,6 @@
       canvas.style.height = `${canvasH}px`
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
 
-      const miniDpr = dpr
-      mini.width = Math.floor(mini.clientWidth * miniDpr)
-      mini.height = Math.floor(mini.clientHeight * miniDpr)
-      mctx.setTransform(miniDpr, 0, 0, miniDpr, 0, 0)
     }
 
     function viewTransform() {
@@ -1020,28 +1062,34 @@
       }
 
       for (const loc of state.city.locations) {
-        ctx.fillStyle = 'rgba(0,0,0,.46)'
+        ctx.fillStyle = 'rgba(0,0,0,.55)'
         ctx.beginPath()
-        ctx.arc(loc.x, loc.y, 13, 0, Math.PI * 2)
+        ctx.arc(loc.x, loc.y, 18, 0, Math.PI * 2)
         ctx.fill()
 
         ctx.fillStyle = '#f3c34f'
         ctx.beginPath()
-        ctx.moveTo(loc.x, loc.y - 12)
-        ctx.bezierCurveTo(loc.x + 9, loc.y - 12, loc.x + 10, loc.y + 2, loc.x, loc.y + 14)
-        ctx.bezierCurveTo(loc.x - 10, loc.y + 2, loc.x - 9, loc.y - 12, loc.x, loc.y - 12)
+        ctx.moveTo(loc.x, loc.y - 16)
+        ctx.bezierCurveTo(loc.x + 12, loc.y - 16, loc.x + 13, loc.y + 3, loc.x, loc.y + 19)
+        ctx.bezierCurveTo(loc.x - 13, loc.y + 3, loc.x - 12, loc.y - 16, loc.x, loc.y - 16)
         ctx.fill()
 
+        ctx.strokeStyle = 'rgba(24, 18, 8, 0.8)'
+        ctx.lineWidth = 1.6
+        ctx.stroke()
+
         ctx.fillStyle = '#1b1b1b'
-        ctx.font = '10px "Share Tech Mono"'
-        ctx.fillText(loc.name, loc.x + 14, loc.y + 3)
+        ctx.font = 'bold 13px "Share Tech Mono"'
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)'
+        ctx.lineWidth = 3
+        ctx.strokeText(loc.name, loc.x + 20, loc.y + 5)
+        ctx.fillText(loc.name, loc.x + 20, loc.y + 5)
       }
 
       drawFogOfWar(ctx)
 
       ctx.restore()
 
-      drawMinimap()
       drawEventChips()
       drawCursorHUD()
     }
@@ -1060,31 +1108,6 @@
         g.fillStyle = grad
         roundRect(g, areaX, areaY, z.w, z.h, 18, true, false)
       }
-    }
-
-    function drawMinimap() {
-      const w = mini.clientWidth
-      const h = mini.clientHeight
-      mctx.clearRect(0, 0, w, h)
-      mctx.fillStyle = '#07101b'
-      mctx.fillRect(0, 0, w, h)
-      const sx = w / CITY_W
-      const sy = h / CITY_H
-      for (const z of state.city.zones) {
-        mctx.fillStyle = z.color
-        mctx.globalAlpha = 0.84
-        mctx.fillRect((z.x - z.w / 2) * sx, (z.y - z.h / 2) * sy, z.w * sx, z.h * sy)
-      }
-      mctx.globalAlpha = 1
-      for (const e of state.events) {
-        mctx.fillStyle = '#ff5b74'
-        mctx.beginPath()
-        mctx.arc(e.x * sx, e.y * sy, 3, 0, Math.PI * 2)
-        mctx.fill()
-      }
-
-      mctx.strokeStyle = 'rgba(75,209,255,.88)'
-      mctx.strokeRect(1, 1, w - 2, h - 2)
     }
 
     function drawEventChips() {
@@ -1120,6 +1143,22 @@
       const col = clamp(Math.floor(x / cellW), 0, cols - 1)
       const row = clamp(Math.floor(y / cellH), 0, rows - 1)
       cityMetaEl.textContent = `COORD ${Math.round(x)},${Math.round(y)} · GRID L${subLevel} ${col},${row}${zone ? ` · ${zone.label}` : ''}`
+
+      let nearest = null
+      let nearestDistance = Number.POSITIVE_INFINITY
+      for (const loc of state.city.locations) {
+        const distance = Math.hypot(loc.x - x, loc.y - y)
+        if (distance < nearestDistance) {
+          nearestDistance = distance
+          nearest = loc
+        }
+      }
+
+      if (locationInfoEl) {
+        locationInfoEl.textContent = nearest
+          ? `LOCAL ${nearest.name} · DIST ${Math.round(nearestDistance)}m`
+          : 'LOCAL -'
+      }
     }
 
     function drawGridOverlay(g) {
@@ -1207,12 +1246,30 @@
       }
     }
 
+    function buildQuickLinks() {
+      if (!quickLinksListEl) return
+      quickLinksListEl.innerHTML = ''
+      for (const link of QUICK_LINKS) {
+        const item = document.createElement('li')
+        item.innerHTML = `<a href="${link.href}" target="_top" rel="noopener">${link.label}</a>`
+        quickLinksListEl.appendChild(item)
+      }
+    }
+
+    function setActiveFooterTab(mode) {
+      const mapMode = mode === 'map'
+      tabMap?.classList.toggle('active', mapMode)
+      tabQuickLinks?.classList.toggle('active', !mapMode)
+      paneMap?.classList.toggle('active', mapMode)
+      paneQuickLinks?.classList.toggle('active', !mapMode)
+    }
+
     function updateHUD() {
-      hudHp.textContent = Math.round(state.playerState.hp)
-      hudMoney.textContent = `$${Math.round(state.playerState.money)}`
-      hudXp.textContent = Math.round(state.playerState.xp)
-      hudStatus.textContent = state.playerState.status.toUpperCase()
-      statusLock.classList.toggle('show', state.playerState.status === 'em_evento')
+      if (hudHp) hudHp.textContent = Math.round(state.playerState.hp)
+      if (hudMoney) hudMoney.textContent = `$${Math.round(state.playerState.money)}`
+      if (hudXp) hudXp.textContent = Math.round(state.playerState.xp)
+      if (hudStatus) hudStatus.textContent = state.playerState.status.toUpperCase()
+      statusLock?.classList.toggle('show', state.playerState.status === 'em_evento')
     }
 
     function weightedEventType(zoneKey, rng) {
@@ -1486,6 +1543,8 @@
       beginAction(selectedEvent)
     })
     btnBackMap.addEventListener('click', leaveActionScreen)
+    tabMap?.addEventListener('click', () => setActiveFooterTab('map'))
+    tabQuickLinks?.addEventListener('click', () => setActiveFooterTab('links'))
 
     canvas.addEventListener('mousemove', (ev) => {
       const rect = canvas.getBoundingClientRect()
@@ -1528,8 +1587,9 @@
       const imageUrl = state.mapConfig.imageUrl || BASE_MAP_IMAGE_URL
       state.baseMapImage = await loadBaseMapImage(imageUrl)
       state.city = createStaticCity(state.mapConfig)
-      cityNameEl.textContent = state.city.cityName
       buildLegend()
+      buildQuickLinks()
+      setActiveFooterTab('map')
       regenerateEvents()
       updateHUD()
       resize()
