@@ -1751,7 +1751,7 @@ async function saveCrimeCatalog() {
       })),
     }
     await api.post('/admin/world/config/crime-catalog', payload)
-    toast.success('Catálogo de crimes guardado')
+    toast.ok('Catálogo de crimes guardado')
   } catch (e) {
     toast.error(e?.response?.data?.error || 'Falha ao guardar catálogo de crimes')
   } finally {
@@ -1808,7 +1808,7 @@ async function forceJail(secondsOverride) {
     const target = ensureTarget()
     const jailTime = Math.max(60, Number((secondsOverride ?? worldConfigs.prison.defaultJailSeconds) || 3600))
     await api.patch('/admin/player/state', { targetUserId: target, jailed: true, jailTime })
-    toast.success('Jogador preso manualmente')
+    toast.ok('Jogador preso manualmente')
   } catch (e) {
     toast.error(e?.response?.data?.error || e?.message || 'Falha ao prender alvo')
   }
@@ -1819,7 +1819,7 @@ async function forceHospital(secondsOverride) {
     const target = ensureTarget()
     const hospitalTime = Math.max(60, Number((secondsOverride ?? worldConfigs.hospital.defaultHospitalSeconds) || 900))
     await api.patch('/admin/player/state', { targetUserId: target, hospitalized: true, hospitalTime })
-    toast.success('Jogador hospitalizado manualmente')
+    toast.ok('Jogador hospitalizado manualmente')
   } catch (e) {
     toast.error(e?.response?.data?.error || e?.message || 'Falha ao hospitalizar alvo')
   }
@@ -1837,7 +1837,7 @@ async function releaseTarget(kind) {
       payload.hospitalTime = 0
     }
     await api.patch('/admin/player/state', payload)
-    toast.success('Estado atualizado')
+    toast.ok('Estado atualizado')
   } catch (e) {
     toast.error(e?.response?.data?.error || e?.message || 'Falha ao atualizar estado')
   }
@@ -1941,7 +1941,7 @@ async function onLoadPlayer() {
     profile.value = data
     targetUserId.value = data.userId || ''
     syncStateFromProfile()
-    toast.success('Jogador carregado')
+    toast.ok('Jogador carregado')
   } catch (e) {
     profile.value = null
     profileError.value = e?.response?.data?.error || e?.message || 'Falha ao carregar jogador'
@@ -2027,7 +2027,7 @@ async function createNote(){
       await loadNotes()
     }
     noteText.value = ''
-    toast.success('Nota guardada')
+    toast.ok('Nota guardada')
   } catch (e) {
     toast.error(e?.response?.data?.error || e?.message || 'Falha ao criar nota')
   }
@@ -2160,7 +2160,7 @@ async function adjustInventory(item, delta) {
 async function copyToClipboard(text) {
   try {
     await navigator.clipboard.writeText(String(text || ''))
-    toast.success('ID copiado para a área de transferência')
+    toast.ok('ID copiado para a área de transferência')
   } catch {
     toast.error('Falha ao copiar ID')
   }
@@ -2597,7 +2597,7 @@ async function addBoost(){
     await api.post('/admin/player/boosts/add', body)
     boostForm.value = { label: '', durationSeconds: 0, source: '', metaJson: '' }
     await fetchBoosts()
-    toast.success('Boost adicionado')
+    toast.ok('Boost adicionado')
   } catch (e) { toast.error(e?.response?.data?.error || e?.message || 'Falha ao adicionar boost') }
 }
 
@@ -2606,7 +2606,7 @@ async function removeBoost(boostId){
     const t = ensureTarget()
     await api.post('/admin/player/boosts/remove', { targetUserId: t, boostId })
     boosts.value = boosts.value.filter(b => b._id !== boostId)
-    toast.success('Boost removido')
+    toast.ok('Boost removido')
   } catch (e) {
     toast.error(e?.response?.data?.error || e?.message || 'Falha ao remover boost')
   }
