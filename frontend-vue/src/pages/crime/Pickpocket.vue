@@ -127,9 +127,10 @@
           </div>
         </div>
 
-        <button class="btn btn--primary full" :disabled="running" @click="runHeist">
-          {{ running ? 'A executar...' : 'Iniciar operação' }}
+        <button class="btn btn--primary full" :disabled="!canRun" @click="runHeist">
+          {{ actionLabel }}
         </button>
+        <p v-if="cooldownLeft" class="cooldown-hint">Disponível em {{ cooldownLeft }}s</p>
 
         <article v-if="lastRun" class="result">
           <header>
@@ -178,11 +179,14 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import api from '../../api/client'
 import { usePlayer } from '../../composables/usePlayer'
+import { useToast } from '../../composables/useToast'
 import { fmtMoney } from '../../utils/format'
 
 const { store, ensurePlayer } = usePlayer()
+const toast = useToast()
 onMounted(async () => { await ensurePlayer() })
 
 const nerve = computed(() => store.player?.nerveStats?.nerve ?? 0)
@@ -241,12 +245,20 @@ const crewOptions = [
 const selectedTarget = ref(targets[0].id)
 const selectedGear = ref(gearOptions[0].id)
 const selectedCrew = ref(crewOptions[0].id)
-const running = ref(false)
 const lastRun = ref(null)
+const busy = ref(false)
+const cooldownLeft = ref(0)
+let cooldownTimer = null
 
 const activeTarget = computed(() => targets.find(t => t.id === selectedTarget.value) || targets[0])
 const gearCopy = computed(() => gearOptions.find(g => g.id === selectedGear.value)?.desc || '')
 const crewCopy = computed(() => crewOptions.find(c => c.id === selectedCrew.value)?.desc || '')
+const canRun = computed(() => !busy.value && cooldownLeft.value === 0 && nerve.value >= 4)
+const actionLabel = computed(() => {
+  if (busy.value) return 'A executar...'
+  if (cooldownLeft.value) return `Cooldown ${cooldownLeft.value}s`
+  return 'Iniciar operação'
+})
 
 const successChance = computed(() => {
   const base = activeTarget.value.success
@@ -279,31 +291,74 @@ const failBlurbs = [
   'Um VIP reconheceu o disfarce. Retirada forçada, heat elevado.',
 ]
 
-function delay(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms))
+async function runHeist() {
+  if (!canRun.value) return
+  busy.value = true
+  try {
+    const payload = {
+      targetId: selectedTarget.value,
+      gearId: selectedGear.value,
+      crewId: selectedCrew.value,
+    }
+    const { data } = await api.post('/crime/pickpocket', payload)
+    applyResult(data)
+  } catch (e) {
+    handleError(e)
+  } finally {
+    busy.value = false
+  }
 }
 
-async function runHeist() {
-  if (running.value) return
-  running.value = true
-  await delay(1000)
-  const bonus = (gearOptions.find(g => g.id === selectedGear.value)?.bonus || 0) +
-    (crewOptions.find(c => c.id === selectedCrew.value)?.bonus || 0)
-  const chance = Math.min(96, activeTarget.value.success + bonus)
-  const success = Math.random() * 100 < chance
-  const [min, max] = activeTarget.value.reward
-  const payout = success ? Math.round((Math.random() * (max - min)) + min) * (1 + bonus / 50) : 0
-  const heat = success ? Math.round(8 - bonus / 3) : Math.round(15 - bonus / 4)
+function applyResult(data = {}) {
+  const result = data.result || {}
+  const details = result.details || {}
+  if (data.cooldown?.secondsLeft) startCooldown(data.cooldown.secondsLeft)
+  store.mergePartial({ money: data.money })
+  if (store.player?.nerveStats) store.player.nerveStats.nerve = data.nerve
   lastRun.value = {
-    success,
-    payout: Math.round(payout),
-    heat: Math.max(2, heat),
-    target: activeTarget.value.name,
-    blurb: success ? successBlurbs[Math.floor(Math.random() * successBlurbs.length)] : failBlurbs[Math.floor(Math.random() * failBlurbs.length)],
+    success: !!result.success,
+    payout: result.payout ?? 0,
+    heat: result.heat ?? null,
+    target: details.target || activeTarget.value.name,
+    blurb: details.blurb || (result.success ? pick(successBlurbs) : pick(failBlurbs)),
     timestamp: new Date().toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' }),
   }
-  running.value = false
 }
+
+function handleError(e) {
+  const payload = e?.response?.data || {}
+  const message = payload.error || e?.message || 'Falha na operação'
+  if (payload.secondsLeft) startCooldown(payload.secondsLeft)
+  toast.error(message)
+}
+
+function clearCooldownTimer() {
+  if (cooldownTimer) {
+    clearInterval(cooldownTimer)
+    cooldownTimer = null
+  }
+}
+
+function startCooldown(seconds = 0) {
+  const total = Math.max(0, Number(seconds) || 0)
+  cooldownLeft.value = total
+  clearCooldownTimer()
+  if (!total) return
+  cooldownTimer = setInterval(() => {
+    if (cooldownLeft.value <= 1) {
+      cooldownLeft.value = 0
+      clearCooldownTimer()
+    } else {
+      cooldownLeft.value -= 1
+    }
+  }, 1000)
+}
+
+function pick(arr) {
+  return arr[Math.floor(Math.random() * arr.length)]
+}
+
+onUnmounted(() => clearCooldownTimer())
 </script>
 
 <style scoped>
@@ -451,6 +506,11 @@ async function runHeist() {
   gap: 16px;
   flex-wrap: wrap;
   font-size: 12px;
+}
+.cooldown-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted);
 }
 .intel-list {
   list-style: none;

@@ -64,6 +64,30 @@ const CRIMES = {
     expPerSuccess: 10,
     expPerFail: 1,
   },
+  pickpocket: {
+    id: 'pickpocket',
+    name: 'Pickpocket League',
+    nerveCost: 4,
+    cooldownSeconds: 180, // 3 minutes
+    expPerSuccess: 12,
+    expPerFail: 2,
+  },
+  burglary: {
+    id: 'burglary',
+    name: 'Burglary Grid',
+    nerveCost: 7,
+    cooldownSeconds: 600, // 10 minutes
+    expPerSuccess: 18,
+    expPerFail: 3,
+  },
+  smuggling: {
+    id: 'smuggling',
+    name: 'Smuggling Ops',
+    nerveCost: 10,
+    cooldownSeconds: 1800, // 30 minutes
+    expPerSuccess: 25,
+    expPerFail: 5,
+  },
 };
 
 module.exports = { CRIMES, LOCATION };

@@ -144,9 +144,10 @@
             <h3>{{ lootEstimate }}</h3>
           </div>
         </div>
-        <button class="btn btn--primary full" :disabled="running" @click="runBurglary">
-          {{ running ? 'Sincronizando...' : 'Iniciar infiltração' }}
+        <button class="btn btn--primary full" :disabled="!canRun" @click="runBurglary">
+          {{ actionLabel }}
         </button>
+        <p v-if="cooldownLeft" class="cooldown-hint">Disponível em {{ cooldownLeft }}s</p>
         <article v-if="lastRun" class="result">
           <header>
             <div>
@@ -190,11 +191,14 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import api from '../../api/client'
 import { usePlayer } from '../../composables/usePlayer'
+import { useToast } from '../../composables/useToast'
 import { fmtMoney } from '../../utils/format'
 
 const { store, ensurePlayer } = usePlayer()
+const toast = useToast()
 onMounted(async () => { await ensurePlayer() })
 
 const nerve = computed(() => store.player?.nerveStats?.nerve ?? 0)
@@ -263,12 +267,20 @@ const intelFeed = [
 const selectedEstate = ref(estates[0].id)
 const selectedToolkit = ref(toolkits[0].id)
 const selectedEntry = ref(entryTeams[0].id)
-const running = ref(false)
 const lastRun = ref(null)
+const busy = ref(false)
+const cooldownLeft = ref(0)
+let cooldownTimer = null
 
 const activeEstate = computed(() => estates.find(e => e.id === selectedEstate.value) || estates[0])
 const toolkitCopy = computed(() => toolkits.find(t => t.id === selectedToolkit.value)?.desc || '')
 const entryCopy = computed(() => entryTeams.find(t => t.id === selectedEntry.value)?.desc || '')
+const canRun = computed(() => !busy.value && cooldownLeft.value === 0 && nerve.value >= 7)
+const actionLabel = computed(() => {
+  if (busy.value) return 'Sincronizando...'
+  if (cooldownLeft.value) return `Cooldown ${cooldownLeft.value}s`
+  return 'Iniciar infiltração'
+})
 
 const successChance = computed(() => {
   const base = activeEstate.value.success
@@ -289,31 +301,22 @@ const riskCopy = computed(() => {
   return 'Elevado'
 })
 
-function delay(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms))
-}
-
 async function runBurglary() {
-  if (running.value) return
-  running.value = true
-  await delay(1200)
-  const [min, max] = activeEstate.value.reward
-  const success = Math.random() * 100 < successChance.value
-  const payout = success ? Math.round(Math.random() * (max - min) + min) : 0
-  const intel = success ? 'Blueprint ++' : 'Guards alert'
-  const heat = success ? Math.max(3, 12 - Math.round(successChance.value / 15)) : 22
-  lastRun.value = {
-    success,
-    target: activeEstate.value.name,
-    payout,
-    heat,
-    intel,
-    blurb: success
-      ? successBlurbs[Math.floor(Math.random() * successBlurbs.length)]
-      : failBlurbs[Math.floor(Math.random() * failBlurbs.length)],
-    timestamp: new Date().toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' }),
+  if (!canRun.value) return
+  busy.value = true
+  try {
+    const payload = {
+      estateId: selectedEstate.value,
+      toolkitId: selectedToolkit.value,
+      entryId: selectedEntry.value,
+    }
+    const { data } = await api.post('/crime/burglary', payload)
+    applyResult(data)
+  } catch (e) {
+    handleError(e)
+  } finally {
+    busy.value = false
   }
-  running.value = false
 }
 
 const successBlurbs = [
@@ -327,6 +330,58 @@ const failBlurbs = [
   'Um bot reconheceu a corda; tivemos de cortar a missão.',
   'Cartão insider bloqueado, equipe exposta no lobby.',
 ]
+
+function applyResult(data = {}) {
+  const result = data.result || {}
+  const details = result.details || {}
+  if (data.cooldown?.secondsLeft) startCooldown(data.cooldown.secondsLeft)
+  store.mergePartial({ money: data.money })
+  if (store.player?.nerveStats) store.player.nerveStats.nerve = data.nerve
+  lastRun.value = {
+    success: !!result.success,
+    target: details.target || activeEstate.value.name,
+    payout: result.payout ?? 0,
+    heat: result.heat ?? null,
+    intel: details.intel,
+    blurb: details.blurb || (result.success ? pick(successBlurbs) : pick(failBlurbs)),
+    timestamp: new Date().toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' }),
+  }
+}
+
+function handleError(e) {
+  const payload = e?.response?.data || {}
+  const message = payload.error || e?.message || 'Falha na infiltração'
+  if (payload.secondsLeft) startCooldown(payload.secondsLeft)
+  toast.error(message)
+}
+
+function clearCooldownTimer() {
+  if (cooldownTimer) {
+    clearInterval(cooldownTimer)
+    cooldownTimer = null
+  }
+}
+
+function startCooldown(seconds = 0) {
+  const total = Math.max(0, Number(seconds) || 0)
+  cooldownLeft.value = total
+  clearCooldownTimer()
+  if (!total) return
+  cooldownTimer = setInterval(() => {
+    if (cooldownLeft.value <= 1) {
+      cooldownLeft.value = 0
+      clearCooldownTimer()
+    } else {
+      cooldownLeft.value -= 1
+    }
+  }, 1000)
+}
+
+function pick(arr) {
+  return arr[Math.floor(Math.random() * arr.length)]
+}
+
+onUnmounted(() => clearCooldownTimer())
 </script>
 
 <style scoped>
@@ -481,6 +536,11 @@ const failBlurbs = [
   gap: 16px;
   flex-wrap: wrap;
   font-size: 12px;
+}
+.cooldown-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted);
 }
 .timeline ul {
   list-style: none;

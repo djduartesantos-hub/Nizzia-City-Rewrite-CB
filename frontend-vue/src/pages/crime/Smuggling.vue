@@ -134,9 +134,10 @@
           </div>
           <span class="muted">Telemetria em direto</span>
         </div>
-        <button class="btn btn--primary full" :disabled="running" @click="runConvoy">
-          {{ running ? 'Coordenando drones...' : 'Despachar comboio' }}
+        <button class="btn btn--primary full" :disabled="!canRun" @click="runConvoy">
+          {{ actionLabel }}
         </button>
+        <p v-if="cooldownLeft" class="cooldown-hint">Disponível em {{ cooldownLeft }}s</p>
         <article v-if="lastRun" class="result">
           <header>
             <div>
@@ -180,11 +181,14 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import api from '../../api/client'
 import { usePlayer } from '../../composables/usePlayer'
+import { useToast } from '../../composables/useToast'
 import { fmtMoney } from '../../utils/format'
 
 const { store, ensurePlayer } = usePlayer()
+const toast = useToast()
 onMounted(async () => { await ensurePlayer() })
 
 const nerve = computed(() => store.player?.nerveStats?.nerve ?? 0)
@@ -251,12 +255,20 @@ const intelFeed = [
 const selectedRoute = ref(routes[0].id)
 const selectedCargo = ref(cargoOptions[0].id)
 const selectedEscort = ref(escortOptions[0].id)
-const running = ref(false)
 const lastRun = ref(null)
+const busy = ref(false)
+const cooldownLeft = ref(0)
+let cooldownTimer = null
 
 const activeRoute = computed(() => routes.find(r => r.id === selectedRoute.value) || routes[0])
 const cargoCopy = computed(() => cargoOptions.find(c => c.id === selectedCargo.value)?.desc || '')
 const escortCopy = computed(() => escortOptions.find(e => e.id === selectedEscort.value)?.desc || '')
+const canRun = computed(() => !busy.value && cooldownLeft.value === 0 && nerve.value >= 10)
+const actionLabel = computed(() => {
+  if (busy.value) return 'Coordenando drones...'
+  if (cooldownLeft.value) return `Cooldown ${cooldownLeft.value}s`
+  return 'Despachar comboio'
+})
 
 const capacityUsage = computed(() => {
   const cargo = cargoOptions.find(c => c.id === selectedCargo.value)
@@ -286,30 +298,22 @@ const successChance = computed(() => {
   return Math.min(94, Math.max(20, route + escort - penalty))
 })
 
-function delay(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms))
-}
-
 async function runConvoy() {
-  if (running.value) return
-  running.value = true
-  await delay(1500)
-  const cargo = cargoOptions.find(c => c.id === selectedCargo.value)
-  const success = Math.random() * 100 < successChance.value
-  const payout = success ? Math.round(cargo.reward * (0.8 + Math.random() * 0.4)) : 0
-  const heat = success ? Math.max(5, 18 - Math.round(successChance.value / 10)) : 32
-  lastRun.value = {
-    success,
-    route: activeRoute.value.name,
-    payout,
-    heat,
-    cargo: cargo.label,
-    blurb: success
-      ? successBlurbs[Math.floor(Math.random() * successBlurbs.length)]
-      : failBlurbs[Math.floor(Math.random() * failBlurbs.length)],
-    timestamp: new Date().toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' }),
+  if (!canRun.value) return
+  busy.value = true
+  try {
+    const payload = {
+      routeId: selectedRoute.value,
+      cargoId: selectedCargo.value,
+      escortId: selectedEscort.value,
+    }
+    const { data } = await api.post('/crime/smuggling', payload)
+    applyResult(data)
+  } catch (e) {
+    handleError(e)
+  } finally {
+    busy.value = false
   }
-  running.value = false
 }
 
 const successBlurbs = [
@@ -323,6 +327,58 @@ const failBlurbs = [
   'Interceptores detectaram assinatura térmica do submersível.',
   'Tropas federais seguiram o comboio fantasma via satélite secundário.',
 ]
+
+function applyResult(data = {}) {
+  const result = data.result || {}
+  const details = result.details || {}
+  if (data.cooldown?.secondsLeft) startCooldown(data.cooldown.secondsLeft)
+  store.mergePartial({ money: data.money })
+  if (store.player?.nerveStats) store.player.nerveStats.nerve = data.nerve
+  lastRun.value = {
+    success: !!result.success,
+    route: details.route || activeRoute.value.name,
+    payout: result.payout ?? 0,
+    heat: result.heat ?? null,
+    cargo: details.cargo,
+    blurb: details.blurb || (result.success ? pick(successBlurbs) : pick(failBlurbs)),
+    timestamp: new Date().toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' }),
+  }
+}
+
+function handleError(e) {
+  const payload = e?.response?.data || {}
+  const message = payload.error || e?.message || 'Falha no comboio'
+  if (payload.secondsLeft) startCooldown(payload.secondsLeft)
+  toast.error(message)
+}
+
+function clearCooldownTimer() {
+  if (cooldownTimer) {
+    clearInterval(cooldownTimer)
+    cooldownTimer = null
+  }
+}
+
+function startCooldown(seconds = 0) {
+  const total = Math.max(0, Number(seconds) || 0)
+  cooldownLeft.value = total
+  clearCooldownTimer()
+  if (!total) return
+  cooldownTimer = setInterval(() => {
+    if (cooldownLeft.value <= 1) {
+      cooldownLeft.value = 0
+      clearCooldownTimer()
+    } else {
+      cooldownLeft.value -= 1
+    }
+  }, 1000)
+}
+
+function pick(arr) {
+  return arr[Math.floor(Math.random() * arr.length)]
+}
+
+onUnmounted(() => clearCooldownTimer())
 </script>
 
 <style scoped>
@@ -416,6 +472,7 @@ const failBlurbs = [
   gap: 10px;
 }
 .result-meta { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; }
+.cooldown-hint { margin-top: 6px; font-size: 12px; color: var(--muted); }
 .timeline ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .timeline li { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; }
 .dot { width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 10px currentColor; }
