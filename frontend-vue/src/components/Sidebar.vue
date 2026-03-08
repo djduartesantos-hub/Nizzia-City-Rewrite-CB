@@ -107,7 +107,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, reactive } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import api from '../api/client'
 import { usePlayer } from '../composables/usePlayer'
@@ -140,30 +140,51 @@ const regenConfig = {
   happy: { interval: 300, amount: 5 },
 }
 
+const regenBindings = {
+  energy: { path: 'energyStats', valueKey: 'energy', maxKey: 'energyMax' },
+  nerve: { path: 'nerveStats', valueKey: 'nerve', maxKey: 'nerveMax' },
+  happy: { path: 'happiness', valueKey: 'happy', maxKey: 'happyMax' },
+}
+
+const regenState = reactive({
+  energy: createRegenTracker(),
+  nerve: createRegenTracker(),
+  happy: createRegenTracker(),
+})
+
 const heroBars = computed(() => [
-  buildBar('Energy', eNow.value, eMax.value, 'energy', regenConfig.energy),
-  buildBar('Nerve', nNow.value, nMax.value, 'nerve', regenConfig.nerve),
-  buildBar('Happy', hNow.value, hMax.value, 'happy', regenConfig.happy),
-  buildBar('Life', hpNow.value, hpMax, 'life', null)
+  buildBar('Energy', 'energy', eNow.value, eMax.value, 'energy', regenConfig.energy),
+  buildBar('Nerve', 'nerve', nNow.value, nMax.value, 'nerve', regenConfig.nerve),
+  buildBar('Happy', 'happy', hNow.value, hMax.value, 'happy', regenConfig.happy),
+  buildBar('Life', 'life', hpNow.value, hpMax, 'life', null)
 ])
+
+watch([eNow, eMax], ([value, max]) => syncRegenState('energy', value, max), { immediate: true })
+watch([nNow, nMax], ([value, max]) => syncRegenState('nerve', value, max), { immediate: true })
+watch([hNow, hMax], ([value, max]) => syncRegenState('happy', value, max), { immediate: true })
 
 function pct(cur, max){ return max > 0 ? Math.min(100, Math.round((cur/max)*100)) : 0 }
 
-function buildBar(label, current, max, cls, regen) {
-  const fill = pct(current, max)
-  if (!regen || max <= 0) {
-    return { label, value: `${current}/${max}`, fill, class: cls, timerLabel: 'FULL' }
+function buildBar(label, statKey, current, max, cls, regen) {
+  const tracker = statKey && regenState[statKey]
+  const safeMax = Math.max(0, tracker?.max || max)
+  const baseCurrent = tracker ? tracker.value : current
+  const displayCurrent = Math.min(baseCurrent, safeMax)
+  const fill = pct(displayCurrent, safeMax)
+  if (!regen || safeMax <= 0) {
+    return { label, value: `${displayCurrent}/${safeMax}`, fill, class: cls, timerLabel: 'FULL' }
   }
   const secondsLeft = secondsUntilTick(regen.interval)
-  const ghostWidth = Math.min(100 - fill, regen.amount && max ? (regen.amount / max) * 100 : 0)
+  const pendingGain = Math.min(regen.amount || 0, Math.max(0, safeMax - displayCurrent))
+  const ghostWidth = safeMax ? (pendingGain / safeMax) * 100 : 0
   const tickProgress = regen.interval ? Math.max(0, Math.min(100, ((regen.interval - secondsLeft) / regen.interval) * 100)) : 0
-  const tooltip = buildTooltip(label, current, max, regen)
+  const tooltip = buildTooltip(label, displayCurrent, safeMax, regen)
   return {
     label,
-    value: `${current}/${max}`,
+    value: `${displayCurrent}/${safeMax}`,
     fill,
     class: cls,
-    timerLabel: formatTimerLabel(current, max, secondsLeft),
+    timerLabel: formatTimerLabel(displayCurrent, safeMax, secondsLeft),
     regen: {
       amount: regen.amount,
       timeLabel: fmtMmSs(secondsLeft),
@@ -173,6 +194,52 @@ function buildBar(label, current, max, cls, regen) {
     },
     tooltip,
   }
+}
+
+function createRegenTracker() {
+  return { value: 0, max: 0, prevSeconds: null }
+}
+
+function syncRegenState(statKey, value, max) {
+  const tracker = regenState[statKey]
+  if (!tracker) return
+  tracker.value = Number(value) || 0
+  tracker.max = Number(max) || 0
+  tracker.prevSeconds = null
+}
+
+function processRegenTicks(initial = false) {
+  for (const key of Object.keys(regenConfig)) {
+    const cfg = regenConfig[key]
+    const tracker = regenState[key]
+    if (!cfg || !tracker || !cfg.interval) continue
+    const secondsLeft = secondsUntilTick(cfg.interval)
+    if (initial || tracker.prevSeconds === null) {
+      tracker.prevSeconds = secondsLeft
+      continue
+    }
+    const wrapped = secondsLeft > tracker.prevSeconds
+    tracker.prevSeconds = secondsLeft
+    if (!wrapped) continue
+    applyRegenGain(key, cfg.amount)
+  }
+}
+
+function applyRegenGain(statKey, amount) {
+  if (!amount || amount <= 0) return
+  const tracker = regenState[statKey]
+  if (!tracker || tracker.max <= 0) return
+  const next = Math.min(tracker.max, Number(tracker.value || 0) + amount)
+  if (next === tracker.value) return
+  tracker.value = next
+  const binding = regenBindings[statKey]
+  if (!binding) return
+  const payload = {
+    [binding.path]: {
+      [binding.valueKey]: next,
+    },
+  }
+  store.mergePartial(payload)
 }
 
 function fmtMmSs(seconds) {
@@ -219,7 +286,13 @@ function buildTooltip(label, current, max, regen) {
 // ── Live clock for cooldown countdowns ──
 const now = ref(Date.now())
 let timerId
-onMounted(() => { timerId = setInterval(() => { now.value = Date.now() }, 1000) })
+onMounted(() => {
+  processRegenTicks(true)
+  timerId = setInterval(() => {
+    now.value = Date.now()
+    processRegenTicks()
+  }, 1000)
+})
 onUnmounted(() => { clearInterval(timerId) })
 
 function secondsUntilTick(intervalSeconds) {
