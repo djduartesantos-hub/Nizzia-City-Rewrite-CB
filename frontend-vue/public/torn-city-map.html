@@ -635,10 +635,11 @@
         const cityName = this.generateCityName()
         const zones = this.generateZones()
         const roads = this.generateRoads()
+        const backdrop = this.generateBackdrop(zones)
         const streets = this.generateStreetNames(roads.length)
         const locations = this.generateLocations(zones)
 
-        return { cityName, zones, roads, streets, locations }
+        return { cityName, zones, roads, backdrop, streets, locations }
       }
 
       generateCityName() {
@@ -695,6 +696,54 @@
           roads.push({ x1: 0, y1: y, x2: CITY_W, y2: y + this.rng.range(-30, 30), width: this.rng.range(8, 16) })
         }
         return roads
+      }
+
+      generateBackdrop(zones) {
+        const shoreline = []
+        const bandY = CITY_H * 0.77
+        const step = 72
+        for (let x = 0; x <= CITY_W + step; x += step) {
+          const waveA = Math.sin((x / CITY_W) * Math.PI * 2.6 + this.seed * 0.34) * 46
+          const waveB = Math.sin((x / CITY_W) * Math.PI * 6.2 + this.seed * 0.77) * 19
+          shoreline.push({ x, y: bandY + waveA + waveB })
+        }
+
+        const islands = []
+        for (let i = 0; i < 22; i += 1) {
+          islands.push({
+            x: this.rng.range(40, CITY_W - 40),
+            y: this.rng.range(CITY_H * 0.83, CITY_H - 14),
+            r: this.rng.range(6, 26),
+          })
+        }
+
+        const arterials = []
+        for (let i = 0; i < 6; i += 1) {
+          arterials.push({
+            x1: this.rng.range(-100, CITY_W * 0.2),
+            y1: this.rng.range(40, CITY_H * 0.45),
+            cx: this.rng.range(CITY_W * 0.25, CITY_W * 0.75),
+            cy: this.rng.range(80, CITY_H * 0.55),
+            x2: this.rng.range(CITY_W * 0.75, CITY_W + 120),
+            y2: this.rng.range(40, CITY_H * 0.58),
+            width: this.rng.range(12, 22),
+          })
+        }
+
+        const parcels = []
+        for (const z of zones) {
+          const count = Math.floor(70 + z.density * 120)
+          for (let i = 0; i < count; i += 1) {
+            const px = z.x + this.rng.range(-z.w * 0.46, z.w * 0.46)
+            const py = z.y + this.rng.range(-z.h * 0.46, z.h * 0.46)
+            const pw = this.rng.range(6, 22)
+            const ph = this.rng.range(6, 20)
+            const rot = this.rng.range(-0.16, 0.16)
+            parcels.push({ x: px, y: py, w: pw, h: ph, rot })
+          }
+        }
+
+        return { shoreline, islands, arterials, parcels }
       }
 
       generateStreetNames(count) {
@@ -829,40 +878,81 @@
       ctx.translate(offsetX, offsetY)
       ctx.scale(scale, scale)
 
-      ctx.fillStyle = '#6c6b6f'
+      ctx.fillStyle = '#828389'
       ctx.fillRect(0, 0, CITY_W, CITY_H)
 
-      ctx.fillStyle = '#040507'
+      for (let y = 0; y < CITY_H; y += 12) {
+        const shade = 132 + Math.sin((y / CITY_H) * Math.PI * 4 + state.seed) * 8
+        ctx.fillStyle = `rgba(${shade},${shade},${shade + 6},0.06)`
+        ctx.fillRect(0, y, CITY_W, 8)
+      }
+
+      ctx.fillStyle = '#05070a'
       ctx.beginPath()
-      ctx.moveTo(0, CITY_H * 0.82)
-      ctx.bezierCurveTo(CITY_W * 0.15, CITY_H * 0.72, CITY_W * 0.37, CITY_H * 0.92, CITY_W * 0.55, CITY_H * 0.79)
-      ctx.bezierCurveTo(CITY_W * 0.76, CITY_H * 0.67, CITY_W * 0.82, CITY_H * 0.9, CITY_W, CITY_H * 0.8)
+      const shore = state.city.backdrop.shoreline
+      ctx.moveTo(0, CITY_H)
+      ctx.lineTo(0, shore[0].y)
+      for (let i = 1; i < shore.length; i += 1) {
+        ctx.lineTo(shore[i].x, shore[i].y)
+      }
       ctx.lineTo(CITY_W, CITY_H)
-      ctx.lineTo(0, CITY_H)
       ctx.closePath()
       ctx.fill()
 
+      ctx.fillStyle = 'rgba(185, 186, 192, 0.4)'
+      for (const island of state.city.backdrop.islands) {
+        ctx.beginPath()
+        ctx.ellipse(island.x, island.y, island.r * 1.3, island.r, 0.2, 0, Math.PI * 2)
+        ctx.fill()
+      }
+
       for (const z of state.city.zones) {
         ctx.fillStyle = z.color
-        ctx.globalAlpha = 0.88
-        roundRect(ctx, z.x - z.w / 2, z.y - z.h / 2, z.w, z.h, 18, true, false)
+        ctx.globalAlpha = 0.74
+        roundRect(ctx, z.x - z.w / 2, z.y - z.h / 2, z.w, z.h, 9, true, false)
+      }
 
-        const blocks = Math.floor(140 * z.density)
-        for (let i = 0; i < blocks; i += 1) {
-          const n1 = Math.sin((i + 1) * 12.9898 + z.x * 0.013 + state.seed * 7.11)
-          const n2 = Math.sin((i + 1) * 78.233 + z.y * 0.009 + state.seed * 3.53)
-          const n3 = Math.sin((i + 1) * 43.113 + state.seed * 6.29)
-          const bx = z.x + n1 * z.w * 0.43
-          const by = z.y + n2 * z.h * 0.43
-          const bw = 5 + (Math.abs(n2) * 16)
-          const bh = 5 + (Math.abs(n3) * 14)
-          ctx.fillStyle = 'rgba(0,0,0,0.20)'
-          ctx.fillRect(bx, by, bw, bh)
-        }
+      for (const parcel of state.city.backdrop.parcels) {
+        ctx.save()
+        ctx.translate(parcel.x, parcel.y)
+        ctx.rotate(parcel.rot)
+        ctx.fillStyle = 'rgba(0,0,0,0.2)'
+        ctx.fillRect(-parcel.w * 0.5, -parcel.h * 0.5, parcel.w, parcel.h)
+        ctx.strokeStyle = 'rgba(255,255,255,0.08)'
+        ctx.lineWidth = 0.7
+        ctx.strokeRect(-parcel.w * 0.5, -parcel.h * 0.5, parcel.w, parcel.h)
+        ctx.restore()
+      }
 
+      for (const a of state.city.backdrop.arterials) {
+        ctx.strokeStyle = 'rgba(35,35,35,0.95)'
+        ctx.lineWidth = a.width + 10
+        ctx.beginPath()
+        ctx.moveTo(a.x1, a.y1)
+        ctx.quadraticCurveTo(a.cx, a.cy, a.x2, a.y2)
+        ctx.stroke()
+
+        ctx.strokeStyle = 'rgba(120,120,120,0.9)'
+        ctx.lineWidth = a.width + 4
+        ctx.beginPath()
+        ctx.moveTo(a.x1, a.y1)
+        ctx.quadraticCurveTo(a.cx, a.cy, a.x2, a.y2)
+        ctx.stroke()
+
+        ctx.strokeStyle = 'rgba(235,235,235,0.2)'
+        ctx.lineWidth = 1
+        ctx.setLineDash([10, 10])
+        ctx.beginPath()
+        ctx.moveTo(a.x1, a.y1)
+        ctx.quadraticCurveTo(a.cx, a.cy, a.x2, a.y2)
+        ctx.stroke()
+        ctx.setLineDash([])
+      }
+
+      for (const z of state.city.zones) {
         ctx.globalAlpha = 1
-        ctx.fillStyle = 'rgba(220,240,255,0.65)'
-        ctx.font = '14px "Share Tech Mono"'
+        ctx.fillStyle = 'rgba(245,245,245,0.62)'
+        ctx.font = '11px "Share Tech Mono"'
         ctx.fillText(z.districtName, z.x - z.w / 2 + 8, z.y - z.h / 2 + 18)
       }
 
