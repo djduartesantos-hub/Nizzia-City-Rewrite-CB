@@ -1060,7 +1060,7 @@ const saveCrimeConfig = () => saveWorldSection('crime', '/admin/world/config/cri
 async function forceJail(secondsOverride) {
   try {
     const target = ensureTarget()
-    const jailTime = Math.max(60, Number(secondsOverride ?? worldConfigs.prison.defaultJailSeconds || 3600))
+    const jailTime = Math.max(60, Number((secondsOverride ?? worldConfigs.prison.defaultJailSeconds) || 3600))
     await api.patch('/admin/player/state', { targetUserId: target, jailed: true, jailTime })
     toast.success('Jogador preso manualmente')
   } catch (e) {
@@ -1071,7 +1071,7 @@ async function forceJail(secondsOverride) {
 async function forceHospital(secondsOverride) {
   try {
     const target = ensureTarget()
-    const hospitalTime = Math.max(60, Number(secondsOverride ?? worldConfigs.hospital.defaultHospitalSeconds || 900))
+    const hospitalTime = Math.max(60, Number((secondsOverride ?? worldConfigs.hospital.defaultHospitalSeconds) || 900))
     await api.patch('/admin/player/state', { targetUserId: target, hospitalized: true, hospitalTime })
     toast.success('Jogador hospitalizado manualmente')
   } catch (e) {
