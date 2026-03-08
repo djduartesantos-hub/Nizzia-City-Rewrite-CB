@@ -100,8 +100,8 @@
     }
 
     .panel {
-      background: rgba(15, 15, 15, 0.88);
-      border: 1px solid rgba(190, 190, 190, 0.2);
+      background: rgba(20, 24, 20, 0.7);
+      border: 1px solid rgba(210, 220, 200, 0.17);
       border-radius: 8px;
       box-shadow: var(--shadow);
       padding: 8px 10px;
@@ -183,20 +183,20 @@
       position: absolute;
       z-index: 15;
       transform: translate(-50%, -100%);
-      color: #fff;
-      font-size: 0.66rem;
+      color: #f4f1e5;
+      font-size: 0.62rem;
       text-align: center;
-      min-width: 54px;
-      padding: 4px 6px;
+      min-width: 44px;
+      padding: 3px 5px;
       border-radius: 14px 14px 14px 4px;
-      background: linear-gradient(#f7c945, #cc8f1d);
-      border: 1px solid rgba(0, 0, 0, 0.34);
-      box-shadow: 0 3px 10px rgba(0,0,0,.45);
-      animation: pulse 1.3s infinite;
+      background: linear-gradient(#d9b06a, #8f6d3b);
+      border: 1px solid rgba(0, 0, 0, 0.42);
+      box-shadow: 0 2px 7px rgba(0,0,0,.38);
+      animation: pulse 1.8s infinite;
       cursor: pointer;
       user-select: none;
       pointer-events: auto;
-      font-weight: 700;
+      font-weight: 600;
     }
 
     .event-chip::after {
@@ -211,16 +211,16 @@
       border-top: 9px solid #cc8f1d;
     }
 
-    .event-chip.medium { background: linear-gradient(#4ecde1, #2188a0); }
-    .event-chip.medium::after { border-top-color: #2188a0; }
-    .event-chip.high { background: linear-gradient(#ff9050, #d95b27); }
-    .event-chip.high::after { border-top-color: #d95b27; }
-    .event-chip.very-high { background: linear-gradient(#ff6376, #c43e59); }
-    .event-chip.very-high::after { border-top-color: #c43e59; }
+    .event-chip.medium { background: linear-gradient(#88b7a5, #4f7d6c); }
+    .event-chip.medium::after { border-top-color: #4f7d6c; }
+    .event-chip.high { background: linear-gradient(#c7a37b, #8a6442); }
+    .event-chip.high::after { border-top-color: #8a6442; }
+    .event-chip.very-high { background: linear-gradient(#c88a86, #8f4f4c); }
+    .event-chip.very-high::after { border-top-color: #8f4f4c; }
 
     @keyframes pulse {
       0% { transform: translate(-50%, -100%) scale(1); }
-      50% { transform: translate(-50%, -102%) scale(1.08); }
+      50% { transform: translate(-50%, -101%) scale(1.04); }
       100% { transform: translate(-50%, -100%) scale(1); }
     }
 
@@ -589,16 +589,16 @@
     }
 
     const ZONE_ARCHETYPES = [
-      { key: 'residencial', label: 'Residencial', color: '#6d4da8', density: 0.45 },
-      { key: 'comercial', label: 'Comercial', color: '#44b57a', density: 0.62 },
-      { key: 'industrial', label: 'Industrial', color: '#d06b3c', density: 0.56 },
-      { key: 'porto', label: 'Porto/Docas', color: '#3e7acb', density: 0.5 },
-      { key: 'suburbio', label: 'Subúrbio', color: '#67a64d', density: 0.36 },
-      { key: 'gueto', label: 'Gueto', color: '#b04871', density: 0.67 },
-      { key: 'rico', label: 'Bairro Rico', color: '#c0a246', density: 0.48 },
-      { key: 'abandonada', label: 'Zona Abandonada', color: '#7a7a84', density: 0.2 },
-      { key: 'parque', label: 'Parque', color: '#2f9a58', density: 0.15 },
-      { key: 'mercado-negro', label: 'Mercado Negro', color: '#46b9be', density: 0.58 },
+      { key: 'residencial', label: 'Residencial', color: '#8a946f', density: 0.45 },
+      { key: 'comercial', label: 'Comercial', color: '#8f8d79', density: 0.62 },
+      { key: 'industrial', label: 'Industrial', color: '#9a9287', density: 0.56 },
+      { key: 'porto', label: 'Porto/Docas', color: '#859384', density: 0.5 },
+      { key: 'suburbio', label: 'Subúrbio', color: '#82986b', density: 0.36 },
+      { key: 'gueto', label: 'Gueto', color: '#8d846f', density: 0.67 },
+      { key: 'rico', label: 'Bairro Rico', color: '#8f9d79', density: 0.48 },
+      { key: 'abandonada', label: 'Zona Abandonada', color: '#8a8a86', density: 0.2 },
+      { key: 'parque', label: 'Parque', color: '#6e8f62', density: 0.15 },
+      { key: 'mercado-negro', label: 'Mercado Negro', color: '#8f8b75', density: 0.58 },
     ]
 
     const STREET_PART_A = ['Avenida', 'Rua', 'Travessa', 'Boulevard', 'Alameda', 'Viela', 'Via']
@@ -681,19 +681,38 @@
 
       generateRoads() {
         const roads = []
-        const xCount = 9 + this.rng.int(0, 3)
-        const yCount = 7 + this.rng.int(0, 3)
-        for (let i = 1; i <= xCount; i += 1) {
-          const t = i / (xCount + 1)
-          const jitter = this.rng.range(-70, 70)
-          const x = clamp(CITY_W * t + jitter, 60, CITY_W - 60)
-          roads.push({ x1: x, y1: 0, x2: x + this.rng.range(-40, 40), y2: CITY_H, width: this.rng.range(8, 16) })
+        const cx = CITY_W * 0.5 + this.rng.range(-80, 80)
+        const cy = CITY_H * 0.47 + this.rng.range(-80, 70)
+
+        const ringCount = 3
+        for (let r = 0; r < ringCount; r += 1) {
+          const radius = 240 + r * 170 + this.rng.range(-20, 25)
+          const points = []
+          const slices = 18 + r * 2
+          for (let i = 0; i <= slices; i += 1) {
+            const a = (Math.PI * 2 * i) / slices
+            const wobble = this.rng.range(-40, 40)
+            points.push({
+              x: clamp(cx + Math.cos(a) * (radius + wobble), 30, CITY_W - 30),
+              y: clamp(cy + Math.sin(a) * (radius * 0.72 + wobble * 0.55), 30, CITY_H - 30),
+            })
+          }
+          roads.push({ kind: 'poly', points, width: this.rng.range(7.5, 12.5) })
         }
-        for (let i = 1; i <= yCount; i += 1) {
-          const t = i / (yCount + 1)
-          const jitter = this.rng.range(-70, 70)
-          const y = clamp(CITY_H * t + jitter, 60, CITY_H - 60)
-          roads.push({ x1: 0, y1: y, x2: CITY_W, y2: y + this.rng.range(-30, 30), width: this.rng.range(8, 16) })
+
+        const spokeCount = 10 + this.rng.int(0, 3)
+        for (let i = 0; i < spokeCount; i += 1) {
+          const a = (Math.PI * 2 * i) / spokeCount + this.rng.range(-0.12, 0.12)
+          roads.push({
+            kind: 'curve',
+            x1: clamp(cx + Math.cos(a) * this.rng.range(50, 140), 20, CITY_W - 20),
+            y1: clamp(cy + Math.sin(a) * this.rng.range(50, 120), 20, CITY_H - 20),
+            cx: clamp(cx + Math.cos(a + this.rng.range(-0.45, 0.45)) * this.rng.range(280, 460), 20, CITY_W - 20),
+            cy: clamp(cy + Math.sin(a + this.rng.range(-0.45, 0.45)) * this.rng.range(220, 410), 20, CITY_H - 20),
+            x2: clamp(cx + Math.cos(a) * this.rng.range(680, 1080), 10, CITY_W - 10),
+            y2: clamp(cy + Math.sin(a) * this.rng.range(560, 880), 10, CITY_H - 10),
+            width: this.rng.range(6.8, 10.8),
+          })
         }
         return roads
       }
@@ -763,6 +782,54 @@
           return { zoneId: z.id, color: z.color, points }
         })
 
+        const lakes = []
+        for (let i = 0; i < 3; i += 1) {
+          lakes.push({
+            x: this.rng.range(CITY_W * 0.62, CITY_W * 0.88),
+            y: this.rng.range(CITY_H * 0.22, CITY_H * 0.62),
+            rx: this.rng.range(60, 130),
+            ry: this.rng.range(50, 120),
+            rot: this.rng.range(-0.5, 0.5),
+          })
+        }
+        lakes.push({
+          x: this.rng.range(CITY_W * 0.08, CITY_W * 0.22),
+          y: this.rng.range(CITY_H * 0.28, CITY_H * 0.48),
+          rx: this.rng.range(35, 75),
+          ry: this.rng.range(32, 68),
+          rot: this.rng.range(-0.4, 0.4),
+        })
+
+        const forestPatches = []
+        for (let i = 0; i < 110; i += 1) {
+          forestPatches.push({
+            x: this.rng.range(0, CITY_W),
+            y: this.rng.range(0, CITY_H),
+            r: this.rng.range(22, 82),
+            a: this.rng.range(0.12, 0.32),
+          })
+        }
+
+        const farmPatches = []
+        for (let i = 0; i < 120; i += 1) {
+          farmPatches.push({
+            x: this.rng.range(20, CITY_W - 20),
+            y: this.rng.range(20, CITY_H - 20),
+            w: this.rng.range(22, 90),
+            h: this.rng.range(16, 70),
+            rot: this.rng.range(-0.4, 0.4),
+            tone: this.rng.int(0, 3),
+          })
+        }
+
+        const industrialZone = zones.find((z) => z.key === 'industrial') || zones[0]
+        const industrialArea = {
+          x: clamp(industrialZone.x + this.rng.range(120, 260), CITY_W * 0.56, CITY_W - 430),
+          y: clamp(industrialZone.y + this.rng.range(90, 170), CITY_H * 0.52, CITY_H - 310),
+          w: this.rng.range(280, 390),
+          h: this.rng.range(190, 270),
+        }
+
         const parcels = []
         for (const z of zones) {
           const count = Math.floor(70 + z.density * 120)
@@ -776,7 +843,35 @@
           }
         }
 
-        return { shoreline, islands, arterials, localRoads, districtBlobs, parcels }
+        const residentialBlocks = []
+        for (const z of zones) {
+          if (!['residencial', 'suburbio', 'rico', 'gueto'].includes(z.key)) continue
+          const blockCount = Math.floor(90 + z.density * 160)
+          for (let i = 0; i < blockCount; i += 1) {
+            residentialBlocks.push({
+              x: clamp(z.x + this.rng.range(-z.w * 0.44, z.w * 0.44), 20, CITY_W - 20),
+              y: clamp(z.y + this.rng.range(-z.h * 0.44, z.h * 0.44), 20, CITY_H - 20),
+              w: this.rng.range(4, 12),
+              h: this.rng.range(4, 12),
+              rot: this.rng.range(-0.22, 0.22),
+              t: this.rng.int(0, 2),
+            })
+          }
+        }
+
+        return {
+          shoreline,
+          islands,
+          arterials,
+          localRoads,
+          districtBlobs,
+          lakes,
+          forestPatches,
+          farmPatches,
+          industrialArea,
+          parcels,
+          residentialBlocks,
+        }
       }
 
       generateStreetNames(count) {
@@ -911,26 +1006,63 @@
       ctx.translate(offsetX, offsetY)
       ctx.scale(scale, scale)
 
-      ctx.fillStyle = '#828389'
+      ctx.fillStyle = '#7d9b63'
       ctx.fillRect(0, 0, CITY_W, CITY_H)
 
-      for (let y = 0; y < CITY_H; y += 12) {
-        const shade = 132 + Math.sin((y / CITY_H) * Math.PI * 4 + state.seed) * 8
-        ctx.fillStyle = `rgba(${shade},${shade},${shade + 6},0.06)`
-        ctx.fillRect(0, y, CITY_W, 8)
+      for (const patch of state.city.backdrop.forestPatches) {
+        ctx.fillStyle = `rgba(46, 84, 42, ${patch.a})`
+        ctx.beginPath()
+        ctx.arc(patch.x, patch.y, patch.r, 0, Math.PI * 2)
+        ctx.fill()
       }
 
-      ctx.fillStyle = '#05070a'
-      ctx.beginPath()
-      const shore = state.city.backdrop.shoreline
-      ctx.moveTo(0, CITY_H)
-      ctx.lineTo(0, shore[0].y)
-      for (let i = 1; i < shore.length; i += 1) {
-        ctx.lineTo(shore[i].x, shore[i].y)
+      for (const farm of state.city.backdrop.farmPatches) {
+        ctx.save()
+        ctx.translate(farm.x, farm.y)
+        ctx.rotate(farm.rot)
+        ctx.fillStyle = farm.tone === 0
+          ? 'rgba(170, 168, 98, 0.30)'
+          : farm.tone === 1
+            ? 'rgba(149, 140, 87, 0.27)'
+            : farm.tone === 2
+              ? 'rgba(118, 143, 82, 0.26)'
+              : 'rgba(138, 156, 94, 0.24)'
+        ctx.fillRect(-farm.w / 2, -farm.h / 2, farm.w, farm.h)
+        ctx.strokeStyle = 'rgba(95, 104, 62, 0.25)'
+        ctx.lineWidth = 0.8
+        ctx.strokeRect(-farm.w / 2, -farm.h / 2, farm.w, farm.h)
+        ctx.restore()
       }
-      ctx.lineTo(CITY_W, CITY_H)
-      ctx.closePath()
-      ctx.fill()
+
+      const shore = state.city.backdrop.shoreline
+      ctx.strokeStyle = 'rgba(196, 189, 144, 0.7)'
+      ctx.lineWidth = 10
+      ctx.beginPath()
+      ctx.moveTo(shore[0].x, shore[0].y)
+      for (let i = 1; i < shore.length; i += 1) ctx.lineTo(shore[i].x, shore[i].y)
+      ctx.stroke()
+
+      ctx.strokeStyle = 'rgba(83, 107, 151, 0.32)'
+      ctx.lineWidth = 4
+      ctx.beginPath()
+      ctx.moveTo(shore[0].x, shore[0].y + 6)
+      for (let i = 1; i < shore.length; i += 1) ctx.lineTo(shore[i].x, shore[i].y + 6)
+      ctx.stroke()
+
+      for (const lake of state.city.backdrop.lakes) {
+        ctx.save()
+        ctx.translate(lake.x, lake.y)
+        ctx.rotate(lake.rot)
+        ctx.fillStyle = 'rgba(219, 205, 150, 0.65)'
+        ctx.beginPath()
+        ctx.ellipse(0, 0, lake.rx + 18, lake.ry + 16, 0, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.fillStyle = 'rgba(63, 182, 204, 0.88)'
+        ctx.beginPath()
+        ctx.ellipse(0, 0, lake.rx, lake.ry, 0, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.restore()
+      }
 
       ctx.fillStyle = 'rgba(185, 186, 192, 0.4)'
       for (const island of state.city.backdrop.islands) {
@@ -940,7 +1072,7 @@
       }
 
       for (const blob of state.city.backdrop.districtBlobs) {
-        ctx.globalAlpha = 0.64
+        ctx.globalAlpha = 0.24
         ctx.fillStyle = blob.color
         ctx.beginPath()
         ctx.moveTo(blob.points[0].x, blob.points[0].y)
@@ -961,30 +1093,55 @@
         ctx.save()
         ctx.translate(parcel.x, parcel.y)
         ctx.rotate(parcel.rot)
-        ctx.fillStyle = 'rgba(0,0,0,0.16)'
+        ctx.fillStyle = 'rgba(185, 180, 170, 0.28)'
         ctx.fillRect(-parcel.w * 0.5, -parcel.h * 0.5, parcel.w, parcel.h)
-        ctx.strokeStyle = 'rgba(255,255,255,0.11)'
+        ctx.strokeStyle = 'rgba(85, 86, 78, 0.26)'
         ctx.lineWidth = 0.7
         ctx.strokeRect(-parcel.w * 0.5, -parcel.h * 0.5, parcel.w, parcel.h)
         ctx.restore()
       }
 
+      for (const block of state.city.backdrop.residentialBlocks) {
+        ctx.save()
+        ctx.translate(block.x, block.y)
+        ctx.rotate(block.rot)
+        ctx.fillStyle = block.t === 0
+          ? 'rgba(168, 164, 154, 0.34)'
+          : block.t === 1
+            ? 'rgba(152, 150, 141, 0.31)'
+            : 'rgba(134, 132, 125, 0.29)'
+        ctx.fillRect(-block.w * 0.5, -block.h * 0.5, block.w, block.h)
+        ctx.restore()
+      }
+
+      const ia = state.city.backdrop.industrialArea
+      ctx.fillStyle = 'rgba(196, 194, 186, 0.78)'
+      roundRect(ctx, ia.x, ia.y, ia.w, ia.h, 8, true, false)
+      for (let gy = ia.y + 10; gy < ia.y + ia.h - 10; gy += 28) {
+        for (let gx = ia.x + 10; gx < ia.x + ia.w - 10; gx += 40) {
+          ctx.fillStyle = 'rgba(160, 162, 158, 0.92)'
+          ctx.fillRect(gx, gy, 28, 18)
+          ctx.strokeStyle = 'rgba(120, 122, 118, 0.7)'
+          ctx.strokeRect(gx, gy, 28, 18)
+        }
+      }
+
       for (const a of state.city.backdrop.arterials) {
-        ctx.strokeStyle = 'rgba(35,35,35,0.95)'
+        ctx.strokeStyle = 'rgba(66,66,66,0.95)'
         ctx.lineWidth = a.width + 10
         ctx.beginPath()
         ctx.moveTo(a.x1, a.y1)
         ctx.quadraticCurveTo(a.cx, a.cy, a.x2, a.y2)
         ctx.stroke()
 
-        ctx.strokeStyle = 'rgba(120,120,120,0.9)'
+        ctx.strokeStyle = 'rgba(188,188,188,0.86)'
         ctx.lineWidth = a.width + 4
         ctx.beginPath()
         ctx.moveTo(a.x1, a.y1)
         ctx.quadraticCurveTo(a.cx, a.cy, a.x2, a.y2)
         ctx.stroke()
 
-        ctx.strokeStyle = 'rgba(235,235,235,0.2)'
+        ctx.strokeStyle = 'rgba(245,245,245,0.34)'
         ctx.lineWidth = 1
         ctx.setLineDash([10, 10])
         ctx.beginPath()
@@ -996,33 +1153,30 @@
 
       for (const z of state.city.zones) {
         ctx.globalAlpha = 1
-        ctx.fillStyle = 'rgba(245,245,245,0.62)'
-        ctx.font = '11px "Share Tech Mono"'
+        ctx.fillStyle = 'rgba(50,52,46,0.7)'
+        ctx.font = '10px "Share Tech Mono"'
         ctx.fillText(z.districtName, z.x - z.w / 2 + 8, z.y - z.h / 2 + 18)
       }
 
       for (let i = 0; i < state.city.roads.length; i += 1) {
         const r = state.city.roads[i]
-        ctx.strokeStyle = 'rgba(52,52,52,0.95)'
+        ctx.strokeStyle = 'rgba(68,68,68,0.95)'
         ctx.lineWidth = r.width + 8
         ctx.beginPath()
-        ctx.moveTo(r.x1, r.y1)
-        ctx.lineTo(r.x2, r.y2)
+        traceRoadPath(ctx, r)
         ctx.stroke()
 
-        ctx.strokeStyle = 'rgba(118,118,118,0.9)'
+        ctx.strokeStyle = 'rgba(170,170,170,0.95)'
         ctx.lineWidth = r.width + 3
         ctx.beginPath()
-        ctx.moveTo(r.x1, r.y1)
-        ctx.lineTo(r.x2, r.y2)
+        traceRoadPath(ctx, r)
         ctx.stroke()
 
-        ctx.strokeStyle = 'rgba(220,220,220,0.22)'
+        ctx.strokeStyle = 'rgba(255,255,255,0.44)'
         ctx.lineWidth = 1
         ctx.setLineDash([8, 10])
         ctx.beginPath()
-        ctx.moveTo(r.x1, r.y1)
-        ctx.lineTo(r.x2, r.y2)
+        traceRoadPath(ctx, r)
         ctx.stroke()
         ctx.setLineDash([])
       }
@@ -1045,12 +1199,12 @@
         ctx.fillText(loc.name, loc.x + 14, loc.y + 3)
       }
 
-      for (let i = 0; i < 260; i += 1) {
+      for (let i = 0; i < 180; i += 1) {
         const px = ((i * 157) % CITY_W)
         const py = ((i * 223 + state.seed * 31) % CITY_H)
-        ctx.fillStyle = i % 3 ? 'rgba(242, 61, 61, 0.45)' : 'rgba(58, 220, 138, 0.42)'
+        ctx.fillStyle = i % 3 ? 'rgba(198, 77, 77, 0.28)' : 'rgba(58, 130, 96, 0.26)'
         ctx.beginPath()
-        ctx.arc(px, py, 1.4, 0, Math.PI * 2)
+        ctx.arc(px, py, 1.1, 0, Math.PI * 2)
         ctx.fill()
       }
 
@@ -1113,7 +1267,7 @@
         chip.className = `event-chip ${e.template.riskClass}`
         chip.style.left = `${p.x}px`
         chip.style.top = `${p.y}px`
-        chip.innerHTML = `${e.template.icon} ${fmtTime(e.remaining)}`
+        chip.textContent = fmtTime(e.remaining)
         chip.title = `${e.template.name} · ${e.zone.label}`
         chip.onclick = () => openEventModal(e.id)
         eventLayer.appendChild(chip)
@@ -1148,19 +1302,46 @@
       g.beginPath()
       g.moveTo(points[0].x, points[0].y)
       for (let i = 1; i < points.length; i += 1) {
-        g.lineTo(points[i].x, points[i].y)
+        const prev = points[i - 1]
+        const curr = points[i]
+        const mx = (prev.x + curr.x) * 0.5
+        const my = (prev.y + curr.y) * 0.5
+        g.quadraticCurveTo(prev.x, prev.y, mx, my)
       }
+      g.lineTo(points[points.length - 1].x, points[points.length - 1].y)
       g.stroke()
+    }
+
+    function traceRoadPath(g, road) {
+      if (road.kind === 'poly' && road.points && road.points.length > 1) {
+        g.moveTo(road.points[0].x, road.points[0].y)
+        for (let i = 1; i < road.points.length; i += 1) {
+          const prev = road.points[i - 1]
+          const curr = road.points[i]
+          const mx = (prev.x + curr.x) * 0.5
+          const my = (prev.y + curr.y) * 0.5
+          g.quadraticCurveTo(prev.x, prev.y, mx, my)
+        }
+        g.lineTo(road.points[road.points.length - 1].x, road.points[road.points.length - 1].y)
+        return
+      }
+      if (road.kind === 'curve' && Number.isFinite(road.cx) && Number.isFinite(road.cy)) {
+        g.moveTo(road.x1, road.y1)
+        g.quadraticCurveTo(road.cx, road.cy, road.x2, road.y2)
+        return
+      }
+      g.moveTo(road.x1, road.y1)
+      g.lineTo(road.x2, road.y2)
     }
 
     function buildLegend() {
       const keyItems = [
-        { label: 'Financial', color: '#3e7acb' },
-        { label: 'Administrative', color: '#d06b3c' },
-        { label: 'Shopping', color: '#c0a246' },
-        { label: 'Leisure', color: '#67a64d' },
-        { label: 'Real Estate', color: '#46b9be' },
-        { label: 'Miscellaneous', color: '#a266d0' },
+        { label: 'Água', color: '#4ea7bd' },
+        { label: 'Floresta', color: '#557f4c' },
+        { label: 'Agrícola', color: '#9b9c5f' },
+        { label: 'Industrial', color: '#9b978f' },
+        { label: 'Rodovia', color: '#8d8d8d' },
+        { label: 'Evento ativo', color: '#b47b4d' },
       ]
       legendListEl.innerHTML = ''
       for (const item of keyItems) {
