@@ -722,7 +722,7 @@
     function viewTransform() {
       const sx = canvas.clientWidth / CITY_W
       const sy = canvas.clientHeight / CITY_H
-      const baseScale = Math.min(sx, sy)
+      const baseScale = Math.max(sx, sy)
       const zoom = clamp(state.camera.zoom, state.camera.minZoom, state.camera.maxZoom)
       const scale = baseScale * zoom
       const offsetX = canvas.clientWidth / 2 - state.camera.cx * scale
