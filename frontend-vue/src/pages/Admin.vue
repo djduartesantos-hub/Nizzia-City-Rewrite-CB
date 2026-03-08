@@ -609,7 +609,7 @@
             <h3>Gestão de Prisão & Hospital</h3>
             <small>Parâmetros globais e ações rápidas</small>
             <div class="actions">
-              <button class="secondary" @click="loadWorldConfigs(true)">Recarregar</button>
+              <button class="secondary" @click="hydrateWorldTab(true)">Recarregar</button>
             </div>
           </div>
           <div v-if="worldLoading" class="muted">Carregando configurações…</div>
@@ -619,6 +619,42 @@
                 <h4>Prisão</h4>
                 <div class="muted">Define fianças, tempos padrão e regras de fuga</div>
               </header>
+              <div class="metrics">
+                <div class="stat">
+                  <label>Presos ativos</label>
+                  <strong>{{ prisonOverview.stats.total }}</strong>
+                </div>
+                <div class="stat">
+                  <label>Tempo médio</label>
+                  <strong>{{ humanDuration(prisonOverview.stats.avgSeconds) }}</strong>
+                </div>
+                <div class="stat">
+                  <label>Última fuga</label>
+                  <strong>{{ prisonOverview.stats.lastBreakout ? fmt(prisonOverview.stats.lastBreakout) : '—' }}</strong>
+                </div>
+                <button class="ghost" @click="refreshPrisonOverview(true)" :disabled="prisonOverview.loading">Atualizar</button>
+              </div>
+              <div class="snapshot-list" v-if="prisonOverview.list.length">
+                <p class="muted">Top detidos recentes</p>
+                <ul>
+                  <li v-for="inmate in prisonOverview.list" :key="inmate.userId">
+                    <div>
+                      <strong>{{ inmate.name }}</strong>
+                      <span class="muted"> · {{ inmate.crime || '—' }}</span>
+                    </div>
+                    <span class="timer">{{ shortCountdown(inmate.remainingSeconds) }}</span>
+                  </li>
+                </ul>
+              </div>
+              <div class="snapshot-list" v-if="prisonOverview.events.length">
+                <p class="muted">Eventos recentes</p>
+                <ul>
+                  <li v-for="evt in prisonOverview.events" :key="evt.id || evt.ts">
+                    <span>{{ evt.summary }}</span>
+                    <small class="muted">{{ fmt(evt.ts) }}</small>
+                  </li>
+                </ul>
+              </div>
               <div class="row">
                 <div><label>Min (s)</label><input v-model.number="worldConfigs.prison.minJailSeconds" type="number" min="60" /></div>
                 <div><label>Default (s)</label><input v-model.number="worldConfigs.prison.defaultJailSeconds" type="number" min="60" /></div>
@@ -654,6 +690,42 @@
                 <h4>Hospital</h4>
                 <div class="muted">Custos de revive, tratamentos e limites</div>
               </header>
+              <div class="metrics">
+                <div class="stat">
+                  <label>Internados</label>
+                  <strong>{{ hospitalOverview.stats.total }}</strong>
+                </div>
+                <div class="stat">
+                  <label>Tempo médio</label>
+                  <strong>{{ humanDuration(hospitalOverview.stats.avgSeconds) }}</strong>
+                </div>
+                <div class="stat">
+                  <label>Último revive</label>
+                  <strong>{{ hospitalOverview.stats.lastRevive ? fmt(hospitalOverview.stats.lastRevive) : '—' }}</strong>
+                </div>
+                <button class="ghost" @click="refreshHospitalOverview(true)" :disabled="hospitalOverview.loading">Atualizar</button>
+              </div>
+              <div class="snapshot-list" v-if="hospitalOverview.list.length">
+                <p class="muted">Pacientes críticos</p>
+                <ul>
+                  <li v-for="patient in hospitalOverview.list" :key="patient.userId">
+                    <div>
+                      <strong>{{ patient.name }}</strong>
+                      <span class="muted"> · HP {{ patient.health }}</span>
+                    </div>
+                    <span class="timer">{{ shortCountdown(patient.remainingSeconds) }}</span>
+                  </li>
+                </ul>
+              </div>
+              <div class="snapshot-list" v-if="hospitalOverview.events.length">
+                <p class="muted">Eventos clínicos</p>
+                <ul>
+                  <li v-for="evt in hospitalOverview.events" :key="evt.id || evt.ts">
+                    <span>{{ evt.summary }}</span>
+                    <small class="muted">{{ fmt(evt.ts) }}</small>
+                  </li>
+                </ul>
+              </div>
               <div class="row">
                 <div><label>Min (s)</label><input v-model.number="worldConfigs.hospital.minHospitalSeconds" type="number" min="60" /></div>
                 <div><label>Default (s)</label><input v-model.number="worldConfigs.hospital.defaultHospitalSeconds" type="number" min="60" /></div>
@@ -1008,6 +1080,22 @@ const worldLoading = ref(false)
 const worldLoaded = ref(false)
 const worldSaving = reactive({ prison: false, hospital: false, crime: false })
 
+const prisonOverview = reactive({
+  loading: false,
+  stats: { total: 0, avgSeconds: 0, lastBreakout: null },
+  list: [],
+  events: [],
+  lastFetched: null,
+})
+
+const hospitalOverview = reactive({
+  loading: false,
+  stats: { total: 0, avgSeconds: 0, lastRevive: null },
+  list: [],
+  events: [],
+  lastFetched: null,
+})
+
 function mergeWorldSection(section, incoming = {}) {
   if (section === 'crime') {
     const severity = incoming.severityMultipliers || {}
@@ -1057,6 +1145,73 @@ const savePrisonConfig = () => saveWorldSection('prison', '/admin/world/config/p
 const saveHospitalConfig = () => saveWorldSection('hospital', '/admin/world/config/hospital', 'hospital')
 const saveCrimeConfig = () => saveWorldSection('crime', '/admin/world/config/crime', 'crime')
 
+function humanDuration(seconds) {
+  const total = Math.max(0, Number(seconds) || 0)
+  if (total >= 3600) {
+    const h = Math.floor(total / 3600)
+    const m = Math.floor((total % 3600) / 60)
+    return `${h}h ${m}m`
+  }
+  const minutes = Math.max(1, Math.round(total / 60) || 0)
+  return `${minutes}m`
+}
+
+function shortCountdown(seconds) {
+  const total = Math.max(0, Number(seconds) || 0)
+  const m = Math.floor(total / 60)
+  const s = total % 60
+  const pad = (n) => String(n).padStart(2, '0')
+  if (total >= 3600) {
+    const h = Math.floor(total / 3600)
+    return `${pad(h)}:${pad(m % 60)}:${pad(s)}`
+  }
+  return `${pad(m)}:${pad(s)}`
+}
+
+async function refreshPrisonOverview(force = false) {
+  if (prisonOverview.loading && !force) return
+  try {
+    prisonOverview.loading = true
+    const query = new URLSearchParams({ limit: '5', sort: 'time_desc' }).toString()
+    const res = await api.get(`/world/prisoners?${query}`)
+    prisonOverview.list = res.data?.prisoners || []
+    prisonOverview.stats = res.data?.stats || prisonOverview.stats
+    prisonOverview.lastFetched = new Date().toISOString()
+    const eventsRes = await api.get('/world/prison/events?limit=5')
+    prisonOverview.events = eventsRes.data?.events || []
+  } catch (e) {
+    toast.error(e?.response?.data?.error || 'Falha ao carregar estado da prisão')
+  } finally {
+    prisonOverview.loading = false
+  }
+}
+
+async function refreshHospitalOverview(force = false) {
+  if (hospitalOverview.loading && !force) return
+  try {
+    hospitalOverview.loading = true
+    const query = new URLSearchParams({ limit: '5', sort: 'time_desc' }).toString()
+    const res = await api.get(`/world/patients?${query}`)
+    hospitalOverview.list = res.data?.patients || []
+    hospitalOverview.stats = res.data?.stats || hospitalOverview.stats
+    hospitalOverview.lastFetched = new Date().toISOString()
+    const eventsRes = await api.get('/world/hospital/events?limit=5')
+    hospitalOverview.events = eventsRes.data?.events || []
+  } catch (e) {
+    toast.error(e?.response?.data?.error || 'Falha ao carregar estado do hospital')
+  } finally {
+    hospitalOverview.loading = false
+  }
+}
+
+async function hydrateWorldTab(force = false) {
+  await Promise.all([
+    loadWorldConfigs(force),
+    refreshPrisonOverview(force || !prisonOverview.lastFetched),
+    refreshHospitalOverview(force || !hospitalOverview.lastFetched),
+  ])
+}
+
 async function forceJail(secondsOverride) {
   try {
     const target = ensureTarget()
@@ -1098,14 +1253,14 @@ async function releaseTarget(kind) {
 }
 
 watch(currentTab, (tab) => {
-  if (tab === 'Mundo' && !worldLoaded.value) {
-    loadWorldConfigs()
+  if (tab === 'Mundo') {
+    hydrateWorldTab()
   }
 })
 
 onMounted(() => {
   if (currentTab.value === 'Mundo') {
-    loadWorldConfigs()
+    hydrateWorldTab()
   }
 })
 
