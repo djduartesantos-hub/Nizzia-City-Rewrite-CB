@@ -13,6 +13,36 @@ const { REP_LEVELS } = require('../config/cartel');
 const { getRepLevel, getRepInfo } = require('../services/cartel/cartelService');
 const PlayerAdminNote = require('../models/PlayerAdminNote');
 
+const PUNISHMENT_PRESETS = {
+  warn_watch: {
+    label: 'Warning + Watchlist',
+    status: 'Active',
+    jailed: false,
+    jailTime: 0,
+    note: 'Warning issued — player placed on watchlist.',
+    noteTags: ['warning'],
+  },
+  temp_suspend: {
+    label: 'Suspensão 72h',
+    status: 'Suspended',
+    jailed: true,
+    jailTime: 12 * 3600,
+    clearCooldowns: true,
+    note: 'Temporary suspension preset (72h).',
+    noteTags: ['suspension'],
+  },
+  cheat_ban: {
+    label: 'Cheat Ban (permanent)',
+    status: 'Banned',
+    role: 'Player',
+    jailed: true,
+    jailTime: 24 * 3600,
+    clearCooldowns: true,
+    note: 'Cheat ban preset applied.',
+    noteTags: ['cheat','ban'],
+  },
+};
+
 async function getAdminPlayerFromReq(req) {
   const userId = req.authUserId;
   if (!userId) throw new Error('Unauthorized');
@@ -20,6 +50,102 @@ async function getAdminPlayerFromReq(req) {
   if (!adminPlayer) throw new Error('Admin player not found');
   if (!['Admin', 'Developer'].includes(adminPlayer.playerRole)) throw new Error('Forbidden');
   return adminPlayer;
+}
+
+// PATCH /api/admin/player/support-flag { targetUserId, enabled, durationHours?, reason? }
+async function setSupportFlag(req, res) {
+  try {
+    const { targetUserId } = req.body;
+    if (!targetUserId) return res.status(400).json({ error: 'targetUserId is required' });
+    await getAdminPlayerFromReq(req);
+
+    const enabled = req.body.enabled === true || req.body.enabled === 'true';
+    let supportFlagUntil = null;
+    let supportFlagReason = null;
+
+    if (enabled) {
+      const hours = Number(req.body.durationHours || 0);
+      if (!Number.isFinite(hours) || hours <= 0) return res.status(400).json({ error: 'durationHours must be > 0 when enabling flag' });
+      supportFlagUntil = new Date(Date.now() + hours * 3600 * 1000);
+      supportFlagReason = String(req.body.reason || '').trim() || null;
+    }
+
+    const player = await Player.findOneAndUpdate(
+      { user: targetUserId },
+      { $set: { supportFlagUntil, supportFlagReason } },
+      { new: true }
+    ).lean();
+    if (!player) return res.status(404).json({ error: 'Target player not found' });
+
+    return res.json({ supportFlagUntil: player.supportFlagUntil, supportFlagReason: player.supportFlagReason });
+  } catch (err) {
+    if (err.message === 'Unauthorized') return res.status(401).json({ error: 'Unauthorized' });
+    if (err.message === 'Forbidden') return res.status(403).json({ error: 'Not authorized' });
+    console.error('ADMIN setSupportFlag error:', err);
+    return res.status(500).json({ error: 'Failed to set support flag' });
+  }
+}
+
+// PATCH /api/admin/player/punishment { targetUserId, preset }
+async function applyPunishmentPreset(req, res) {
+  try {
+    const admin = await getAdminPlayerFromReq(req);
+    const { targetUserId, preset } = req.body;
+    if (!targetUserId || !preset) return res.status(400).json({ error: 'targetUserId and preset are required' });
+    const config = PUNISHMENT_PRESETS[preset];
+    if (!config) return res.status(400).json({ error: 'Unknown preset' });
+
+    const player = await Player.findOne({ user: targetUserId });
+    if (!player) return res.status(404).json({ error: 'Target player not found' });
+
+    const applied = { preset };
+
+    if (config.status && player.playerStatus !== config.status) {
+      player.playerStatus = config.status;
+      applied.status = config.status;
+    }
+    if (config.role && player.playerRole !== config.role) {
+      player.playerRole = config.role;
+      applied.role = config.role;
+    }
+    if (typeof config.jailed !== 'undefined') {
+      player.jailed = !!config.jailed;
+      applied.jailed = player.jailed;
+    }
+    if (typeof config.jailTime !== 'undefined') {
+      player.jailTime = Math.max(0, Number(config.jailTime));
+      applied.jailTime = player.jailTime;
+    }
+    if (config.clearCooldowns) {
+      player.cooldowns = player.cooldowns || {};
+      player.cooldowns.drugCooldown = 0;
+      player.cooldowns.medicalCooldown = 0;
+      player.cooldowns.boosterCooldown = 0;
+      player.cooldowns.alcoholCooldown = 0;
+      player.cooldowns.drugs = {};
+      applied.cooldownsCleared = true;
+    }
+
+    await player.save();
+
+    if (config.note) {
+      await PlayerAdminNote.create({
+        playerUserId: targetUserId,
+        authorUserId: String(admin.user),
+        authorName: admin.name,
+        text: config.note,
+        tags: config.noteTags || ['punishment'],
+      });
+      applied.note = config.note;
+    }
+
+    return res.json({ ok: true, applied });
+  } catch (err) {
+    if (err.message === 'Unauthorized') return res.status(401).json({ error: 'Unauthorized' });
+    if (err.message === 'Forbidden') return res.status(403).json({ error: 'Not authorized' });
+    console.error('ADMIN applyPunishmentPreset error:', err);
+    return res.status(500).json({ error: 'Failed to apply punishment preset' });
+  }
 }
 
 // ------------------------------
@@ -516,6 +642,8 @@ module.exports = {
   setPlayerRole,
   listPlayerTitles,
   setAddiction,
+  applyPunishmentPreset,
+  setSupportFlag,
   // player admin notes
   listPlayerNotes,
   createPlayerNote,

@@ -130,6 +130,50 @@
       </div>
     </div>
 
+    <div class="card">
+      <h3>Punishment Presets</h3>
+      <p class="muted">Apply quick disciplinary bundles (status, jail, cooldown wipes, notes).</p>
+      <div class="row">
+        <div>
+          <label>Preset</label>
+          <select v-model="selectedPunishmentPreset">
+            <option value="">— select preset —</option>
+            <option v-for="preset in punishmentPresets" :key="preset.value" :value="preset.value">{{ preset.label }}</option>
+          </select>
+        </div>
+      </div>
+      <div class="actions">
+        <button :disabled="!selectedPunishmentPreset" @click="applyPunishment">Apply Preset</button>
+        <span class="muted">Adds an admin note automatically.</span>
+      </div>
+    </div>
+
+    <div class="card" v-if="profile">
+      <h3>Support Flag</h3>
+      <p class="muted">Highlight players that need extra attention across dashboards.</p>
+      <div class="row">
+        <div>
+          <label>Active</label>
+          <div class="toggle">
+            <input type="checkbox" v-model="supportFlagForm.enabled" />
+            <span>{{ supportFlagForm.enabled ? 'Flagged' : 'Off' }}</span>
+          </div>
+        </div>
+        <div>
+          <label>Duration (hours)</label>
+          <input v-model.number="supportFlagForm.durationHours" type="number" min="1" />
+        </div>
+        <div>
+          <label>Reason</label>
+          <input v-model.trim="supportFlagForm.reason" maxlength="200" placeholder="ex: Chargeback investigation" />
+        </div>
+      </div>
+      <div class="actions">
+        <button @click="saveSupportFlag">Save Flag</button>
+        <span class="muted">Current: <strong>{{ profile.supportFlagUntil ? `Active until ${fmt(profile.supportFlagUntil)}` : 'No flag' }}</strong></span>
+      </div>
+    </div>
+
     <!-- Currencies -->
     <div class="card">
       <h3>Currencies</h3>
@@ -528,6 +572,13 @@ const modStatus = ref('Active')
 const modRole = ref('Player')
 const modTitle = ref('')
 const titles = ref([])
+const punishmentPresets = [
+  { value: 'warn_watch', label: 'Warning + Watchlist' },
+  { value: 'temp_suspend', label: 'Suspensão 72h' },
+  { value: 'cheat_ban', label: 'Cheat Ban (permanent)' },
+]
+const selectedPunishmentPreset = ref('')
+const supportFlagForm = ref({ enabled: false, durationHours: 24, reason: '' })
 
 const currency = ref({ moneyDelta: 0, pointsDelta: 0, meritsDelta: 0, xmasCoinsDelta: 0, halloweenCoinsDelta: 0, easterCoinsDelta: 0 })
 const expDelta = ref(0)
@@ -632,18 +683,19 @@ async function onLoadPlayer(){
     localStorage.setItem('nc_target_uid', match.userId)
     targetPlayerId.value = String(pid)
     localStorage.setItem('nc_target_pid', String(pid))
-  const prof = await api.get(`/player/profile/${pid}`)
-  profile.value = prof.data || prof
+    const prof = await api.get(`/player/profile/${pid}`)
+    profile.value = prof.data || prof
     modStatus.value = profile.value.playerStatus || 'Active'
     modRole.value = profile.value.playerRole || 'Player'
     if (titles.value.includes(profile.value.playerTitle)) modTitle.value = profile.value.playerTitle
   // prefill identity editor
-  newName.value = String(profile.value.name || '')
+    newName.value = String(profile.value.name || '')
     // prefill battle/work stat editors
     const bs = profile.value.battleStats || {}
     battle.value = { strength: Number(bs.strength||0), speed: Number(bs.speed||0), dexterity: Number(bs.dexterity||0), defense: Number(bs.defense||0) }
     const ws = profile.value.workStats || {}
     work.value = { manuallabor: Number(ws.manuallabor||0), intelligence: Number(ws.intelligence||0), endurance: Number(ws.endurance||0), employeEfficiency: Number(ws.employeEfficiency||0) }
+    hydrateSupportFlag()
   } catch (e) { alert(e?.response?.data?.error || e?.message || 'Failed') }
 }
 
@@ -654,6 +706,8 @@ function useSearchPlayer(p){
     targetPlayerId.value = String(p.id)
     localStorage.setItem('nc_target_pid', String(p.id))
   }
+  hydrateSupportFlag()
+  loadNotes()
 }
 
 let searchTimer = null
@@ -1044,6 +1098,46 @@ async function applyTitle(){
     const body = { targetUserId: t, title: modTitle.value }
     const res = await api.patch('/admin/player/title', body)
     alert('Title set: ' + JSON.stringify(res.data || res))
+  } catch (e) { alert(e?.response?.data?.error || e?.message || 'Failed') }
+}
+
+async function applyPunishment(){
+  try {
+    const t = ensureTarget()
+    if (!selectedPunishmentPreset.value) throw new Error('Select a preset first')
+    const res = await api.patch('/admin/player/punishment', { targetUserId: t, preset: selectedPunishmentPreset.value })
+    alert('Preset applied: ' + JSON.stringify(res.data?.applied || res.data || res))
+    await loadNotes()
+  } catch (e) { alert(e?.response?.data?.error || e?.message || 'Failed') }
+}
+
+function hydrateSupportFlag(){
+  if (!profile.value) {
+    supportFlagForm.value = { enabled: false, durationHours: 24, reason: '' }
+    return
+  }
+  supportFlagForm.value = {
+    enabled: !!profile.value.supportFlagUntil && new Date(profile.value.supportFlagUntil) > new Date(),
+    durationHours: 24,
+    reason: profile.value.supportFlagReason || '',
+  }
+}
+
+async function saveSupportFlag(){
+  try {
+    const t = ensureTarget()
+    const payload = {
+      targetUserId: t,
+      enabled: supportFlagForm.value.enabled,
+      durationHours: supportFlagForm.value.durationHours,
+      reason: supportFlagForm.value.reason,
+    }
+    const res = await api.patch('/admin/player/support-flag', payload)
+    if (profile.value) {
+      profile.value.supportFlagUntil = res.data?.supportFlagUntil || null
+      profile.value.supportFlagReason = res.data?.supportFlagReason || null
+    }
+    alert('Support flag updated')
   } catch (e) { alert(e?.response?.data?.error || e?.message || 'Failed') }
 }
 

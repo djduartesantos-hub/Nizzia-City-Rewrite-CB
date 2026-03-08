@@ -45,7 +45,8 @@ const playerSchema = new mongoose.Schema({
   playerStatus: { type: String, enum: ["Active", "Banned", "Suspended", "Abandoned"], default: "Active" },
   playerTitle: { type: String, enum: playerTitles, default: "New gun on the block" },
   playerRole: { type: String, enum: ["Player", "Moderator", "Admin", "Developer"], default: "Player" },
-
+  supportFlagUntil: { type: Date, default: null },
+  supportFlagReason: { type: String, default: null },
 
 
   energyStats: { 
