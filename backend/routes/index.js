@@ -24,6 +24,7 @@ const cartelRoutes = require('./cartelRoutes');
 const educationRoutes = require('./educationRoutes');
 const bootstrapRoutes = require('./bootstrapRoutes');
 const worldRoutes = require('./worldRoutes');
+const npcRoutes = require('./npcRoutes');
 
 function mountRoutes(app) {
   app.use('/api/items', itemRoutes);
@@ -51,6 +52,7 @@ function mountRoutes(app) {
   app.use('/api/education', educationRoutes);
   app.use('/api/bootstrap', bootstrapRoutes);
   app.use('/api/world', worldRoutes);
+  app.use('/api/npc', npcRoutes);
 }
 
 module.exports = { mountRoutes };

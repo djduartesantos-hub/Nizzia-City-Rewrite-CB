@@ -24,6 +24,7 @@ const scheduleBankApr = require('./cronjobs/bankApr');
 const scheduleDailyReset = require('./cronjobs/dailyReset');
 const scheduleBusinessIncome = require('./cronjobs/businessCron');
 const scheduleCartelTick = require('./cronjobs/cartelCron');
+const scheduleNpcWorld = require('./cronjobs/npcWorld');
 
 const DEFAULT_ALLOWED_ORIGINS = [
   'http://localhost:5500',
@@ -100,6 +101,7 @@ if (!cronDisabled) {
   scheduleDailyReset();
   scheduleBusinessIncome();
   scheduleCartelTick();
+  scheduleNpcWorld();
 } else if (process.env.NODE_ENV !== 'test') {
   console.log('Cron jobs disabled for this runtime.');
 }
