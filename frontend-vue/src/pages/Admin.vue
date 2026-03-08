@@ -507,7 +507,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import api from '../api/client'
 import { useToast } from '../composables/useToast'
 import { fmtInt as num, fmtDate as fmt } from '../utils/format'
