@@ -39,10 +39,14 @@ async function listPrisoners(req, res) {
     const limit = Math.min(50, Math.max(5, Number(req.query.limit) || 20))
     const sort = String(req.query.sort || 'time_desc')
     const search = String(req.query.q || '').trim()
+    const gang = String(req.query.gang || 'all').trim()
     const filter = { jailed: true }
     if (search) {
       const regex = new RegExp(search, 'i')
       filter.$or = [{ name: regex }, { id: Number(search) || -1 }]
+    }
+    if (gang && gang !== 'all') {
+      filter['affiliation.gang'] = gang
     }
 
     const sortMap = {
@@ -71,15 +75,22 @@ async function listPrisoners(req, res) {
         const key = evt.targetUserId
         historyMap[key] = historyMap[key] || []
         if (historyMap[key].length < 5) {
-          historyMap[key].push({ id: String(evt._id), ts: evt.ts, text: evt.summary })
+          historyMap[key].push({
+            id: String(evt._id),
+            ts: evt.ts,
+            text: evt.summary,
+            type: evt.type,
+            success: evt.success,
+          })
         }
       }
     }
 
     const prisoners = docs.map((doc) => mapPrisoner(doc, historyMap))
 
+    const matchStage = { $match: filter }
     const avgAgg = await Player.aggregate([
-      { $match: filter },
+      matchStage,
       { $group: { _id: null, avgSeconds: { $avg: '$jailTime' } } },
     ])
     const lastBreakout = await PrisonEvent.findOne({ type: 'breakout', success: true })
