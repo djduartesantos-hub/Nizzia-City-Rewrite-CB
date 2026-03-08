@@ -266,6 +266,7 @@
             </div>
           </div>
         </div>
+        <div v-if="!profile" class="empty-state">Seleciona um jogador para editar stats.</div>
       </section>
     </div>
 
@@ -672,6 +673,7 @@
                   </li>
                 </ul>
               </div>
+              <div v-else class="empty-state">Sem pacientes ativos.</div>
               <div class="snapshot-list" v-if="hospitalOverview.events.length">
                 <p class="muted">Eventos clínicos</p>
                 <ul>
@@ -681,6 +683,7 @@
                   </li>
                 </ul>
               </div>
+              <div v-else class="empty-state">Nenhum evento de hospital recente.</div>
               <div class="row">
                 <div><label>Min (s)</label><input v-model.number="worldConfigs.hospital.minHospitalSeconds" type="number" min="60" /></div>
                 <div><label>Default (s)</label><input v-model.number="worldConfigs.hospital.defaultHospitalSeconds" type="number" min="60" /></div>
@@ -2011,6 +2014,50 @@ watch(targetUserId, (val) => {
   flex-wrap: wrap;
   gap: 24px;
 }
+.section-block {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  padding-bottom: 12px;
+}
+.section-heading h3 {
+  margin: 0;
+  font-size: 1.3rem;
+  letter-spacing: 0.01em;
+}
+.section-heading .muted {
+  margin-top: 6px;
+}
+.section-meta {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.badge {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.eyebrow.mini {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
 .eyebrow {
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -2030,6 +2077,16 @@ watch(targetUserId, (val) => {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+.card-grid {
+  display: grid;
+  gap: 16px;
+}
+.card-grid.two-col {
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+.card-grid .card-full {
+  grid-column: 1 / -1;
 }
 .tab-btn {
   border: 1px solid var(--border);
@@ -2165,6 +2222,138 @@ button:disabled {
   border-top: 1px dashed var(--border);
   padding-top: 10px;
   font-size: 12px;
+}
+.snapshot-list ul,
+.boost-list,
+.tx-list,
+.log-columns {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.log-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+}
+.boost-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.boost-card,
+.snapshot-card,
+.tx-row {
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+.snapshot-card,
+.tx-row {
+  flex-direction: column;
+}
+.snapshot-ts {
+  font-weight: 600;
+}
+.value {
+  font-weight: 600;
+}
+.empty-state {
+  border: 1px dashed rgba(255,255,255,0.2);
+  border-radius: 10px;
+  padding: 14px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+  background: rgba(255,255,255,0.02);
+}
+.add-boost {
+  margin-top: 16px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  padding-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.world-config-card {
+  background: rgba(11,14,30,0.8);
+}
+.world-sections {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+}
+.world-sections.single {
+  grid-template-columns: 1fr;
+}
+.world-sections section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 12px;
+  padding: 18px;
+}
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+.metrics .stat {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 10px;
+  padding: 10px;
+}
+.metrics .stat label {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.metrics .stat strong {
+  font-size: 1.1rem;
+}
+.snapshot-list ul,
+.snapshot-list li {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.snapshot-list ul {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.snapshot-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+.timer {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.section-block .card {
+  background: rgba(8,10,20,0.9);
+}
+.log-columns h4 {
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 11px;
+  color: var(--muted);
+}
+.boost-title {
+  font-weight: 600;
 }
 .list-row {
   display: flex;
