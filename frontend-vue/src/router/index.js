@@ -28,6 +28,7 @@ const Admin = () => import('../pages/Admin.vue')
 const News = () => import('../pages/News.vue')
 const Rules = () => import('../pages/Rules.vue')
 const Credits = () => import('../pages/Credits.vue')
+const Prison = () => import('../pages/Prison.vue')
 
 
 // Auth
@@ -66,6 +67,7 @@ const routes = [
   { path: '/grow', name: 'grow', component: Grow },
   { path: '/cartel', name: 'cartel', component: Cartel },
   { path: '/admin', name: 'admin', component: Admin },
+  { path: '/prison', name: 'prison', component: Prison },
   { path: '/news', name: 'news', component: News },
   { path: '/rules', name: 'rules', component: Rules },
   { path: '/credits', name: 'credits', component: Credits },
