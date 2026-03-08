@@ -172,7 +172,13 @@ function buildBar(label, statKey, current, max, cls, regen) {
   const displayCurrent = Math.min(baseCurrent, safeMax)
   const fill = pct(displayCurrent, safeMax)
   if (!regen || safeMax <= 0) {
-    return { label, value: `${displayCurrent}/${safeMax}`, fill, class: cls, timerLabel: 'FULL' }
+    return {
+      label,
+      value: `${displayCurrent}/${safeMax}`,
+      fill,
+      class: cls,
+      timerLabel: displayCurrent >= safeMax ? 'FULL' : '—',
+    }
   }
   const secondsLeft = secondsUntilTick(regen.interval)
   const pendingGain = Math.min(regen.amount || 0, Math.max(0, safeMax - displayCurrent))
@@ -507,7 +513,8 @@ function openSpotlight() {
   opacity: 0;
   pointer-events: none;
   transition: opacity 80ms ease;
-  z-index: 20;
+  z-index: 4000;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
 }
 .hero-bar.has-tooltip:hover::after { opacity: 1; }
 .effect-icon::after {
