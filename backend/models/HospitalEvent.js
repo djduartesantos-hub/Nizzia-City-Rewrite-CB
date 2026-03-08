@@ -1,7 +1,7 @@
 const mongoose = require('mongoose')
 
 const hospitalEventSchema = new mongoose.Schema({
-  type: { type: String, enum: ['treat', 'revive', 'triage', 'death'], required: true },
+  type: { type: String, enum: ['treat', 'revive', 'triage', 'death', 'walk_in'], required: true },
   actorUserId: { type: String, default: null },
   actorName: { type: String, default: null },
   targetUserId: { type: String, required: true },

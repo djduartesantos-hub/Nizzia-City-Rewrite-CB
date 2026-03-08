@@ -22,6 +22,77 @@
       </div>
     </header>
 
+    <section class="walkin-section">
+      <div class="walkin-card">
+        <header>
+          <div>
+            <p class="eyebrow">Auto-tratamento</p>
+            <h2>Clínica Walk-In</h2>
+            <p class="muted">
+              Recupera HP sem internação. Valores variam conforme a pressão da ala de internação e o volume de tratamentos recentes.
+            </p>
+          </div>
+          <button class="ghost" @click="loadWalkInQuote" :disabled="walkIn.loading">
+            <span v-if="walkIn.loading">Recalculando…</span>
+            <span v-else>Atualizar cotação</span>
+          </button>
+        </header>
+        <div v-if="walkIn.loading" class="walkin-state">Calculando cotação com base nos últimos {{ walkInWindowSeconds }} segundos…</div>
+        <div v-else-if="walkIn.error" class="walkin-state error">{{ walkIn.error }}</div>
+        <div v-else-if="!walkIn.quote" class="walkin-state">Solicita uma nova cotação para desbloquear o tratamento.</div>
+        <div v-else class="walkin-body">
+          <div class="walkin-grid">
+            <div class="walkin-stat">
+              <label>HP atual</label>
+              <strong>{{ walkIn.quote.currentHealth }} / {{ walkIn.quote.targetHealth }}</strong>
+              <small>Faltam {{ walkIn.quote.missingHp }} HP para o alvo</small>
+            </div>
+            <div class="walkin-stat">
+              <label>Recuperação planejada</label>
+              <strong>+{{ walkIn.quote.hpToRecover }} HP</strong>
+              <small>Limite por sessão: {{ walkIn.quote.maxHpPerSession }} HP</small>
+            </div>
+            <div class="walkin-stat">
+              <label>Custo total</label>
+              <strong>{{ formatMoney(walkIn.quote.totalCost) }}</strong>
+              <small>{{ formatMoney(walkIn.quote.perHpCost) }} por HP</small>
+            </div>
+            <div class="walkin-stat">
+              <label>Duração estimada</label>
+              <strong>{{ formatDuration(walkIn.quote.totalSeconds) }}</strong>
+              <small>{{ walkInPerHpSecondsLabel }} por HP</small>
+            </div>
+            <div class="walkin-stat">
+              <label>Pressão assistencial</label>
+              <strong>{{ walkIn.quote.patientLoad }} pacientes</strong>
+              <small>{{ walkIn.quote.treatmentsThisWindow }} tratamentos nesta janela</small>
+            </div>
+            <div class="walkin-stat">
+              <label>Recalibração</label>
+              <strong>{{ walkInBucketRemaining ? formatCountdown(walkInBucketRemaining) : 'A qualquer momento' }}</strong>
+              <small>
+                Janela {{ walkInWindowMinutes }} min termina em
+                {{ walkIn.quote?.bucket?.endsAt ? fmt(walkIn.quote.bucket.endsAt) : '—' }}
+              </small>
+            </div>
+          </div>
+          <div class="walkin-footer">
+            <div class="walkin-flags">
+              <span v-if="walkIn.hasCooldown" class="pill warn">
+                Cooldown ativo · {{ formatCountdown(walkIn.cooldownRemaining) }}
+              </span>
+              <span v-else-if="walkIn.quote.hpToRecover <= 0" class="pill ok">Vida no alvo</span>
+              <span v-else-if="!walkIn.canAfford" class="pill warn">Saldo insuficiente</span>
+              <span v-else class="pill info">Pressão {{ walkInPressureLabel }}</span>
+            </div>
+            <button @click="startWalkInTreatmentAction" :disabled="walkInButtonDisabled">
+              {{ walkInButtonLabel }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <div class="filters">
       <div class="field">
         <label>Pesquisar</label>
@@ -162,7 +233,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue'
+import { ref, reactive, computed, onMounted, watch, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../api/client'
 import { useToast } from '../composables/useToast'
@@ -170,6 +241,8 @@ import { fmtDate as fmt } from '../utils/format'
 
 const toast = useToast()
 const router = useRouter()
+const DEFAULT_WALKIN_WINDOW_SECONDS = 1800
+
 const patients = ref([])
 const stats = ref({ total: 0, avgSeconds: 0, lastRevive: null })
 const events = ref([])
@@ -191,6 +264,24 @@ const treatOptions = [120, 180, 300, 480]
 const treatSeconds = ref(180)
 const autoRefreshSeconds = ref(60)
 let autoRefreshTimer = null
+const walkIn = reactive({
+  loading: false,
+  error: '',
+  quote: null,
+  cooldownRemaining: 0,
+  canAfford: false,
+  hasCooldown: false,
+})
+const walkInAction = ref(false)
+const walkInBucketRemaining = ref(0)
+let walkInCountdownTimer = null
+const walkInWindowSeconds = computed(() => {
+  const raw = walkIn.quote?.bucket?.intervalSeconds
+  return Math.max(60, Number(raw) || DEFAULT_WALKIN_WINDOW_SECONDS)
+})
+const walkInWindowMinutes = computed(() => Math.max(1, Math.round(walkInWindowSeconds.value / 60)))
+const walkInPerHpSecondsLabel = computed(() => formatSecondsLabel(walkIn.quote?.perHpSeconds))
+const walkInPressureLabel = computed(() => formatDecimal(walkIn.quote?.pressureScore))
 
 function formatDuration(seconds){
   const s = Math.max(0, Number(seconds) || 0)
@@ -211,6 +302,24 @@ function formatCountdown(seconds){
     return `${pad(h)}:${pad(m % 60)}:${pad(s)}`
   }
   return `${pad(m)}:${pad(s)}`
+}
+
+function formatMoney(value){
+  const amount = Math.max(0, Number(value) || 0)
+  return `$${amount.toLocaleString()}`
+}
+
+function formatDecimal(value, digits = 2){
+  const num = Number(value)
+  if (!Number.isFinite(num)) return '—'
+  return num.toFixed(digits)
+}
+
+function formatSecondsLabel(value){
+  const num = Number(value)
+  if (!Number.isFinite(num)) return '—'
+  if (num >= 1) return `${num.toFixed(2)}s`
+  return `${(num * 1000).toFixed(0)}ms`
 }
 
 function buildQuery(){
@@ -268,13 +377,93 @@ function openInAdmin(){
   router.push({ name: 'admin' })
 }
 
+function clearWalkInCountdown(){
+  if (walkInCountdownTimer) {
+    clearInterval(walkInCountdownTimer)
+    walkInCountdownTimer = null
+  }
+}
+
+function updateWalkInCountdown(){
+  if (walkIn.cooldownRemaining > 0) {
+    walkIn.cooldownRemaining = Math.max(0, walkIn.cooldownRemaining - 1)
+    if (walkIn.cooldownRemaining === 0) walkIn.hasCooldown = false
+  }
+  const endsAt = walkIn.quote?.bucket?.endsAt ? new Date(walkIn.quote.bucket.endsAt).getTime() : null
+  if (!endsAt) {
+    walkInBucketRemaining.value = 0
+    return
+  }
+  const diff = Math.max(0, Math.round((endsAt - Date.now()) / 1000))
+  walkInBucketRemaining.value = diff
+  if (diff <= 0 && !walkIn.loading) {
+    loadWalkInQuote()
+  }
+}
+
+function scheduleWalkInCountdown(){
+  clearWalkInCountdown()
+  if (!walkIn.quote) {
+    walkInBucketRemaining.value = 0
+    return
+  }
+  updateWalkInCountdown()
+  walkInCountdownTimer = setInterval(updateWalkInCountdown, 1000)
+}
+
+async function loadWalkInQuote(){
+  walkIn.loading = true
+  walkIn.error = ''
+  try {
+    const res = await api.get('/world/hospital/walk-in/quote')
+    walkIn.quote = res.data?.quote || null
+    walkIn.cooldownRemaining = Math.max(0, Number(res.data?.cooldownRemaining) || 0)
+    walkIn.canAfford = !!res.data?.canAfford
+    walkIn.hasCooldown = !!res.data?.hasCooldown
+    if (!walkIn.quote) {
+      walkIn.error = 'Sem cotação disponível.'
+      clearWalkInCountdown()
+    } else {
+      scheduleWalkInCountdown()
+    }
+  } catch (e) {
+    walkIn.quote = null
+    walkIn.canAfford = false
+    walkIn.hasCooldown = false
+    walkIn.cooldownRemaining = 0
+    walkIn.error = e?.response?.data?.error || e?.message || 'Falha ao calcular cotação'
+    clearWalkInCountdown()
+  } finally {
+    walkIn.loading = false
+  }
+}
+
+const walkInButtonDisabled = computed(() => {
+  if (walkIn.loading || walkInAction.value) return true
+  if (!walkIn.quote) return true
+  if (walkIn.hasCooldown) return true
+  if (walkIn.quote.hpToRecover <= 0) return true
+  if (!walkIn.canAfford) return true
+  return false
+})
+
+const walkInButtonLabel = computed(() => {
+  if (walkIn.loading) return 'Calculando…'
+  if (walkInAction.value) return 'Aplicando…'
+  if (!walkIn.quote) return 'Solicita cotação'
+  if (walkIn.hasCooldown) return `Cooldown · ${formatCountdown(walkIn.cooldownRemaining)}`
+  if (walkIn.quote.hpToRecover <= 0) return 'Vida completa'
+  if (!walkIn.canAfford) return 'Saldo insuficiente'
+  return `Tratar por ${formatMoney(walkIn.quote.totalCost)}`
+})
+
 async function treatPatientAction(){
   if (!selectedPatient.value) return
   actionState.value.treat = true
   try {
     const payload = { targetUserId: selectedPatient.value.userId, seconds: treatSeconds.value }
     const res = await api.post('/world/hospital/treat', payload)
-    toast.success(res.data?.message || 'Tratamento aplicado')
+    toast.ok(res.data?.message || 'Tratamento aplicado')
     await loadPatients()
     await loadEvents()
   } catch (e) {
@@ -290,7 +479,7 @@ async function revivePatientAction(){
   try {
     const payload = { targetUserId: selectedPatient.value.userId }
     const res = await api.post('/world/hospital/revive', payload)
-    toast.success(res.data?.message || 'Revive concluído')
+    toast.ok(res.data?.message || 'Revive concluído')
     await loadPatients()
     await loadEvents()
   } catch (e) {
@@ -313,6 +502,21 @@ async function loadEvents(){
   }
 }
 
+async function startWalkInTreatmentAction(){
+  if (walkInButtonDisabled.value || walkInAction.value) return
+  walkInAction.value = true
+  try {
+    const res = await api.post('/world/hospital/walk-in')
+    toast.ok(res.data?.message || 'Tratamento iniciado')
+    await loadWalkInQuote()
+    await loadEvents()
+  } catch (e) {
+    toast.error(e?.response?.data?.error || e?.message || 'Falha ao iniciar tratamento')
+  } finally {
+    walkInAction.value = false
+  }
+}
+
 function setupAutoRefresh(){
   clearInterval(autoRefreshTimer)
   if (!autoRefreshSeconds.value) return
@@ -323,11 +527,13 @@ function setupAutoRefresh(){
 
 onMounted(async () => {
   await Promise.all([loadPatients(), loadEvents()])
+  await loadWalkInQuote()
   setupAutoRefresh()
 })
 
 onBeforeUnmount(() => {
   clearInterval(autoRefreshTimer)
+  clearWalkInCountdown()
 })
 
 watch(() => ({ ...filters.value }), () => {
@@ -511,8 +717,87 @@ button.ghost {
   background: rgba(94, 234, 212, 0.15);
   color: #5eead4;
 }
+.pill.warn {
+  background: rgba(255, 196, 0, 0.15);
+  color: #facc15;
+}
+.pill.ok {
+  background: rgba(110, 231, 183, 0.18);
+  color: #22c55e;
+}
+.pill.info {
+  background: rgba(125, 211, 252, 0.18);
+  color: #38bdf8;
+}
 .timer {
   font-family: 'JetBrains Mono', monospace;
+}
+.walkin-section {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 18px;
+}
+.walkin-card > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+.walkin-state {
+  padding: 16px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--muted);
+  margin-top: 16px;
+}
+.walkin-state.error {
+  color: var(--danger);
+}
+.walkin-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 16px;
+}
+.walkin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+}
+.walkin-stat {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px;
+  background: var(--panel-alt, rgba(20, 24, 33, 0.6));
+}
+.walkin-stat label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+.walkin-stat strong {
+  display: block;
+  font-size: 20px;
+  margin-top: 4px;
+}
+.walkin-stat small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+}
+.walkin-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+.walkin-flags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 .detail-card {
   display: flex;

@@ -10,6 +10,40 @@ async function ensureAdmin(req) {
   return admin
 }
 
+function sanitizeWalkInConfig(payload = {}) {
+  if (!payload || typeof payload !== 'object') return null
+  const numericShape = {
+    refreshIntervalMinutes: { min: 5, max: 240 },
+    baselineCostPerHp: { min: 0 },
+    minCostPerHp: { min: 0 },
+    maxCostPerHp: { min: 0 },
+    baselineSecondsPerHp: { min: 0.01 },
+    minSecondsPerHp: { min: 0.01 },
+    maxSecondsPerHp: { min: 0.01 },
+    patientLoadTarget: { min: 1 },
+    treatmentsTarget: { min: 1 },
+    patientLoadWeight: {},
+    treatmentsWeight: {},
+    costVariancePercent: { min: 0 },
+    timeVariancePercent: { min: 0 },
+    targetHealth: { min: 1 },
+    maxHpPerSession: { min: 1 },
+    cooldownSeconds: { min: 0 },
+  }
+  const out = {}
+  if (Object.prototype.hasOwnProperty.call(payload, 'enabled')) {
+    out.enabled = !!payload.enabled
+  }
+  for (const [key, rules] of Object.entries(numericShape)) {
+    if (Object.prototype.hasOwnProperty.call(payload, key)) {
+      const val = asNumber(payload[key], rules)
+      if (val != null) out[key] = val
+    }
+  }
+  if (Object.keys(out).length === 0) return null
+  return out
+}
+
 function asNumber(value, { min = null, max = null, defaultValue = null } = {}) {
   if (value == null || value === '') return defaultValue
   const num = Number(value)
@@ -165,10 +199,12 @@ async function updateHospitalConfig(req, res) {
       reviveHealthFloor: { min: 1 },
     }
     const payload = pickPayload(req.body || {}, shape)
-    if (Object.keys(payload).length === 0) return res.status(400).json({ error: 'Nenhum campo válido enviado' })
     if (Object.prototype.hasOwnProperty.call(req.body || {}, 'allowPaidRevive')) {
       payload.allowPaidRevive = !!req.body.allowPaidRevive
     }
+    const walkInPayload = sanitizeWalkInConfig(req.body?.walkIn)
+    if (walkInPayload) payload.walkIn = walkInPayload
+    if (Object.keys(payload).length === 0) return res.status(400).json({ error: 'Nenhum campo válido enviado' })
     const config = await updateConfig('hospital', payload)
     return res.json({ config })
   } catch (err) {

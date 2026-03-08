@@ -2,6 +2,12 @@ const Player = require('../models/Player')
 const HospitalEvent = require('../models/HospitalEvent')
 const { getConfig } = require('../services/worldConfigService')
 
+const WALK_IN_EVENT_TYPES = ['treat', 'walk_in']
+const walkInCache = {
+  key: null,
+  stats: null,
+}
+
 async function ensureAuthPlayer(req) {
   const userId = req.authUserId
   if (!userId) throw new Error('Unauthorized')
@@ -24,6 +30,134 @@ function calcReviveCost(player, config) {
   const blocks = Math.max(1, Math.ceil(seconds / blockSeconds))
   const level = Math.max(1, Number(player.level) || 1)
   return Math.round(base + perBlock * blocks + levelFactor * level)
+}
+
+function clampNumber(value, min, max) {
+  let next = Number(value)
+  if (!Number.isFinite(next)) next = 0
+  if (min != null) next = Math.max(min, next)
+  if (max != null) next = Math.min(max, next)
+  return next
+}
+
+function getWalkInConfig(config) {
+  return config?.walkIn || {}
+}
+
+function ensureWalkInAccess(player, walkInConfig) {
+  if (!walkInConfig?.enabled) {
+    const err = new Error('Tratamentos walk-in estão desativados pelo admin.')
+    err.status = 403
+    throw err
+  }
+  if (player.hospitalized) {
+    const err = new Error('Não podes tratar estando internado.')
+    err.status = 400
+    throw err
+  }
+}
+
+function getWalkInIntervalMs(walkInConfig) {
+  const minutes = Math.max(5, Number(walkInConfig.refreshIntervalMinutes) || 30)
+  return minutes * 60 * 1000
+}
+
+async function loadWalkInStats(walkInConfig) {
+  const intervalMs = getWalkInIntervalMs(walkInConfig)
+  const now = Date.now()
+  const bucketStartMs = Math.floor(now / intervalMs) * intervalMs
+  const bucketEndMs = bucketStartMs + intervalMs
+  const cacheKey = `${bucketStartMs}:${intervalMs}`
+  if (walkInCache.key === cacheKey && walkInCache.stats) {
+    return walkInCache.stats
+  }
+  const [patientLoad, treatmentCount] = await Promise.all([
+    Player.countDocuments({ hospitalized: true }),
+    HospitalEvent.countDocuments({
+      type: { $in: WALK_IN_EVENT_TYPES },
+      ts: { $gte: new Date(bucketStartMs) },
+    }),
+  ])
+  const stats = {
+    patientLoad,
+    treatmentCount,
+    bucketStart: new Date(bucketStartMs),
+    bucketEnd: new Date(bucketEndMs),
+    intervalSeconds: Math.round(intervalMs / 1000),
+  }
+  walkInCache.key = cacheKey
+  walkInCache.stats = stats
+  return stats
+}
+
+function computeWalkInRates(walkInConfig, stats) {
+  const baselineCost = Math.max(1, Number(walkInConfig.baselineCostPerHp) || 100)
+  const baselineSeconds = Math.max(0.01, Number(walkInConfig.baselineSecondsPerHp) || 1)
+  const minCost = Math.max(1, Number(walkInConfig.minCostPerHp) || baselineCost)
+  const maxCost = Math.max(minCost, Number(walkInConfig.maxCostPerHp) || baselineCost)
+  const minSeconds = Math.max(0.01, Number(walkInConfig.minSecondsPerHp) || baselineSeconds)
+  const maxSeconds = Math.max(minSeconds, Number(walkInConfig.maxSecondsPerHp) || baselineSeconds)
+  const loadTarget = Math.max(1, Number(walkInConfig.patientLoadTarget) || 1)
+  const treatmentsTarget = Math.max(1, Number(walkInConfig.treatmentsTarget) || 1)
+  const loadScore = stats.patientLoad / loadTarget
+  const treatmentScore = stats.treatmentCount / treatmentsTarget
+  const weightLoad = Number.isFinite(walkInConfig.patientLoadWeight)
+    ? walkInConfig.patientLoadWeight
+    : 0.6
+  const weightTreat = Number.isFinite(walkInConfig.treatmentsWeight)
+    ? walkInConfig.treatmentsWeight
+    : 0.4
+  const totalWeight = weightLoad + weightTreat || 1
+  const weightedScore = (weightLoad * loadScore + weightTreat * treatmentScore) / totalWeight
+  const normalizedScore = clampNumber(weightedScore, 0, 3)
+  const costVariance = Math.max(0, Number(walkInConfig.costVariancePercent) || 0) / 100
+  const timeVariance = Math.max(0, Number(walkInConfig.timeVariancePercent) || 0) / 100
+
+  let costPerHp = baselineCost * (1 + costVariance * (normalizedScore - 1))
+  costPerHp = clampNumber(costPerHp, minCost, maxCost)
+  let secondsPerHp = baselineSeconds * (1 + timeVariance * (normalizedScore - 1))
+  secondsPerHp = clampNumber(secondsPerHp, minSeconds, maxSeconds)
+
+  return {
+    costPerHp,
+    secondsPerHp,
+    normalizedScore,
+  }
+}
+
+async function buildWalkInQuote(player, config) {
+  const walkInConfig = getWalkInConfig(config)
+  ensureWalkInAccess(player, walkInConfig)
+  const stats = await loadWalkInStats(walkInConfig)
+  const rates = computeWalkInRates(walkInConfig, stats)
+  const targetHealth = Math.max(1, Number(walkInConfig.targetHealth) || 9999)
+  const currentHealth = Number(player.health || 0)
+  const missingHp = Math.max(0, targetHealth - currentHealth)
+  const maxSession = Math.max(1, Number(walkInConfig.maxHpPerSession) || missingHp || 1)
+  const hpToRecover = Math.min(missingHp, maxSession)
+  const totalCost = Math.round(rates.costPerHp * hpToRecover)
+  const totalSeconds = hpToRecover > 0 ? Math.max(1, Math.round(rates.secondsPerHp * hpToRecover)) : 0
+  return {
+    patientLoad: stats.patientLoad,
+    treatmentsThisWindow: stats.treatmentCount,
+    bucket: {
+      startsAt: stats.bucketStart,
+      endsAt: stats.bucketEnd,
+      intervalSeconds: stats.intervalSeconds,
+    },
+    pressureScore: Number(rates.normalizedScore.toFixed(3)),
+    perHpCost: Math.round(rates.costPerHp),
+    perHpSeconds: Number(rates.secondsPerHp.toFixed(3)),
+    missingHp,
+    hpToRecover,
+    totalCost,
+    totalSeconds,
+    currentHealth,
+    projectedHealth: Math.min(targetHealth, currentHealth + hpToRecover),
+    targetHealth,
+    maxHpPerSession: maxSession,
+    cooldownSeconds: Math.max(0, Number(walkInConfig.cooldownSeconds) || 0),
+  }
 }
 
 function mapPatient(doc, historyMap, config) {
@@ -220,6 +354,86 @@ async function revivePatient(req, res) {
   }
 }
 
+async function getWalkInQuote(req, res) {
+  try {
+    const [player, config] = await Promise.all([ensureAuthPlayer(req), loadHospitalConfig()])
+    const quote = await buildWalkInQuote(player, config)
+    const cooldownRemaining = Math.max(0, Number(player.cooldowns?.medicalCooldown || 0))
+    return res.json({
+      quote,
+      cooldownRemaining,
+      canAfford: Number(player.money || 0) >= quote.totalCost,
+      hasCooldown: cooldownRemaining > 0,
+    })
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message })
+    if (err.message === 'Unauthorized') return res.status(401).json({ error: 'Unauthorized' })
+    if (err.message === 'Player not found') return res.status(404).json({ error: err.message })
+    console.error('HOSPITAL getWalkInQuote error:', err)
+    return res.status(500).json({ error: 'Falha ao calcular tratamento walk-in' })
+  }
+}
+
+async function startWalkInTreatment(req, res) {
+  try {
+    const [player, config] = await Promise.all([ensureAuthPlayer(req), loadHospitalConfig()])
+    const cooldownRemaining = Math.max(0, Number(player.cooldowns?.medicalCooldown || 0))
+    if (cooldownRemaining > 0) {
+      return res.status(400).json({ error: 'Ainda estás em recuperação. Aguarda o cooldown.' })
+    }
+    const quote = await buildWalkInQuote(player, config)
+    if (quote.hpToRecover <= 0) {
+      return res.status(400).json({ error: 'Já estás com a vida cheia.', quote })
+    }
+    if (Number(player.money || 0) < quote.totalCost) {
+      return res.status(400).json({ error: 'Saldo insuficiente para o tratamento.', quote })
+    }
+
+    player.money = Number(player.money || 0) - quote.totalCost
+    player.$locals._txMeta = {
+      type: 'hospital_walk_in',
+      description: 'Tratamento walk-in',
+      extra: { hpRestored: quote.hpToRecover, cost: quote.totalCost },
+    }
+    player.health = quote.projectedHealth
+    if (!player.cooldowns) player.cooldowns = {}
+    player.cooldowns.medicalCooldown = Math.round(quote.totalSeconds + quote.cooldownSeconds)
+
+    await player.save()
+
+    await HospitalEvent.create({
+      type: 'walk_in',
+      actorUserId: String(player.user),
+      actorName: player.name,
+      targetUserId: String(player.user),
+      targetName: player.name,
+      success: true,
+      summary: `${player.name} realizou tratamento walk-in recuperando ${quote.hpToRecover} HP por $${quote.totalCost.toLocaleString()}.`,
+      meta: {
+        hpRestored: quote.hpToRecover,
+        cost: quote.totalCost,
+        treatmentSeconds: quote.totalSeconds,
+      },
+    })
+
+    const cooldownRemainingAfter = Math.max(0, Number(player.cooldowns.medicalCooldown || 0))
+
+    return res.json({
+      message: 'Tratamento iniciado',
+      health: player.health,
+      money: player.money,
+      cooldownRemaining: cooldownRemainingAfter,
+      quote,
+    })
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message })
+    if (err.message === 'Unauthorized') return res.status(401).json({ error: 'Unauthorized' })
+    if (err.message === 'Player not found') return res.status(404).json({ error: err.message })
+    console.error('HOSPITAL startWalkInTreatment error:', err)
+    return res.status(500).json({ error: 'Falha ao iniciar tratamento walk-in' })
+  }
+}
+
 async function listHospitalEvents(req, res) {
   try {
     const limit = Math.min(50, Math.max(5, Number(req.query.limit) || 10))
@@ -239,4 +453,6 @@ module.exports = {
   treatPatient,
   revivePatient,
   listHospitalEvents,
+  getWalkInQuote,
+  startWalkInTreatment,
 }
