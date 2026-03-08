@@ -12,6 +12,7 @@ const Cartel = require('../models/Cartel');
 const { REP_LEVELS } = require('../config/cartel');
 const { getRepLevel, getRepInfo } = require('../services/cartel/cartelService');
 const PlayerAdminNote = require('../models/PlayerAdminNote');
+const ItemPreset = require('../models/ItemPreset');
 
 const PUNISHMENT_PRESETS = {
   warn_watch: {
@@ -50,6 +51,67 @@ async function getAdminPlayerFromReq(req) {
   if (!adminPlayer) throw new Error('Admin player not found');
   if (!['Admin', 'Developer'].includes(adminPlayer.playerRole)) throw new Error('Forbidden');
   return adminPlayer;
+}
+
+// ------------------------------
+// Item presets
+// ------------------------------
+
+// GET /api/admin/item-presets
+async function listItemPresets(req, res) {
+  try {
+    await getAdminPlayerFromReq(req);
+    const presets = await ItemPreset.find()
+      .sort({ updatedAt: -1 })
+      .limit(50)
+      .lean();
+    return res.json({ presets });
+  } catch (err) {
+    if (err.message === 'Unauthorized') return res.status(401).json({ error: 'Unauthorized' });
+    if (err.message === 'Forbidden') return res.status(403).json({ error: 'Not authorized' });
+    console.error('ADMIN listItemPresets error:', err);
+    return res.status(500).json({ error: 'Failed to list presets' });
+  }
+}
+
+// POST /api/admin/item-presets { name, data }
+async function createItemPreset(req, res) {
+  try {
+    const admin = await getAdminPlayerFromReq(req);
+    const name = String(req.body.name || '').trim();
+    if (!name) return res.status(400).json({ error: 'name is required' });
+    if (!req.body.data || typeof req.body.data !== 'object') return res.status(400).json({ error: 'data is required' });
+    const preset = await ItemPreset.create({
+      name,
+      createdBy: admin.user,
+      authorName: admin.name,
+      data: req.body.data,
+    });
+    return res.status(201).json({ preset });
+  } catch (err) {
+    if (err.message === 'Unauthorized') return res.status(401).json({ error: 'Unauthorized' });
+    if (err.message === 'Forbidden') return res.status(403).json({ error: 'Not authorized' });
+    console.error('ADMIN createItemPreset error:', err);
+    return res.status(500).json({ error: 'Failed to create preset' });
+  }
+}
+
+// DELETE /api/admin/item-presets/:id
+async function deleteItemPreset(req, res) {
+  try {
+    await getAdminPlayerFromReq(req);
+    const { id } = req.params;
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: 'Valid preset id required' });
+    const preset = await ItemPreset.findById(id);
+    if (!preset) return res.status(404).json({ error: 'Preset not found' });
+    await preset.deleteOne();
+    return res.json({ ok: true });
+  } catch (err) {
+    if (err.message === 'Unauthorized') return res.status(401).json({ error: 'Unauthorized' });
+    if (err.message === 'Forbidden') return res.status(403).json({ error: 'Not authorized' });
+    console.error('ADMIN deleteItemPreset error:', err);
+    return res.status(500).json({ error: 'Failed to delete preset' });
+  }
 }
 
 // PATCH /api/admin/player/support-flag { targetUserId, enabled, durationHours?, reason? }
@@ -644,6 +706,9 @@ module.exports = {
   setAddiction,
   applyPunishmentPreset,
   setSupportFlag,
+  listItemPresets,
+  createItemPreset,
+  deleteItemPreset,
   // player admin notes
   listPlayerNotes,
   createPlayerNote,

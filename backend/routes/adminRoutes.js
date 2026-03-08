@@ -26,6 +26,10 @@ const {
   listPlayerTitles,
   setAddiction,
   applyPunishmentPreset,
+  setSupportFlag,
+  listItemPresets,
+  createItemPreset,
+  deleteItemPreset,
   updatePlayerState,
   updatePlayerHealth,
   listPlayerNotes,
@@ -82,6 +86,10 @@ router.patch('/player/health', updatePlayerHealth);
 router.get('/player/notes/:userId', listPlayerNotes);
 router.post('/player/notes', createPlayerNote);
 router.delete('/player/notes/:noteId', deletePlayerNote);
+// Item presets
+router.get('/item-presets', listItemPresets);
+router.post('/item-presets', createItemPreset);
+router.delete('/item-presets/:id', deleteItemPreset);
 // Player cooldowns
 router.get('/player/cooldowns/:userId', getPlayerCooldowns);
 router.post('/player/cooldowns/set', setPlayerCooldown);

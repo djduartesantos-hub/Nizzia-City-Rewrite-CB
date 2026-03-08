@@ -269,13 +269,30 @@
         <div><label>Qty</label><input v-model.number="invQty" type="number" min="1" /></div>
         <button @click="invAdd">Add</button>
         <button class="secondary" @click="invRemove">Remove</button>
-      </div>
-      <div class="list muted">{{ invStatus }}</div>
     </div>
 
     <!-- Create Item (advanced) -->
     <div class="card">
       <h3>Create Item</h3>
+      <div class="inline">
+        <div>
+          <label>Presets salvos</label>
+          <select v-model="selectedItemPresetId">
+            <option value="">— nenhum —</option>
+            <option v-for="preset in itemPresets" :key="preset._id" :value="preset._id">{{ preset.name }} — {{ preset.authorName || 'Admin' }}</option>
+          </select>
+        </div>
+        <button class="secondary" :disabled="!selectedItemPresetId" @click="applyItemPreset">Carregar preset</button>
+        <button class="secondary" :disabled="!selectedItemPresetId" @click="deleteItemPresetClient">Apagar preset</button>
+      </div>
+      <div class="inline">
+        <div>
+          <label>Novo preset</label>
+          <input v-model.trim="newPresetName" placeholder="ex: Booster meta" />
+        </div>
+        <button :disabled="!newPresetName" @click="saveItemPreset">Guardar preset</button>
+        <button class="secondary" :disabled="presetsLoading" @click="loadItemPresets">Recarregar lista</button>
+      </div>
       <div class="row">
         <div><label>Name</label><input v-model.trim="item.name" /></div>
         <div><label>Type</label>
@@ -597,6 +614,10 @@ const invStatus = ref('')
 const item = ref({ name: '', type: 'tools', id: 0, price: 0, sellable: true, usable: true, description: '' })
 const createItemStatus = ref('')
 const items = ref([])
+const itemPresets = ref([])
+const selectedItemPresetId = ref('')
+const newPresetName = ref('')
+const presetsLoading = ref(false)
 
 // Effect builder state
 const ebEnable = ref({ energy: true, nerve: false, happy: false, points: false, b_str: false, b_dex: false, b_spd: false, b_def: false, cdAlcohol: false, cdBooster: false, cdDrug: false, cdMedical: false })
@@ -659,6 +680,7 @@ function loadSavedIds(){
     if (pid) targetPlayerId.value = pid
   } catch {}
 }
+
 function onSaveIds(){
   try {
     if (targetUserId.value) localStorage.setItem('nc_target_uid', targetUserId.value)
@@ -667,36 +689,31 @@ function onSaveIds(){
   } catch(e) { toast.error(e?.message || e) }
 }
 
-async function loadTitles(){
-  try { const res = await api.get('/admin/player/titles'); titles.value = res.data?.titles || res.data || [] } catch {}
+function snapshotPresetData(){
+  return {
+    item: { ...item.value },
+    effectJson: effectJson.value,
+    overdoseJson: overdoseJson.value,
+    passiveJson: passiveJson.value,
+    ebEnable: { ...ebEnable.value },
+    ebBonus: { ...ebBonus.value },
+    ebCooldowns: { ...ebCooldowns.value },
+    ebEnergy: ebEnergy.value,
+    ebNerve: ebNerve.value,
+    ebHappy: ebHappy.value,
+    ebPoints: ebPoints.value,
+    cacheMoneyMin: cacheMoneyMin.value,
+    cacheMoneyMax: cacheMoneyMax.value,
+    cacheMoneyChancePct: cacheMoneyChancePct.value,
+    cachePointsMin: cachePointsMin.value,
+    cachePointsMax: cachePointsMax.value,
+    cachePointsChancePct: cachePointsChancePct.value,
+    cacheItems: cacheItems.value.map(r => ({ ...r })),
+  }
 }
 
-async function onLoadPlayer(){
-  try {
-    const pid = Number(targetPlayerId.value)
-    if (!Number.isFinite(pid)) throw new Error('Enter a valid numeric player id')
-    const q = encodeURIComponent(String(pid))
-    const resp = await api.get(`/admin/players/search?q=${q}&limit=5`)
-    const match = (resp.data?.results || []).find((p)=> Number(p.id) === pid)
-    if (!match) throw new Error('Player not found')
-    targetUserId.value = match.userId
-    localStorage.setItem('nc_target_uid', match.userId)
-    targetPlayerId.value = String(pid)
-    localStorage.setItem('nc_target_pid', String(pid))
-    const prof = await api.get(`/player/profile/${pid}`)
-    profile.value = prof.data || prof
-    modStatus.value = profile.value.playerStatus || 'Active'
-    modRole.value = profile.value.playerRole || 'Player'
-    if (titles.value.includes(profile.value.playerTitle)) modTitle.value = profile.value.playerTitle
-  // prefill identity editor
-    newName.value = String(profile.value.name || '')
-    // prefill battle/work stat editors
-    const bs = profile.value.battleStats || {}
-    battle.value = { strength: Number(bs.strength||0), speed: Number(bs.speed||0), dexterity: Number(bs.dexterity||0), defense: Number(bs.defense||0) }
-    const ws = profile.value.workStats || {}
-    work.value = { manuallabor: Number(ws.manuallabor||0), intelligence: Number(ws.intelligence||0), endurance: Number(ws.endurance||0), employeEfficiency: Number(ws.employeEfficiency||0) }
-    hydrateSupportFlag()
-  } catch (e) { alert(e?.response?.data?.error || e?.message || 'Failed') }
+async function loadTitles(){
+  try { const res = await api.get('/admin/player/titles'); titles.value = res.data?.titles || res.data || [] } catch {}
 }
 
 function useSearchPlayer(p){
@@ -970,6 +987,17 @@ function presetBoosterSmall(){
 async function fetchItems(){
   try { const res = await api.get('/items'); items.value = res.data || [] } catch { items.value = [] }
 }
+async function loadItemPresets(){
+  try {
+    presetsLoading.value = true
+    const res = await api.get('/admin/item-presets')
+    itemPresets.value = res.data?.presets || []
+  } catch {
+    itemPresets.value = []
+  } finally {
+    presetsLoading.value = false
+  }
+}
 async function deleteItem(id){
   try { await api.delete(`/items/${id}`); await fetchItems() } catch (e) { alert(e?.response?.data?.error || e?.message || 'Failed') }
 }
@@ -1226,7 +1254,7 @@ async function setAddiction(){
   } catch (e) { alert(e?.response?.data?.error || e?.message || 'Failed') }
 }
 
-onMounted(() => { loadSavedIds(); loadTitles(); fetchItems() })
+onMounted(() => { loadSavedIds(); loadTitles(); fetchItems(); loadItemPresets() })
 
 watch(profile, () => { syncStateFromProfile() }, { immediate: true })
 watch(targetUserId, (val) => {
