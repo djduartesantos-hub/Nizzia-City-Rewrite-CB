@@ -662,4 +662,21 @@ async function smugglingCrime(req, res) {
 	});
 }
 
-module.exports = { searchForCash, getLocations, pickpocketCrime, burglaryCrime, smugglingCrime }
+async function listCrimeCatalog(req, res) {
+  try {
+    const catalog = await getConfig('crimeCatalog')
+    const crimes = Array.isArray(catalog?.crimes) ? catalog.crimes : []
+    return res.json({ crimes })
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Falha ao carregar catálogo de crimes' })
+  }
+}
+
+module.exports = {
+  searchForCash,
+  pickpocketCrime,
+  burglaryCrime,
+  smugglingCrime,
+  getLocations,
+  listCrimeCatalog,
+};

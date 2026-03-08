@@ -42,7 +42,18 @@
       </div>
     </div>
 
-    <div class="crime-grid">
+    <div class="catalog-state" v-if="catalogLoading">
+      <div class="spinner"></div>
+      <p>Carregando operações clandestinas…</p>
+    </div>
+    <div class="catalog-state error" v-else-if="catalogError">
+      <p>{{ catalogError }}</p>
+      <button class="btn btn--ghost" @click="loadCrimeCatalog">Tentar novamente</button>
+    </div>
+    <div class="catalog-state" v-else-if="!crimes.length">
+      <p>Nenhum crime disponível no momento. Volta mais tarde.</p>
+    </div>
+    <div class="crime-grid" v-else>
       <article
         v-for="crime in crimes"
         :key="crime.id"
@@ -103,75 +114,94 @@
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { usePlayer } from '../composables/usePlayer'
+import api from '../api/client'
 import { fmtMoney } from '../utils/format'
 
 const router = useRouter()
 const { store, ensurePlayer } = usePlayer()
 
-onMounted(async () => { await ensurePlayer() })
+const catalog = ref([])
+const catalogLoading = ref(false)
+const catalogError = ref('')
+
+onMounted(async () => {
+  await Promise.all([ensurePlayer(), loadCrimeCatalog()])
+})
 
 const nerve = computed(() => store.player?.nerveStats?.nerve ?? 0)
 const nerveMax = computed(() => store.player?.nerveStats?.nerveMax ?? 0)
 const heat = computed(() => store.player?.heat ?? 12)
 const money = computed(() => fmtMoney(store.player?.money || 0))
 
-const crimes = computed(() => ([
+const routeMap = {
+  search_for_cash: { name: 'crime-search-for-cash' },
+  pickpocket: { name: 'crime-pickpocket' },
+  burglary: { name: 'crime-burglary' },
+  smuggling: { name: 'crime-smuggling' },
+}
+
+const fallbackCrimes = [
   {
-    id: 'sfc',
+    id: 'search_for_cash',
     title: 'Search for Cash',
-    desc: 'Revira vielas, cassinos clandestinos e cofres abandonados em busca de notas soltas.',
+    description: 'Revira vielas, cassinos clandestinos e cofres abandonados em busca de notas soltas.',
     difficulty: 'Baixa',
-    nerveCost: '1-2',
-    cooldown: '1m',
+    nerveCost: 2,
+    cooldownSeconds: 60,
     icon: '💼',
     tag: 'Street run',
     status: 'available',
     cta: 'Iniciar',
-    route: { name: 'crime-search-for-cash' }
   },
   {
     id: 'pickpocket',
     title: 'Pickpocket',
-    desc: 'Rondas silenciosas em mercados noturnos. Exige timing perfeito e aliados.',
+    description: 'Rondas silenciosas em mercados noturnos. Exige timing perfeito e aliados.',
     difficulty: 'Média',
-    nerveCost: '4',
-    cooldown: '4m',
+    nerveCost: 4,
+    cooldownSeconds: 180,
     icon: '🧤',
     tag: 'Stealth',
     status: 'available',
     cta: 'Iniciar',
-    route: { name: 'crime-pickpocket' }
   },
   {
     id: 'burglary',
     title: 'Burglary',
-    desc: 'Invade apartamentos de alto luxo, dribla sistemas de laser e extrai relíquias.',
+    description: 'Invade apartamentos de alto luxo, dribla sistemas de laser e extrai relíquias.',
     difficulty: 'Alta',
-    nerveCost: '7',
-    cooldown: '12m',
+    nerveCost: 7,
+    cooldownSeconds: 600,
     icon: '🕵️‍♂️',
     tag: 'Heist',
     status: 'available',
     cta: 'Iniciar',
-    route: { name: 'crime-burglary' }
   },
   {
     id: 'smuggling',
     title: 'Smuggling',
-    desc: 'Rotas marítimas e drones para contrabando de tech raro. Coordena com o cartel.',
+    description: 'Rotas marítimas e drones para contrabando de tech raro. Coordena com o cartel.',
     difficulty: 'Muito alta',
-    nerveCost: '10+',
-    cooldown: '1h',
+    nerveCost: 10,
+    cooldownSeconds: 1800,
     icon: '🚁',
     tag: 'Logistics',
     status: 'available',
     cta: 'Iniciar',
-    route: { name: 'crime-smuggling' }
-  }
-]))
+  },
+]
+
+const catalogCrimes = computed(() => {
+  return (catalog.value || []).map((crime) => formatCrimeForCard(crime))
+})
+
+const crimes = computed(() => {
+  const list = catalogCrimes.value.length ? catalogCrimes.value : fallbackCrimes.map((crime) => formatCrimeForCard(crime))
+  return list
+})
 
 const statusCopy = {
   available: 'Disponível',
@@ -190,6 +220,47 @@ const unlocks = [
   { date: '02 ABR', title: 'Black Market 2.0', desc: 'Itens exclusivos pós-crime.' },
   { date: '17 ABR', title: 'Smuggling Ops', desc: 'Campanha cooperativa multi-equipa.' }
 ]
+
+function formatCooldown(seconds) {
+  const value = Number(seconds || 0)
+  if (value >= 3600) return `${Math.round(value / 3600)}h`
+  if (value >= 60) return `${Math.round(value / 60)}m`
+  if (value > 0) return `${value}s`
+  return 'Instantâneo'
+}
+
+function formatCrimeForCard(crime) {
+  if (!crime) return null
+  const cooldownSeconds = Number(crime.cooldownSeconds ?? 0)
+  const nerveCost = crime.nerveCost !== undefined ? crime.nerveCost : '—'
+  return {
+    id: crime.id,
+    title: crime.title || 'Crime Sem Nome',
+    desc: crime.description || crime.desc || 'Missão em preparação.',
+    difficulty: crime.difficulty || 'Desconhecida',
+    nerveCost: String(nerveCost),
+    cooldown: formatCooldown(cooldownSeconds),
+    icon: crime.icon || '🎯',
+    tag: crime.tag || 'Operação',
+    status: crime.status || 'soon',
+    cta: crime.cta || 'Em breve',
+    route: routeMap[crime.id] || null,
+  }
+}
+
+async function loadCrimeCatalog() {
+  if (catalogLoading.value) return
+  try {
+    catalogLoading.value = true
+    const res = await api.get('/crime/catalog')
+    catalog.value = res.data?.crimes || []
+    catalogError.value = ''
+  } catch (err) {
+    catalogError.value = err?.response?.data?.error || 'Falha ao carregar crimes'
+  } finally {
+    catalogLoading.value = false
+  }
+}
 
 async function openSearchForCash(){
   await router.push({ name: 'crime-search-for-cash' })
@@ -310,6 +381,30 @@ function jump(crime){
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 18px;
+}
+.catalog-state {
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  padding: 32px;
+  text-align: center;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+}
+.catalog-state.error { border-color: rgba(239, 68, 68, 0.3); color: #f87171; }
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top-color: var(--accent, #33ffd1);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 .crime-card {
   position: relative;
