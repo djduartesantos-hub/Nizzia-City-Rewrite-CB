@@ -8,7 +8,13 @@
       <h2>{{ store.player?.name || 'Newcomer' }}</h2>
       <p class="hero-balance">{{ money }}</p>
       <div class="hero-bars">
-        <div class="hero-bar" v-for="bar in heroBars" :key="bar.label">
+        <div
+          class="hero-bar"
+          v-for="bar in heroBars"
+          :key="bar.label"
+          :class="{ 'has-tooltip': bar.tooltip }"
+          :data-tip="bar.tooltip || null"
+        >
           <div class="hero-bar__label">
             <span class="hero-label-text">{{ bar.label }}: {{ bar.value }}</span>
             <span class="hero-timer">{{ bar.timerLabel }}</span>
@@ -151,20 +157,63 @@ function buildBar(label, current, max, cls, regen) {
   const secondsLeft = secondsUntilTick(regen.interval)
   const ghostWidth = Math.min(100 - fill, regen.amount && max ? (regen.amount / max) * 100 : 0)
   const tickProgress = regen.interval ? Math.max(0, Math.min(100, ((regen.interval - secondsLeft) / regen.interval) * 100)) : 0
+  const tooltip = buildTooltip(label, current, max, regen)
   return {
     label,
     value: `${current}/${max}`,
     fill,
     class: cls,
-    timerLabel: current >= max ? 'FULL' : fmtHms(secondsLeft),
+    timerLabel: formatTimerLabel(current, max, secondsLeft),
     regen: {
       amount: regen.amount,
-      timeLabel: fmtHms(secondsLeft),
+      timeLabel: fmtMmSs(secondsLeft),
       interval: regen.interval,
       ghostWidth,
       tickProgress,
-    }
+    },
+    tooltip,
   }
+}
+
+function fmtMmSs(seconds) {
+  const total = Math.max(0, Math.floor(Number(seconds) || 0))
+  const mins = Math.floor(total / 60)
+  const secs = total % 60
+  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+}
+
+function formatTimerLabel(current, max, secondsLeft) {
+  if (current >= max) return 'FULL'
+  return fmtMmSs(secondsLeft)
+}
+
+function formatIntervalLabel(seconds) {
+  if (!seconds) return '0s'
+  if (seconds % 60 === 0) {
+    const mins = seconds / 60
+    return `${mins} minute${mins === 1 ? '' : 's'}`
+  }
+  return fmtHms(seconds)
+}
+
+function secondsToFull(current, max, amount, interval) {
+  const missing = Math.max(0, max - current)
+  if (missing === 0 || !amount || amount <= 0 || !interval) return 0
+  const ticks = Math.ceil(missing / amount)
+  return ticks * interval
+}
+
+function buildTooltip(label, current, max, regen) {
+  if (!regen) return null
+  const lines = []
+  lines.push(`${label} increases by ${regen.amount} every ${formatIntervalLabel(regen.interval)}`)
+  const fullSeconds = secondsToFull(current, max, regen.amount, regen.interval)
+  if (current >= max || fullSeconds === 0) {
+    lines.push(`${label} is full`)
+  } else {
+    lines.push(`Full ${label.toLowerCase()} in ${fmtHms(fullSeconds)}`)
+  }
+  return lines.join('\n')
 }
 
 // ── Live clock for cooldown countdowns ──
@@ -367,6 +416,27 @@ function openSpotlight() {
 .progress-fill {
   position: absolute;
 }
+.hero-bar.has-tooltip { position: relative; }
+.hero-bar.has-tooltip::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 0;
+  white-space: pre-line;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 11px;
+  min-width: 160px;
+  max-width: 220px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 80ms ease;
+  z-index: 20;
+}
+.hero-bar.has-tooltip:hover::after { opacity: 1; }
 .effect-icon::after {
   content: attr(data-tip);
   position: absolute;
