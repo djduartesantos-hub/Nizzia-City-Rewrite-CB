@@ -55,6 +55,101 @@ async function getAdminPlayerFromReq(req) {
   return adminPlayer;
 }
 
+async function getAdminPlayerProfile(req, res) {
+  try {
+    await getAdminPlayerFromReq(req)
+    const pid = Number(req.params.playerId || req.params.id)
+    if (!Number.isFinite(pid)) return res.status(400).json({ error: 'Player ID inválido' })
+    const player = await findPlayerByPid(pid)
+    if (!player) return res.status(404).json({ error: 'Jogador não encontrado' })
+
+    const bankAgg = await BankAccount.aggregate([
+      { $match: { player: player._id, isWithdrawn: false } },
+      {
+        $group: {
+          _id: '$player',
+          totalLocked: { $sum: '$depositedAmount' },
+          activeCount: { $sum: 1 },
+        },
+      },
+    ])
+    const bank = bankAgg[0] || { totalLocked: 0, activeCount: 0 }
+    const inventory = (player.inventory || []).map((entry) => {
+      const doc = entry.item || {}
+      return {
+        dbId: doc?._id ? String(doc._id) : String(entry.item?._id || entry.item || ''),
+        itemId: doc?.id || null,
+        name: doc?.name || 'Item desconhecido',
+        type: doc?.type || 'other',
+        type2: doc?.type2 || null,
+        description: doc?.description || '',
+        stats: {
+          damage: Number(doc?.damage || 0),
+          armor: Number(doc?.armor || 0),
+          quality: Number(doc?.quality || 0),
+          coverage: Number(doc?.coverage || 0),
+        },
+        price: Number(doc?.price || 0),
+        sellable: doc?.sellable !== undefined ? !!doc.sellable : true,
+        usable: doc?.usable !== undefined ? !!doc.usable : false,
+        qty: Number(entry.qty || 0),
+      }
+    })
+    const slotOrder = ['primaryWeapon', 'secondaryWeapon', 'meleeWeapon', 'head', 'torso', 'pants', 'shoes', 'legs']
+    const equipment = {}
+    for (const slot of slotOrder) {
+      equipment[slot] = inventory.find((item) => item.type2 === slot) || null
+    }
+    const totalQty = inventory.reduce((sum, item) => sum + (item.qty || 0), 0)
+
+    const payload = {
+      id: player.id,
+      userId: String(player.user),
+      name: player.name,
+      npc: !!player.npc,
+      level: player.level,
+      playerRole: player.playerRole,
+      playerStatus: player.playerStatus,
+      playerTitle: player.playerTitle,
+      vitals: {
+        health: player.health,
+        energy: player.energyStats?.energy || 0,
+        energyMax: player.energyStats?.energyMax || 0,
+        nerve: player.nerveStats?.nerve || 0,
+        nerveMax: player.nerveStats?.nerveMax || 0,
+        happy: player.happiness?.happy || 0,
+        happyMax: player.happiness?.happyMax || 0,
+      },
+      finances: {
+        money: player.money || 0,
+        bankLocked: bank.totalLocked || 0,
+        bankActiveAccounts: bank.activeCount || 0,
+        netWorth: Number(((player.money || 0) + (bank.totalLocked || 0)).toFixed(2)),
+      },
+      battleStats: player.battleStats || {},
+      workStats: player.workStats || {},
+      inventory,
+      inventoryStats: {
+        unique: inventory.length,
+        totalQty,
+      },
+      equipment,
+    }
+
+    return res.json(payload)
+  } catch (err) {
+    if (err.message === 'Unauthorized') return res.status(401).json({ error: 'Unauthorized' })
+    if (err.message === 'Forbidden') return res.status(403).json({ error: 'Not authorized' })
+    console.error('ADMIN getAdminPlayerProfile error:', err)
+    return res.status(500).json({ error: 'Falha ao carregar perfil admin' })
+  }
+}
+
+async function findPlayerByPid(pid) {
+  if (!Number.isFinite(pid)) return null
+  return Player.findOne({ id: pid }).populate('inventory.item').lean()
+}
+
 // ------------------------------
 // Item presets
 // ------------------------------

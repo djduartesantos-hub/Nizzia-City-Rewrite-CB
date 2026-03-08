@@ -365,15 +365,97 @@
           </div>
         </div>
         <div class="card-grid">
-          <div class="card">
-            <h3>Inventário rápido</h3>
-            <div class="inline">
-              <div><label>Item ID</label><input v-model.trim="invItemId" placeholder="Item.id ou Mongo _id" /></div>
-              <div><label>Quantidade</label><input v-model.number="invQty" type="number" min="1" /></div>
-              <button @click="invAdd">Adicionar</button>
-              <button class="secondary" @click="invRemove">Remover</button>
+          <div class="card card-full">
+            <div class="card-header">
+              <div>
+                <h3>Equipamentos atuais</h3>
+                <small>Mostra slots ocupados pelo jogador selecionado.</small>
+              </div>
+              <div class="inventory-meta" v-if="profile">
+                <span>Itens únicos: {{ inventoryStatsComputed.unique }}</span>
+                <span>Total (qty): {{ inventoryStatsComputed.totalQty }}</span>
+              </div>
             </div>
-            <div class="muted" v-if="invStatus">{{ invStatus }}</div>
+            <div class="loadout-grid" v-if="profile">
+              <div class="slot" v-for="slot in equippedSlots" :key="slot.key">
+                <div class="slot-icon" :class="{ filled: !!slot.item }">{{ slot.icon }}</div>
+                <div class="slot-details">
+                  <p class="slot-label">{{ slot.label }}</p>
+                  <p v-if="slot.item" class="slot-name">{{ slot.item.name }}</p>
+                  <p v-else class="muted">Vazio</p>
+                  <small v-if="slot.item">{{ itemStatsSummary(slot.item) }}</small>
+                </div>
+              </div>
+            </div>
+            <div v-else class="empty-state">Carrega um jogador para ver slots equipados.</div>
+          </div>
+
+          <div class="card card-full">
+            <div class="card-header">
+              <div>
+                <h3>Inventário do Jogador</h3>
+                <small>Lista completa com filtros e ações rápidas.</small>
+              </div>
+              <div class="inventory-actions">
+                <div class="inline">
+                  <div class="category-chips">
+                    <button
+                      v-for="cat in inventoryCategories"
+                      :key="cat.key"
+                      class="chip"
+                      :class="{ active: inventoryFilters.category === cat.key }"
+                      @click="inventoryFilters.category = cat.key"
+                    >
+                      {{ cat.icon }} {{ cat.label }}
+                    </button>
+                  </div>
+                </div>
+                <input
+                  v-model.trim="inventoryFilters.search"
+                  placeholder="Buscar item..."
+                  class="inventory-search"
+                />
+              </div>
+            </div>
+            <div class="inventory-toolbar">
+              <div class="inline">
+                <div><label>Item ID</label><input v-model.trim="invItemId" placeholder="Item.id ou Mongo _id" /></div>
+                <div><label>Qtd</label><input v-model.number="invQty" type="number" min="1" /></div>
+                <button @click="invAdd">Adicionar</button>
+                <button class="secondary" @click="invRemove">Remover</button>
+              </div>
+              <span class="muted" v-if="invStatus">{{ invStatus }}</span>
+            </div>
+            <div class="inventory-table" v-if="profile">
+              <div v-if="filteredInventory.length === 0" class="muted">Nenhum item encontrado.</div>
+              <div v-else>
+                <div class="inventory-row header">
+                  <span>Item</span>
+                  <span>Tipo</span>
+                  <span>Stats</span>
+                  <span>Qtd</span>
+                  <span>Ações</span>
+                </div>
+                <div class="inventory-row" v-for="item in filteredInventory" :key="item.dbId">
+                  <div class="item-name">
+                    <span class="icon">{{ iconForType(item.type) }}</span>
+                    <div>
+                      <strong>{{ item.name }}</strong>
+                      <div class="muted">ID: {{ resolveInventoryIdentifier(item) }}</div>
+                    </div>
+                  </div>
+                  <div>{{ item.type }}</div>
+                  <div>{{ itemStatsSummary(item) || '—' }}</div>
+                  <div>{{ item.qty }}</div>
+                  <div class="row-actions">
+                    <button class="ghost" @click="() => adjustInventory(item, 1)">+1</button>
+                    <button class="ghost" @click="() => adjustInventory(item, -1)">-1</button>
+                    <button class="ghost" @click="() => copyToClipboard(resolveInventoryIdentifier(item))">Copiar ID</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-else class="empty-state">Carrega um jogador para visualizar o inventário.</div>
           </div>
 
           <div class="card card-full">
@@ -1202,10 +1284,36 @@ const toast = useToast()
 const targetPlayerId = ref('')
 const targetUserId = ref('')
 const profile = ref(null)
+const profileLoading = ref(false)
+const profileError = ref('')
 const newName = ref('')
 const tabs = ['Jogador', 'Economia', 'Stats', 'Inventário & Itens', 'Mundo', 'Logs & Cooldowns']
 const currentTab = ref('Jogador')
 const isLogsTab = computed(() => currentTab.value === 'Logs & Cooldowns')
+
+const slotDefinitions = [
+  { key: 'primaryWeapon', label: 'Primária', icon: '🔫' },
+  { key: 'secondaryWeapon', label: 'Secundária', icon: '🔁' },
+  { key: 'meleeWeapon', label: 'Corpo a corpo', icon: '🗡️' },
+  { key: 'head', label: 'Cabeça', icon: '🪖' },
+  { key: 'torso', label: 'Torso', icon: '🧥' },
+  { key: 'pants', label: 'Pernas', icon: '👖' },
+  { key: 'shoes', label: 'Calçado', icon: '🥾' },
+  { key: 'legs', label: 'Acessório', icon: '🧤' },
+]
+
+const inventoryCategories = [
+  { key: 'all', label: 'Todos', icon: 'Layers' },
+  { key: 'weapon', label: 'Armas', icon: '🔫' },
+  { key: 'armor', label: 'Armadura', icon: '🛡️' },
+  { key: 'medicine', label: 'Medkits', icon: '💉' },
+  { key: 'drugs', label: 'Drogas', icon: '💊' },
+  { key: 'booster', label: 'Boosters', icon: '⚡' },
+  { key: 'tools', label: 'Ferramentas', icon: '🧰' },
+  { key: 'collectibles', label: 'Coleções', icon: '🃏' },
+]
+
+const inventoryFilters = reactive({ category: 'all', search: '' })
 
 const searchQuery = ref('')
 const searchResults = ref([])
@@ -1243,6 +1351,64 @@ const generalMoneyAmount = ref(0)
 const invItemId = ref('')
 const invQty = ref(1)
 const invStatus = ref('')
+
+const equippedSlots = computed(() =>
+  slotDefinitions.map((slot) => ({
+    ...slot,
+    item: profile.value?.equipment?.[slot.key] || null,
+  }))
+)
+
+const inventoryItems = computed(() => profile.value?.inventory || [])
+const inventoryStatsComputed = computed(() => profile.value?.inventoryStats || { unique: 0, totalQty: 0 })
+
+const filteredInventory = computed(() => {
+  let list = inventoryItems.value
+  const category = (inventoryFilters.category || 'all').toLowerCase()
+  if (category !== 'all') {
+    list = list.filter((item) => (item.type || '').toLowerCase() === category)
+  }
+  const term = inventoryFilters.search.trim().toLowerCase()
+  if (term) {
+    list = list.filter((item) => {
+      const haystack = `${item.name || ''} ${item.itemId || ''} ${item.type || ''}`.toLowerCase()
+      return haystack.includes(term)
+    })
+  }
+  return list
+})
+
+const typeIconMap = {
+  weapon: '🔫',
+  armor: '🛡️',
+  clothes: '🧥',
+  medicine: '💉',
+  drugs: '💊',
+  booster: '⚡',
+  tools: '🧰',
+  collectibles: '🃏',
+  cache: '📦',
+  materials: '🧱',
+}
+
+function iconForType(type) {
+  return typeIconMap[type] || '🎒'
+}
+
+function itemStatsSummary(item) {
+  const parts = []
+  const dmg = item?.stats?.damage
+  const armor = item?.stats?.armor
+  const quality = item?.stats?.quality
+  if (dmg) parts.push(`DMG ${dmg}`)
+  if (armor) parts.push(`ARM ${armor}`)
+  if (quality) parts.push(`Q${quality}`)
+  return parts.join(' · ')
+}
+
+function resolveInventoryIdentifier(item) {
+  return item?.itemId || item?.dbId || ''
+}
 
 const item = ref({ name: '', type: 'tools', id: 0, price: 0, sellable: true, usable: true, description: '' })
 const createItemStatus = ref('')
@@ -1763,6 +1929,28 @@ function ensureTarget(){
   return t
 }
 
+async function onLoadPlayer() {
+  try {
+    profileError.value = ''
+    const pid = Number(targetPlayerId.value)
+    if (!Number.isFinite(pid)) throw new Error('Informa um Player ID numérico para carregar o perfil')
+    profileLoading.value = true
+    const res = await api.get(`/admin/player/profile/${pid}`)
+    const data = res.data || null
+    if (!data) throw new Error('Perfil não encontrado')
+    profile.value = data
+    targetUserId.value = data.userId || ''
+    syncStateFromProfile()
+    toast.success('Jogador carregado')
+  } catch (e) {
+    profile.value = null
+    profileError.value = e?.response?.data?.error || e?.message || 'Falha ao carregar jogador'
+    toast.error(profileError.value)
+  } finally {
+    profileLoading.value = false
+  }
+}
+
 function syncStateFromProfile(){
   const data = profile.value
   if (!data) {
@@ -1948,6 +2136,7 @@ async function invAdd(){
     const body = { targetUserId: t, itemId: invItemId.value.trim(), qty: Number(invQty.value || 1) }
     const res = await api.post('/admin/inventory/add', body)
     invStatus.value = 'Inventory: ' + JSON.stringify(res.data || res)
+    await onLoadPlayer()
   } catch (e) { alert(e?.response?.data?.error || e?.message || 'Failed') }
 }
 async function invRemove(){
@@ -1956,7 +2145,25 @@ async function invRemove(){
     const body = { targetUserId: t, itemId: invItemId.value.trim(), qty: Number(invQty.value || 1) }
     const res = await api.post('/admin/inventory/remove', body)
     invStatus.value = 'Inventory: ' + JSON.stringify(res.data || res)
+    await onLoadPlayer()
   } catch (e) { alert(e?.response?.data?.error || e?.message || 'Failed') }
+}
+
+async function adjustInventory(item, delta) {
+  if (!item) return
+  invItemId.value = resolveInventoryIdentifier(item)
+  invQty.value = Math.max(1, Math.abs(delta))
+  if (delta > 0) await invAdd()
+  else await invRemove()
+}
+
+async function copyToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(String(text || ''))
+    toast.success('ID copiado para a área de transferência')
+  } catch {
+    toast.error('Falha ao copiar ID')
+  }
 }
 
 function buildEffectObject(){

@@ -14,6 +14,7 @@ const {
   stocksRemove,
   bankForceWithdraw,
   searchPlayers,
+  getAdminPlayerProfile,
   setAllEnergyToMax,
   giveMoneyToAll,
   stocksCrash,
@@ -84,6 +85,7 @@ router.post('/bank/force-withdraw', bankForceWithdraw);
 
 // Search
 router.get('/players/search', searchPlayers);
+router.get('/player/profile/:playerId', getAdminPlayerProfile);
 // Player moderation
 router.get('/player/titles', listPlayerTitles);
 router.patch('/player/status', setPlayerStatus);
