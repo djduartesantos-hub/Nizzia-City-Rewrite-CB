@@ -770,15 +770,21 @@
       ctx.translate(offsetX, offsetY)
       ctx.scale(scale, scale)
 
-      ctx.fillStyle = '#7d9b63'
+      ctx.fillStyle = '#0f1116'
       ctx.fillRect(0, 0, CITY_W, CITY_H)
 
       if (state.baseMapImage) {
         ctx.save()
-        ctx.globalAlpha = 0.42
+        ctx.globalAlpha = 1
         ctx.drawImage(state.baseMapImage, 0, 0, CITY_W, CITY_H)
         ctx.restore()
       }
+
+      // Event-only visual mode: keep original map colors and remove old generator overlays.
+      ctx.restore()
+      drawEventChips()
+      drawCursorHUD()
+      return
 
       drawGridOverlay(ctx)
 
