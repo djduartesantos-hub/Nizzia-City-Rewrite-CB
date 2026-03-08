@@ -46,7 +46,7 @@
       width: 100%;
       height: 100%;
       display: grid;
-      grid-template-rows: 46px 1fr 102px;
+      grid-template-rows: 46px 1fr;
       background: #111;
     }
 
@@ -80,8 +80,36 @@
 
     .top-tab:last-child { border-right: 0; }
 
+    .view-pane {
+      display: none;
+      height: 100%;
+      min-height: 0;
+    }
+
+    .view-pane.active {
+      display: block;
+    }
+
+    .map-pane {
+      height: 100%;
+    }
+
+    .links-pane {
+      background: #151515;
+      padding: 14px;
+      overflow: auto;
+    }
+
+    .links-pane h3 {
+      margin: 0 0 10px;
+      font-size: 2rem;
+      font-family: 'Bebas Neue', sans-serif;
+      letter-spacing: 0.08em;
+    }
+
     .map-stage {
       position: relative;
+      height: 100%;
       overflow: hidden;
       background: #181818;
       border-bottom: 1px solid #2f2f2f;
@@ -237,23 +265,6 @@
       0% { transform: translate(-50%, -100%) scale(1); }
       50% { transform: translate(-50%, -101%) scale(1.04); }
       100% { transform: translate(-50%, -100%) scale(1); }
-    }
-
-    .symbol-key {
-      background: linear-gradient(#3a3a3a, #262626);
-      border-top: 1px solid #5a5a5a;
-      padding: 8px 10px;
-      display: grid;
-      grid-template-rows: auto 1fr;
-      gap: 8px;
-    }
-
-    .symbol-key h3 {
-      margin: 0;
-      font-size: 1.6rem;
-      font-family: 'Bebas Neue', sans-serif;
-      letter-spacing: .06em;
-      color: #e8e8e8;
     }
 
     .quick-links {
@@ -464,7 +475,7 @@
       .quick-links { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .mini-wrap { width: 170px; }
       #miniMap { height: 96px; }
-      .map-shell { grid-template-rows: 42px 1fr 126px; }
+      .map-shell { grid-template-rows: 42px 1fr; }
     }
   </style>
 </head>
@@ -472,40 +483,43 @@
   <div id="app">
     <div class="map-shell">
       <div class="map-topbar">
-        <div class="top-tab active">Quick Links</div>
+        <button class="top-tab active" id="tabMap" type="button">Mapa</button>
+        <button class="top-tab" id="tabLinks" type="button">Links</button>
       </div>
 
-      <div class="map-stage">
-        <canvas id="cityCanvas"></canvas>
-        <div id="locationLayer"></div>
-        <div id="eventLayer"></div>
+      <section class="view-pane map-pane active" id="mapPane">
+        <div class="map-stage">
+          <canvas id="cityCanvas"></canvas>
+          <div id="locationLayer"></div>
+          <div id="eventLayer"></div>
 
-        <div class="hud">
-          <div class="panel">
-            <div class="subtitle" id="cityMeta">COORD 0,0</div>
-            <div class="subtitle" id="locationInfo">LOCAL -</div>
+          <div class="hud">
+            <div class="panel">
+              <div class="subtitle" id="cityMeta">COORD 0,0</div>
+              <div class="subtitle" id="locationInfo">LOCAL -</div>
+            </div>
           </div>
+
+          <div class="mini-wrap panel">
+            <canvas id="miniMap"></canvas>
+          </div>
+
+          <div class="map-tools">
+            <button class="tool-btn" id="btnZoomIn" title="Zoom +">🔎</button>
+            <button class="tool-btn" id="btnZoomOut" title="Zoom -">➖</button>
+            <button class="tool-btn" title="Links">🔗</button>
+            <button class="tool-btn" title="Camadas">🎨</button>
+            <button class="tool-btn" title="Mira">◎</button>
+          </div>
+
+          <div class="status-lock" id="statusLock">EM OPERAÇÃO · MAPA BLOQUEADO</div>
         </div>
+      </section>
 
-        <div class="mini-wrap panel">
-          <canvas id="miniMap"></canvas>
-        </div>
-
-        <div class="map-tools">
-          <button class="tool-btn" id="btnZoomIn" title="Zoom +">🔎</button>
-          <button class="tool-btn" id="btnZoomOut" title="Zoom -">➖</button>
-          <button class="tool-btn" title="Links">🔗</button>
-          <button class="tool-btn" title="Camadas">🎨</button>
-          <button class="tool-btn" title="Mira">◎</button>
-        </div>
-
-        <div class="status-lock" id="statusLock">EM OPERAÇÃO · MAPA BLOQUEADO</div>
-      </div>
-
-      <div class="symbol-key">
+      <section class="view-pane links-pane" id="linksPane">
         <h3>Quick Links</h3>
         <ul class="quick-links" id="quickLinksList"></ul>
-      </div>
+      </section>
     </div>
 
     <div class="overlay" id="eventModalOverlay">
@@ -850,6 +864,10 @@
     const cityMetaEl = document.getElementById('cityMeta')
     const locationInfoEl = document.getElementById('locationInfo')
     const quickLinksListEl = document.getElementById('quickLinksList')
+    const tabMap = document.getElementById('tabMap')
+    const tabLinks = document.getElementById('tabLinks')
+    const mapPane = document.getElementById('mapPane')
+    const linksPane = document.getElementById('linksPane')
     const hudHp = document.getElementById('hudHp')
     const hudMoney = document.getElementById('hudMoney')
     const hudXp = document.getElementById('hudXp')
@@ -1263,6 +1281,14 @@
       }
     }
 
+    function setActiveTab(mode) {
+      const showMap = mode !== 'links'
+      mapPane?.classList.toggle('active', showMap)
+      linksPane?.classList.toggle('active', !showMap)
+      tabMap?.classList.toggle('active', showMap)
+      tabLinks?.classList.toggle('active', !showMap)
+    }
+
     function updateHUD() {
       if (hudHp) hudHp.textContent = Math.round(state.playerState.hp)
       if (hudMoney) hudMoney.textContent = `$${Math.round(state.playerState.money)}`
@@ -1542,6 +1568,8 @@
       beginAction(selectedEvent)
     })
     btnBackMap.addEventListener('click', leaveActionScreen)
+    tabMap?.addEventListener('click', () => setActiveTab('map'))
+    tabLinks?.addEventListener('click', () => setActiveTab('links'))
 
     canvas.addEventListener('mousemove', (ev) => {
       const rect = canvas.getBoundingClientRect()
@@ -1585,6 +1613,7 @@
       state.baseMapImage = await loadBaseMapImage(imageUrl)
       state.city = createStaticCity(state.mapConfig)
       buildQuickLinks()
+      setActiveTab('map')
       regenerateEvents()
       updateHUD()
       resize()
