@@ -9,9 +9,16 @@
       <p class="hero-balance">{{ money }}</p>
       <div class="hero-bars">
         <div class="hero-bar" v-for="bar in heroBars" :key="bar.label">
-          <div class="hero-bar__label">{{ bar.label }} · {{ bar.value }}</div>
+          <div class="hero-bar__label">
+            <span>{{ bar.label }} · {{ bar.value }}</span>
+            <span v-if="bar.regen" class="regen-chip">
+              +{{ bar.regen.amount }} em {{ bar.regen.timeLabel }}
+            </span>
+          </div>
           <div class="progress-bar hero-track">
             <div class="progress-fill" :class="bar.class" :style="{ width: bar.fill + '%' }"></div>
+            <div v-if="bar.regen?.ghostWidth" class="progress-ghost" :class="bar.class" :style="{ left: bar.fill + '%', width: bar.regen.ghostWidth + '%' }"></div>
+            <div v-if="bar.regen" class="progress-tick" :style="{ width: bar.regen.tickProgress + '%' }"></div>
           </div>
         </div>
       </div>
@@ -100,7 +107,7 @@ import { RouterLink, useRouter } from 'vue-router'
 import api from '../api/client'
 import { usePlayer } from '../composables/usePlayer'
 import { useToast } from '../composables/useToast'
-import { fmtMoney, fmtDuration } from '../utils/format'
+import { fmtMoney, fmtDuration, fmtHms } from '../utils/format'
 
 const { store, ensurePlayer } = usePlayer()
 const toast = useToast()
@@ -122,20 +129,56 @@ const devMoney = ref(100000)
 const devEnergy = ref(10)
 const devNerve = ref(5)
 
+const regenConfig = {
+  energy: { interval: 600, amount: 5 },
+  nerve: { interval: 300, amount: 1 },
+  happy: { interval: 300, amount: 5 },
+}
+
 const heroBars = computed(() => [
-  { label: 'Energy', value: `${eNow.value}/${eMax.value}`, fill: pct(eNow.value, eMax.value), class: 'energy' },
-  { label: 'Nerve', value: `${nNow.value}/${nMax.value}`, fill: pct(nNow.value, nMax.value), class: 'nerve' },
-  { label: 'Happy', value: `${hNow.value}/${hMax.value}`, fill: pct(hNow.value, hMax.value), class: 'happy' },
-  { label: 'HP', value: `${hpNow.value}/${hpMax}`, fill: pct(hpNow.value, hpMax), class: 'life' }
+  buildBar('Energy', eNow.value, eMax.value, 'energy', regenConfig.energy),
+  buildBar('Nerve', nNow.value, nMax.value, 'nerve', regenConfig.nerve),
+  buildBar('Happy', hNow.value, hMax.value, 'happy', regenConfig.happy),
+  buildBar('HP', hpNow.value, hpMax, 'life', null)
 ])
 
 function pct(cur, max){ return max > 0 ? Math.min(100, Math.round((cur/max)*100)) : 0 }
+
+function buildBar(label, current, max, cls, regen) {
+  const fill = pct(current, max)
+  if (!regen || max <= 0) {
+    return { label, value: `${current}/${max}`, fill, class: cls }
+  }
+  const secondsLeft = secondsUntilTick(regen.interval)
+  const ghostWidth = Math.min(100 - fill, regen.amount && max ? (regen.amount / max) * 100 : 0)
+  const tickProgress = regen.interval ? Math.max(0, Math.min(100, ((regen.interval - secondsLeft) / regen.interval) * 100)) : 0
+  return {
+    label,
+    value: `${current}/${max}`,
+    fill,
+    class: cls,
+    regen: {
+      amount: regen.amount,
+      timeLabel: fmtHms(secondsLeft),
+      interval: regen.interval,
+      ghostWidth,
+      tickProgress,
+    }
+  }
+}
 
 // ── Live clock for cooldown countdowns ──
 const now = ref(Date.now())
 let timerId
 onMounted(() => { timerId = setInterval(() => { now.value = Date.now() }, 1000) })
 onUnmounted(() => { clearInterval(timerId) })
+
+function secondsUntilTick(intervalSeconds) {
+  if (!intervalSeconds) return 0
+  const secondsToday = Math.floor(now.value / 1000)
+  const remainder = secondsToday % intervalSeconds
+  return remainder === 0 ? intervalSeconds : intervalSeconds - remainder
+}
 
 // ── Extra sidebar data ──
 const bankUnlockAt = ref(null)
@@ -302,6 +345,27 @@ function openSpotlight() {
   background: var(--bg-alt);
   font-size: 13px;
   cursor: default;
+}
+.hero-bar__label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--muted);
+}
+.regen-chip {
+  font-size: 11px;
+  color: var(--accent-secondary);
+  font-weight: 600;
+}
+.hero-track {
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+  position: relative;
+}
+.progress-fill {
+  position: absolute;
 }
 .effect-icon::after {
   content: attr(data-tip);
