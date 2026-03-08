@@ -730,6 +730,39 @@
           })
         }
 
+        const localRoads = []
+        for (let i = 0; i < 24; i += 1) {
+          const points = []
+          const x0 = this.rng.range(60, CITY_W - 60)
+          const vertical = this.rng.next() > 0.5
+          if (vertical) {
+            for (let y = -30; y <= CITY_H + 30; y += this.rng.range(90, 140)) {
+              points.push({ x: x0 + this.rng.range(-25, 25), y: y + this.rng.range(-8, 8) })
+            }
+          } else {
+            const y0 = this.rng.range(40, CITY_H * 0.78)
+            for (let x = -40; x <= CITY_W + 40; x += this.rng.range(90, 150)) {
+              points.push({ x: x + this.rng.range(-10, 10), y: y0 + this.rng.range(-22, 22) })
+            }
+          }
+          localRoads.push({ points, width: this.rng.range(2.4, 5.2) })
+        }
+
+        const districtBlobs = zones.map((z) => {
+          const points = []
+          const slices = 10
+          for (let i = 0; i < slices; i += 1) {
+            const a = (Math.PI * 2 * i) / slices
+            const rx = (z.w * 0.5) * this.rng.range(0.72, 1.08)
+            const ry = (z.h * 0.5) * this.rng.range(0.72, 1.08)
+            points.push({
+              x: z.x + Math.cos(a) * rx,
+              y: z.y + Math.sin(a) * ry,
+            })
+          }
+          return { zoneId: z.id, color: z.color, points }
+        })
+
         const parcels = []
         for (const z of zones) {
           const count = Math.floor(70 + z.density * 120)
@@ -743,7 +776,7 @@
           }
         }
 
-        return { shoreline, islands, arterials, parcels }
+        return { shoreline, islands, arterials, localRoads, districtBlobs, parcels }
       }
 
       generateStreetNames(count) {
@@ -906,19 +939,31 @@
         ctx.fill()
       }
 
-      for (const z of state.city.zones) {
-        ctx.fillStyle = z.color
-        ctx.globalAlpha = 0.74
-        roundRect(ctx, z.x - z.w / 2, z.y - z.h / 2, z.w, z.h, 9, true, false)
+      for (const blob of state.city.backdrop.districtBlobs) {
+        ctx.globalAlpha = 0.64
+        ctx.fillStyle = blob.color
+        ctx.beginPath()
+        ctx.moveTo(blob.points[0].x, blob.points[0].y)
+        for (let i = 1; i < blob.points.length; i += 1) {
+          const p = blob.points[i]
+          ctx.lineTo(p.x, p.y)
+        }
+        ctx.closePath()
+        ctx.fill()
+      }
+
+      for (const lr of state.city.backdrop.localRoads) {
+        drawPolyline(ctx, lr.points, 'rgba(45,45,45,0.88)', lr.width + 2.8)
+        drawPolyline(ctx, lr.points, 'rgba(132,132,132,0.84)', lr.width)
       }
 
       for (const parcel of state.city.backdrop.parcels) {
         ctx.save()
         ctx.translate(parcel.x, parcel.y)
         ctx.rotate(parcel.rot)
-        ctx.fillStyle = 'rgba(0,0,0,0.2)'
+        ctx.fillStyle = 'rgba(0,0,0,0.16)'
         ctx.fillRect(-parcel.w * 0.5, -parcel.h * 0.5, parcel.w, parcel.h)
-        ctx.strokeStyle = 'rgba(255,255,255,0.08)'
+        ctx.strokeStyle = 'rgba(255,255,255,0.11)'
         ctx.lineWidth = 0.7
         ctx.strokeRect(-parcel.w * 0.5, -parcel.h * 0.5, parcel.w, parcel.h)
         ctx.restore()
@@ -1000,12 +1045,12 @@
         ctx.fillText(loc.name, loc.x + 14, loc.y + 3)
       }
 
-      for (let i = 0; i < 120; i += 1) {
+      for (let i = 0; i < 260; i += 1) {
         const px = ((i * 157) % CITY_W)
         const py = ((i * 223 + state.seed * 31) % CITY_H)
-        ctx.fillStyle = i % 2 ? 'rgba(242, 61, 61, 0.8)' : 'rgba(58, 220, 138, 0.8)'
+        ctx.fillStyle = i % 3 ? 'rgba(242, 61, 61, 0.45)' : 'rgba(58, 220, 138, 0.42)'
         ctx.beginPath()
-        ctx.arc(px, py, 2.2, 0, Math.PI * 2)
+        ctx.arc(px, py, 1.4, 0, Math.PI * 2)
         ctx.fill()
       }
 
@@ -1094,6 +1139,18 @@
       g.quadraticCurveTo(x, y, x + r, y)
       if (fill) g.fill()
       if (stroke) g.stroke()
+    }
+
+    function drawPolyline(g, points, color, width) {
+      if (!points || points.length < 2) return
+      g.strokeStyle = color
+      g.lineWidth = width
+      g.beginPath()
+      g.moveTo(points[0].x, points[0].y)
+      for (let i = 1; i < points.length; i += 1) {
+        g.lineTo(points[i].x, points[i].y)
+      }
+      g.stroke()
     }
 
     function buildLegend() {
