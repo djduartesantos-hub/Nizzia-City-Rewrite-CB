@@ -301,51 +301,51 @@
 
         <div class="card card-full">
           <h3>Criação de Itens</h3>
-      <div class="inline">
-        <div>
-          <label>Presets salvos</label>
-          <select v-model="selectedItemPresetId">
-            <option value="">— nenhum —</option>
-            <option v-for="preset in itemPresets" :key="preset._id" :value="preset._id">{{ preset.name }} — {{ preset.authorName || 'Admin' }}</option>
-          </select>
-        </div>
-        <button class="secondary" :disabled="!selectedItemPresetId" @click="applyItemPreset">Carregar preset</button>
-        <button class="secondary" :disabled="!selectedItemPresetId" @click="deleteItemPresetClient">Apagar preset</button>
-      </div>
-      <div class="inline">
-        <div>
-          <label>Novo preset</label>
-          <input v-model.trim="newPresetName" placeholder="ex: Booster meta" />
-        </div>
-        <button :disabled="!newPresetName" @click="saveItemPreset">Guardar preset</button>
-        <button class="secondary" :disabled="presetsLoading" @click="loadItemPresets">Recarregar lista</button>
-      </div>
-      <div class="row">
-        <div><label>Name</label><input v-model.trim="item.name" /></div>
-        <div><label>Type</label>
-          <select v-model="item.type">
-            <option value="weapon">weapon</option>
-            <option value="alchool">alchol</option>
-            <option value="booster">booster</option>
-            <option value="cache">cache</option>
-            <option value="armor">armor</option>
-            <option value="medicine">medicine</option>
-            <option value="clothes">clothes</option>
-            <option value="tools">tools</option>
-            <option value="drugs">drugs</option>
-            <option value="collectibles">collectibles</option>
-          </select>
-        </div>
-        <div><label>Item id</label><input v-model="item.id" placeholder="string or number" /></div>
-        <div><label>Price</label><input v-model.number="item.price" type="number" min="0" /></div>
-        <div><label>Sellable</label>
-          <select v-model="item.sellable"><option :value="true">true</option><option :value="false">false</option></select>
-        </div>
-        <div><label>Usable</label>
-          <select v-model="item.usable"><option :value="true">true</option><option :value="false">false</option></select>
-        </div>
-        <div style="grid-column: 1 / -1"><label>Description</label><input v-model.trim="item.description" /></div>
-      </div>
+          <div class="inline">
+            <div>
+              <label>Presets salvos</label>
+              <select v-model="selectedItemPresetId">
+                <option value="">— nenhum —</option>
+                <option v-for="preset in itemPresets" :key="preset._id" :value="preset._id">{{ preset.name }} — {{ preset.authorName || 'Admin' }}</option>
+              </select>
+            </div>
+            <button class="secondary" :disabled="!selectedItemPresetId" @click="applyItemPreset">Carregar preset</button>
+            <button class="secondary" :disabled="!selectedItemPresetId" @click="deleteItemPresetClient">Apagar preset</button>
+          </div>
+          <div class="inline">
+            <div>
+              <label>Novo preset</label>
+              <input v-model.trim="newPresetName" placeholder="ex: Booster meta" />
+            </div>
+            <button :disabled="!newPresetName" @click="saveItemPreset">Guardar preset</button>
+            <button class="secondary" :disabled="presetsLoading" @click="loadItemPresets">Recarregar lista</button>
+          </div>
+          <div class="row">
+            <div><label>Name</label><input v-model.trim="item.name" /></div>
+            <div><label>Type</label>
+              <select v-model="item.type">
+                <option value="weapon">weapon</option>
+                <option value="alchool">alchol</option>
+                <option value="booster">booster</option>
+                <option value="cache">cache</option>
+                <option value="armor">armor</option>
+                <option value="medicine">medicine</option>
+                <option value="clothes">clothes</option>
+                <option value="tools">tools</option>
+                <option value="drugs">drugs</option>
+                <option value="collectibles">collectibles</option>
+              </select>
+            </div>
+            <div><label>Item id</label><input v-model="item.id" placeholder="string or number" /></div>
+            <div><label>Price</label><input v-model.number="item.price" type="number" min="0" /></div>
+            <div><label>Sellable</label>
+              <select v-model="item.sellable"><option :value="true">true</option><option :value="false">false</option></select>
+            </div>
+            <div><label>Usable</label>
+              <select v-model="item.usable"><option :value="true">true</option><option :value="false">false</option></select>
+            </div>
+            <div style="grid-column: 1 / -1"><label>Description</label><input v-model.trim="item.description" /></div>
+          </div>
 
       <!-- subtype for weapon/armor/clothes -->
       <div class="row" v-if="['weapon','armor','clothes'].includes(item.type)">
