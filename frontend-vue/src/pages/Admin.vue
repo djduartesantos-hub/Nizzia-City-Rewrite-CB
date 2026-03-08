@@ -15,56 +15,6 @@
           @click="currentTab = tab"
         >
           {{ tab }}
-
-function normalizeNote(raw){
-  if (!raw) return null
-  const tags = Array.isArray(raw.tags) ? raw.tags.map(String) : []
-  const type = tags.includes('system') ? 'system' : 'manual'
-  return {
-    ...raw,
-    author: raw.authorName || raw.author || 'Sistema',
-    type,
-  }
-}
-
-async function loadNotes(){
-  const target = targetUserId.value?.trim()
-  if (!target) {
-    notes.value = []
-    return
-  }
-  try {
-    const t = ensureTarget()
-    const res = await api.get(`/admin/player/notes/${encodeURIComponent(t)}`)
-    const list = (res.data?.notes || [])
-      .map(normalizeNote)
-      .filter(Boolean)
-    notes.value = list
-  } catch (e) {
-    notes.value = []
-    toast.error(e?.response?.data?.error || e?.message || 'Falha ao carregar notas')
-  }
-}
-
-async function createNote(){
-  try {
-    const t = ensureTarget()
-    const text = noteText.value.trim()
-    if (!text) throw new Error('Escreva algo na nota')
-    const payload = { targetUserId: t, text, tags: ['manual'] }
-    const res = await api.post('/admin/player/notes', payload)
-    const saved = normalizeNote(res.data?.note)
-    if (saved) {
-      notes.value = [saved, ...notes.value]
-    } else {
-      await loadNotes()
-    }
-    noteText.value = ''
-    toast.success('Nota guardada')
-  } catch (e) {
-    toast.error(e?.response?.data?.error || e?.message || 'Falha ao criar nota')
-  }
-}
         </button>
       </div>
     </header>
@@ -971,6 +921,56 @@ function syncStateFromProfile(){
     employeEfficiency: Number(data.workStats?.employeEfficiency || 0),
   }
   hydrateSupportFlag()
+}
+
+function normalizeNote(raw){
+  if (!raw) return null
+  const tags = Array.isArray(raw.tags) ? raw.tags.map(String) : []
+  const type = tags.includes('system') ? 'system' : 'manual'
+  return {
+    ...raw,
+    author: raw.authorName || raw.author || 'Sistema',
+    type,
+  }
+}
+
+async function loadNotes(){
+  const target = targetUserId.value?.trim()
+  if (!target) {
+    notes.value = []
+    return
+  }
+  try {
+    const t = ensureTarget()
+    const res = await api.get(`/admin/player/notes/${encodeURIComponent(t)}`)
+    const list = (res.data?.notes || [])
+      .map(normalizeNote)
+      .filter(Boolean)
+    notes.value = list
+  } catch (e) {
+    notes.value = []
+    toast.error(e?.response?.data?.error || e?.message || 'Falha ao carregar notas')
+  }
+}
+
+async function createNote(){
+  try {
+    const t = ensureTarget()
+    const text = noteText.value.trim()
+    if (!text) throw new Error('Escreva algo na nota')
+    const payload = { targetUserId: t, text, tags: ['manual'] }
+    const res = await api.post('/admin/player/notes', payload)
+    const saved = normalizeNote(res.data?.note)
+    if (saved) {
+      notes.value = [saved, ...notes.value]
+    } else {
+      await loadNotes()
+    }
+    noteText.value = ''
+    toast.success('Nota guardada')
+  } catch (e) {
+    toast.error(e?.response?.data?.error || e?.message || 'Falha ao criar nota')
+  }
 }
 
 async function applyName(){
