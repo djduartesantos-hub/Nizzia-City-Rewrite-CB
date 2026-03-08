@@ -583,6 +583,41 @@
         <div v-if="!profile" class="empty-state">Carrega um jogador para gerir inventário e itens.</div>
       </section>
     </div>
+    <div class="tab-panel" v-show="currentTab === 'Mundo'">
+      <section class="section-block">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow mini">Mercado urbano</p>
+            <h3>Finanças e banca</h3>
+            <p class="muted">Controla ações, contas de poupança e fluxos de juros.</p>
+          </div>
+        </div>
+        <div class="card-grid two-col">
+          <div class="card">
+            <h3>Estoque & Bolsa</h3>
+            <div class="inline">
+              <div><label>Symbol</label><input v-model.trim="stockSymbol" placeholder="e.g. FLY" /></div>
+              <div><label>Shares</label><input v-model.number="stockShares" type="number" min="1" /></div>
+              <div><label>Avg Price (opcional)</label><input v-model.number="stockAvgPrice" type="number" step="0.0001" /></div>
+              <button @click="stockAdd">Add</button>
+              <button class="secondary" @click="stockRemove">Remove</button>
+              <button class="secondary" title="Crash (-40% a -90%)" @click="stockCrash">Crash</button>
+              <button title="Rocket (+40% a +130%)" @click="stockRocket">Rocket</button>
+            </div>
+          </div>
+
+          <div class="card card-full">
+            <h3>Accounts Bancárias</h3>
+            <div class="actions"><button @click="loadAccounts">Load Accounts</button></div>
+            <div class="list">
+              <div v-for="ac in bankAccounts" :key="ac._id" class="list-row">
+                <div>{{ ac._id }} | principal ${{ ac.depositedAmount }} | APR {{ ac.interestRate }}% | {{ ac.period }} | start {{ fmt(ac.startDate) }} | end {{ fmt(ac.endDate) }} | withdrawn {{ ac.isWithdrawn }}</div>
+                <button :disabled="ac.isWithdrawn" @click="forceWithdraw(ac._id)">Force Withdraw</button>
+              </div>
+              <div v-if="bankAccounts.length===0" class="muted">Sem contas.</div>
+            </div>
+          </div>
+        </div>
       </section>
 
       <section class="section-block">
@@ -618,158 +653,273 @@
               </div>
               <button class="secondary" title="Reset global" @click="cdResetAll">Reset All</button>
             </div>
-                <div><label>Bail base</label><input v-model.number="worldConfigs.prison.bailBase" type="number" min="0" /></div>
-                <div><label>Por bloco</label><input v-model.number="worldConfigs.prison.bailPerBlock" type="number" min="0" /></div>
-                <div><label>Tam bloco (s)</label><input v-model.number="worldConfigs.prison.bailBlockSeconds" type="number" min="60" /></div>
-                <div><label>Mult.</label><input v-model.number="worldConfigs.prison.bailMultiplier" type="number" min="0.1" step="0.1" /></div>
-              </div>
-              <div class="row">
-                <div><label>Penalty fuga (s)</label><input v-model.number="worldConfigs.prison.breakoutPenaltySeconds" type="number" min="0" /></div>
-                <div><label>Penalty cap (s)</label><input v-model.number="worldConfigs.prison.breakoutPenaltyCapSeconds" type="number" min="0" /></div>
-                <div><label>Chance base fuga</label><input v-model.number="worldConfigs.prison.breakoutBaseChance" type="number" step="0.01" min="0" max="1" /></div>
-                <div><label>Bónus lvl fuga</label><input v-model.number="worldConfigs.prison.breakoutLevelBonus" type="number" step="0.001" min="0" max="1" /></div>
-              </div>
-              <div class="row">
-                <label class="toggle">
-                  <input type="checkbox" v-model="worldConfigs.prison.breakoutAssistEnabled" />
-                  <span>Permitir assistências de fuga</span>
-                </label>
-              </div>
-              <div class="actions">
-                <button @click="forceJail()">Prender target</button>
-                <button class="secondary" @click="releaseTarget('prison')">Libertar target</button>
-                <button :disabled="worldSaving.prison" @click="savePrisonConfig">Guardar Prisão</button>
-              </div>
-            </section>
+          </div>
 
-            <section>
-              <header>
-                <h4>Hospital</h4>
-                <div class="muted">Custos de revive, tratamentos e limites</div>
-              </header>
-              <div class="metrics">
-                <div class="stat">
-                  <label>Internados</label>
-                  <strong>{{ hospitalOverview.stats.total }}</strong>
-                </div>
-                <div class="stat">
-                  <label>Tempo médio</label>
-                  <strong>{{ humanDuration(hospitalOverview.stats.avgSeconds) }}</strong>
-                </div>
-                <div class="stat">
-                  <label>Último revive</label>
-                  <strong>{{ hospitalOverview.stats.lastRevive ? fmt(hospitalOverview.stats.lastRevive) : '—' }}</strong>
-                </div>
-                <button class="ghost" @click="refreshHospitalOverview(true)" :disabled="hospitalOverview.loading">Atualizar</button>
+          <div class="card">
+            <h3>Cartel Reputation</h3>
+            <div class="inline">
+              <div>
+                <label>Rep Level</label>
+                <select v-model.number="cartelRepLevel">
+                  <option :value="-1">— pick rank —</option>
+                  <option v-for="r in cartelRanks" :key="r.level" :value="r.level">{{ r.level }} — {{ r.name }} ({{ r.xpRequired.toLocaleString() }} rep)</option>
+                </select>
               </div>
-              <div class="snapshot-list" v-if="hospitalOverview.list.length">
-                <p class="muted">Pacientes críticos</p>
-                <ul>
-                  <li v-for="patient in hospitalOverview.list" :key="patient.userId">
-                    <div>
-                      <strong>{{ patient.name }}</strong>
-                      <span class="muted"> · HP {{ patient.health }}</span>
-                    </div>
-                    <span class="timer">{{ shortCountdown(patient.remainingSeconds) }}</span>
-                  </li>
-                </ul>
-              </div>
-              <div v-else class="empty-state">Sem pacientes ativos.</div>
-              <div class="snapshot-list" v-if="hospitalOverview.events.length">
-                <p class="muted">Eventos clínicos</p>
-                <ul>
-                  <li v-for="evt in hospitalOverview.events" :key="evt.id || evt.ts">
-                    <span>{{ evt.summary }}</span>
-                    <small class="muted">{{ fmt(evt.ts) }}</small>
-                  </li>
-                </ul>
-              </div>
-              <div v-else class="empty-state">Nenhum evento de hospital recente.</div>
-              <div class="row">
-                <div><label>Min (s)</label><input v-model.number="worldConfigs.hospital.minHospitalSeconds" type="number" min="60" /></div>
-                <div><label>Default (s)</label><input v-model.number="worldConfigs.hospital.defaultHospitalSeconds" type="number" min="60" /></div>
-                <div><label>Cap (s)</label><input v-model.number="worldConfigs.hospital.hospitalCapSeconds" type="number" min="60" /></div>
-              </div>
-              <div class="row">
-                <div><label>Tratamento (s)</label><input v-model.number="worldConfigs.hospital.treatSeconds" type="number" min="30" /></div>
-                <div><label>HP/s tratamento</label><input v-model.number="worldConfigs.hospital.treatHealthPerSecond" type="number" step="0.1" min="0" /></div>
-                <div><label>Revive base</label><input v-model.number="worldConfigs.hospital.reviveBase" type="number" min="0" /></div>
-                <div><label>Revive por bloco</label><input v-model.number="worldConfigs.hospital.revivePerBlock" type="number" min="0" /></div>
-              </div>
-              <div class="row">
-                <div><label>Tam bloco (s)</label><input v-model.number="worldConfigs.hospital.reviveBlockSeconds" type="number" min="60" /></div>
-                <div><label>Factor lvl</label><input v-model.number="worldConfigs.hospital.reviveLevelFactor" type="number" min="0" /></div>
-                <div><label>HP mínimo revive</label><input v-model.number="worldConfigs.hospital.reviveHealthFloor" type="number" min="1" /></div>
-              </div>
-              <div class="row">
-                <label class="toggle">
-                  <input type="checkbox" v-model="worldConfigs.hospital.allowPaidRevive" />
-                  <span>Permitir revives pagos</span>
-                </label>
-              </div>
-              <div class="actions">
-                <button @click="forceHospital()">Hospitalizar target</button>
-                <button class="secondary" @click="releaseTarget('hospital')">Dar alta</button>
-                <button :disabled="worldSaving.hospital" @click="saveHospitalConfig">Guardar Hospital</button>
-              </div>
-            </section>
+              <div><label>Reputação exata</label><input v-model.number="cartelRepExact" type="number" min="0" placeholder="valor exato" /></div>
+              <button @click="applyCartelRep">Aplicar</button>
+            </div>
+            <div v-if="cartelRepMsg" class="muted">{{ cartelRepMsg }}</div>
           </div>
         </div>
-
-            <div class="card card-full world-config-card">
-          <div class="card-header">
-            <h3>Punições de Crimes</h3>
-            <small>Controla dano, hospitalizações e prisão automática</small>
-          </div>
-          <div v-if="worldLoading" class="muted">Carregando…</div>
-          <div v-else class="world-sections single">
-            <section>
-              <div class="row">
-                <label class="toggle">
-                  <input type="checkbox" v-model="worldConfigs.crime.enableHealthLoss" />
-                  <span>Perder vida em critic fail</span>
-                </label>
-                <label class="toggle">
-                  <input type="checkbox" v-model="worldConfigs.crime.enableHospitalize" />
-                  <span>Enviar para hospital</span>
-                </label>
-                <label class="toggle">
-                  <input type="checkbox" v-model="worldConfigs.crime.enableJail" />
-                  <span>Possível prisão</span>
-                </label>
-                <label class="toggle">
-                  <input type="checkbox" v-model="worldConfigs.crime.logEvents" />
-                  <span>Logar eventos</span>
-                </label>
+        <div class="card-grid two-col">
+          <div class="card">
+            <h3>Bulks & Riscos</h3>
+            <div class="inline">
+              <div>
+                <label>Include NPCs</label>
+                <select v-model="generalIncludeNPC"><option value="false">false</option><option value="true">true</option></select>
               </div>
-              <div class="row">
-                <div><label>Dano %</label><input v-model.number="worldConfigs.crime.criticalHpLossPercent" type="number" min="0" max="100" /></div>
-                <div><label>Dano fixo</label><input v-model.number="worldConfigs.crime.criticalHpLossFlat" type="number" min="0" /></div>
-                <div><label>HP mínimo antes hospital</label><input v-model.number="worldConfigs.crime.hospitalizeBelowHealth" type="number" min="0" /></div>
-              </div>
-              <div class="row">
-                <div><label>Hospital base (s)</label><input v-model.number="worldConfigs.crime.hospitalSeconds" type="number" min="0" /></div>
-                <div><label>Hospital var (s)</label><input v-model.number="worldConfigs.crime.hospitalVarianceSeconds" type="number" min="0" /></div>
-                <div><label>HP mínimo ao internar</label><input v-model.number="worldConfigs.crime.hospitalHealthFloor" type="number" min="0" /></div>
-              </div>
-              <div class="row">
-                <div><label>Prisão chance (%)</label><input v-model.number="worldConfigs.crime.jailChancePercent" type="number" min="0" max="100" /></div>
-                <div><label>Prisão base (s)</label><input v-model.number="worldConfigs.crime.jailSeconds" type="number" min="0" /></div>
-                <div><label>Prisão var (s)</label><input v-model.number="worldConfigs.crime.jailVarianceSeconds" type="number" min="0" /></div>
-                <div><label>Prisão cap (s)</label><input v-model.number="worldConfigs.crime.jailMaxSeconds" type="number" min="0" /></div>
-              </div>
-              <div class="row">
-                <div><label>Severidade (minor)</label><input v-model.number="worldConfigs.crime.severityMultipliers.minor" type="number" step="0.1" min="0" /></div>
-                <div><label>Severidade (moderate)</label><input v-model.number="worldConfigs.crime.severityMultipliers.moderate" type="number" step="0.1" min="0" /></div>
-                <div><label>Severidade (major)</label><input v-model.number="worldConfigs.crime.severityMultipliers.major" type="number" step="0.1" min="0" /></div>
-              </div>
-              <div class="actions">
-                <button :disabled="worldSaving.crime" @click="saveCrimeConfig">Guardar Crimes</button>
-              </div>
-            </section>
+              <button class="secondary" @click="generalEnergyMax">Energy = max (global)</button>
+            </div>
+            <div class="inline">
+              <div><label>Money Δ (bulk)</label><input v-model.number="generalMoneyAmount" type="number" /></div>
+              <button class="secondary" @click="generalGiveMoney">Give money a todos</button>
+            </div>
+            <div class="divider"></div>
+            <div class="inline">
+              <div><label>Addiction</label><input v-model.number="addictionValue" type="number" min="0" /></div>
+              <button @click="setAddiction">Set Addiction</button>
+            </div>
+            <div class="muted">Drop DB (dev only)</div>
+            <div class="inline">
+              <div><label>Type DROP</label><input v-model.trim="dbConfirm" placeholder="DROP" /></div>
+              <button class="secondary" @click="dbPurge">DROP DB</button>
+            </div>
           </div>
         </div>
-      </div>
+      </section>
+
+      <section class="section-block">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow mini">Estado do mundo</p>
+            <h3>Prisão, Hospital e Crimes</h3>
+            <p class="muted">Ajuda a calibrar punições e métricas globais.</p>
+          </div>
+        </div>
+        <div class="card-grid">
+          <div class="card card-full world-config-card">
+            <div class="card-header">
+              <h3>Gestão de Prisão & Hospital</h3>
+              <small>Parâmetros globais e ações rápidas</small>
+              <div class="actions">
+                <button class="secondary" @click="hydrateWorldTab(true)">Recarregar</button>
+              </div>
+            </div>
+            <div v-if="worldLoading" class="muted">Carregando…</div>
+            <div v-else class="world-sections">
+              <section>
+                <header>
+                  <h4>Prisão</h4>
+                  <div class="muted">Define fianças, tempos padrão e regras de fuga</div>
+                </header>
+                <div class="metrics">
+                  <div class="stat">
+                    <label>Presos ativos</label>
+                    <strong>{{ prisonOverview.stats.total }}</strong>
+                  </div>
+                  <div class="stat">
+                    <label>Tempo médio</label>
+                    <strong>{{ humanDuration(prisonOverview.stats.avgSeconds) }}</strong>
+                  </div>
+                  <div class="stat">
+                    <label>Última fuga</label>
+                    <strong>{{ prisonOverview.stats.lastBreakout ? fmt(prisonOverview.stats.lastBreakout) : '—' }}</strong>
+                  </div>
+                  <button class="ghost" @click="refreshPrisonOverview(true)" :disabled="prisonOverview.loading">Atualizar</button>
+                </div>
+                <div class="snapshot-list" v-if="prisonOverview.list.length">
+                  <p class="muted">Top detidos recentes</p>
+                  <ul>
+                    <li v-for="inmate in prisonOverview.list" :key="inmate.userId">
+                      <div>
+                        <strong>{{ inmate.name }}</strong>
+                        <span class="muted"> · {{ inmate.crime || '—' }}</span>
+                      </div>
+                      <span class="timer">{{ shortCountdown(inmate.remainingSeconds) }}</span>
+                    </li>
+                  </ul>
+                </div>
+                <div v-else class="empty-state">Sem presos listados no momento.</div>
+                <div class="snapshot-list" v-if="prisonOverview.events.length">
+                  <p class="muted">Eventos recentes</p>
+                  <ul>
+                    <li v-for="evt in prisonOverview.events" :key="evt.id || evt.ts">
+                      <span>{{ evt.summary }}</span>
+                      <small class="muted">{{ fmt(evt.ts) }}</small>
+                    </li>
+                  </ul>
+                </div>
+                <div v-else class="empty-state">Nenhum evento de prisão recente.</div>
+                <div class="row">
+                  <div><label>Min (s)</label><input v-model.number="worldConfigs.prison.minJailSeconds" type="number" min="60" /></div>
+                  <div><label>Default (s)</label><input v-model.number="worldConfigs.prison.defaultJailSeconds" type="number" min="60" /></div>
+                  <div><label>Cap (s)</label><input v-model.number="worldConfigs.prison.jailCapSeconds" type="number" min="60" /></div>
+                </div>
+                <div class="row">
+                  <div><label>Bail base</label><input v-model.number="worldConfigs.prison.bailBase" type="number" min="0" /></div>
+                  <div><label>Por bloco</label><input v-model.number="worldConfigs.prison.bailPerBlock" type="number" min="0" /></div>
+                  <div><label>Tam bloco (s)</label><input v-model.number="worldConfigs.prison.bailBlockSeconds" type="number" min="60" /></div>
+                  <div><label>Mult.</label><input v-model.number="worldConfigs.prison.bailMultiplier" type="number" min="0.1" step="0.1" /></div>
+                </div>
+                <div class="row">
+                  <div><label>Penalty fuga (s)</label><input v-model.number="worldConfigs.prison.breakoutPenaltySeconds" type="number" min="0" /></div>
+                  <div><label>Penalty cap (s)</label><input v-model.number="worldConfigs.prison.breakoutPenaltyCapSeconds" type="number" min="0" /></div>
+                  <div><label>Chance base fuga</label><input v-model.number="worldConfigs.prison.breakoutBaseChance" type="number" step="0.01" min="0" max="1" /></div>
+                  <div><label>Bónus lvl fuga</label><input v-model.number="worldConfigs.prison.breakoutLevelBonus" type="number" step="0.001" min="0" max="1" /></div>
+                </div>
+                <div class="row">
+                  <label class="toggle">
+                    <input type="checkbox" v-model="worldConfigs.prison.breakoutAssistEnabled" />
+                    <span>Permitir assistências de fuga</span>
+                  </label>
+                </div>
+                <div class="actions">
+                  <button @click="forceJail()">Prender target</button>
+                  <button class="secondary" @click="releaseTarget('prison')">Libertar target</button>
+                  <button :disabled="worldSaving.prison" @click="savePrisonConfig">Guardar Prisão</button>
+                </div>
+              </section>
+
+              <section>
+                <header>
+                  <h4>Hospital</h4>
+                  <div class="muted">Custos de revive, tratamentos e limites</div>
+                </header>
+                <div class="metrics">
+                  <div class="stat">
+                    <label>Internados</label>
+                    <strong>{{ hospitalOverview.stats.total }}</strong>
+                  </div>
+                  <div class="stat">
+                    <label>Tempo médio</label>
+                    <strong>{{ humanDuration(hospitalOverview.stats.avgSeconds) }}</strong>
+                  </div>
+                  <div class="stat">
+                    <label>Último revive</label>
+                    <strong>{{ hospitalOverview.stats.lastRevive ? fmt(hospitalOverview.stats.lastRevive) : '—' }}</strong>
+                  </div>
+                  <button class="ghost" @click="refreshHospitalOverview(true)" :disabled="hospitalOverview.loading">Atualizar</button>
+                </div>
+                <div class="snapshot-list" v-if="hospitalOverview.list.length">
+                  <p class="muted">Pacientes críticos</p>
+                  <ul>
+                    <li v-for="patient in hospitalOverview.list" :key="patient.userId">
+                      <div>
+                        <strong>{{ patient.name }}</strong>
+                        <span class="muted"> · HP {{ patient.health }}</span>
+                      </div>
+                      <span class="timer">{{ shortCountdown(patient.remainingSeconds) }}</span>
+                    </li>
+                  </ul>
+                </div>
+                <div v-else class="empty-state">Sem pacientes ativos.</div>
+                <div class="snapshot-list" v-if="hospitalOverview.events.length">
+                  <p class="muted">Eventos clínicos</p>
+                  <ul>
+                    <li v-for="evt in hospitalOverview.events" :key="evt.id || evt.ts">
+                      <span>{{ evt.summary }}</span>
+                      <small class="muted">{{ fmt(evt.ts) }}</small>
+                    </li>
+                  </ul>
+                </div>
+                <div v-else class="empty-state">Nenhum evento de hospital recente.</div>
+                <div class="row">
+                  <div><label>Min (s)</label><input v-model.number="worldConfigs.hospital.minHospitalSeconds" type="number" min="60" /></div>
+                  <div><label>Default (s)</label><input v-model.number="worldConfigs.hospital.defaultHospitalSeconds" type="number" min="60" /></div>
+                  <div><label>Cap (s)</label><input v-model.number="worldConfigs.hospital.hospitalCapSeconds" type="number" min="60" /></div>
+                </div>
+                <div class="row">
+                  <div><label>Tratamento (s)</label><input v-model.number="worldConfigs.hospital.treatSeconds" type="number" min="30" /></div>
+                  <div><label>HP/s tratamento</label><input v-model.number="worldConfigs.hospital.treatHealthPerSecond" type="number" step="0.1" min="0" /></div>
+                  <div><label>Revive base</label><input v-model.number="worldConfigs.hospital.reviveBase" type="number" min="0" /></div>
+                  <div><label>Revive por bloco</label><input v-model.number="worldConfigs.hospital.revivePerBlock" type="number" min="0" /></div>
+                </div>
+                <div class="row">
+                  <div><label>Tam bloco (s)</label><input v-model.number="worldConfigs.hospital.reviveBlockSeconds" type="number" min="60" /></div>
+                  <div><label>Factor lvl</label><input v-model.number="worldConfigs.hospital.reviveLevelFactor" type="number" min="0" /></div>
+                  <div><label>HP mínimo revive</label><input v-model.number="worldConfigs.hospital.reviveHealthFloor" type="number" min="1" /></div>
+                </div>
+                <div class="row">
+                  <label class="toggle">
+                    <input type="checkbox" v-model="worldConfigs.hospital.allowPaidRevive" />
+                    <span>Permitir revives pagos</span>
+                  </label>
+                </div>
+                <div class="actions">
+                  <button @click="forceHospital()">Hospitalizar target</button>
+                  <button class="secondary" @click="releaseTarget('hospital')">Dar alta</button>
+                  <button :disabled="worldSaving.hospital" @click="saveHospitalConfig">Guardar Hospital</button>
+                </div>
+              </section>
+            </div>
+          </div>
+
+          <div class="card card-full world-config-card">
+            <div class="card-header">
+              <h3>Punições de Crimes</h3>
+              <small>Controla dano, hospitalizações e prisão automática</small>
+            </div>
+            <div v-if="worldLoading" class="muted">Carregando…</div>
+            <div v-else class="world-sections single">
+              <section>
+                <div class="row">
+                  <label class="toggle">
+                    <input type="checkbox" v-model="worldConfigs.crime.enableHealthLoss" />
+                    <span>Perder vida em critic fail</span>
+                  </label>
+                  <label class="toggle">
+                    <input type="checkbox" v-model="worldConfigs.crime.enableHospitalize" />
+                    <span>Enviar para hospital</span>
+                  </label>
+                  <label class="toggle">
+                    <input type="checkbox" v-model="worldConfigs.crime.enableJail" />
+                    <span>Possível prisão</span>
+                  </label>
+                  <label class="toggle">
+                    <input type="checkbox" v-model="worldConfigs.crime.logEvents" />
+                    <span>Logar eventos</span>
+                  </label>
+                </div>
+                <div class="row">
+                  <div><label>Dano %</label><input v-model.number="worldConfigs.crime.criticalHpLossPercent" type="number" min="0" max="100" /></div>
+                  <div><label>Dano fixo</label><input v-model.number="worldConfigs.crime.criticalHpLossFlat" type="number" min="0" /></div>
+                  <div><label>HP mínimo antes hospital</label><input v-model.number="worldConfigs.crime.hospitalizeBelowHealth" type="number" min="0" /></div>
+                </div>
+                <div class="row">
+                  <div><label>Hospital base (s)</label><input v-model.number="worldConfigs.crime.hospitalSeconds" type="number" min="0" /></div>
+                  <div><label>Hospital var (s)</label><input v-model.number="worldConfigs.crime.hospitalVarianceSeconds" type="number" min="0" /></div>
+                  <div><label>HP mínimo ao internar</label><input v-model.number="worldConfigs.crime.hospitalHealthFloor" type="number" min="0" /></div>
+                </div>
+                <div class="row">
+                  <div><label>Prisão chance (%)</label><input v-model.number="worldConfigs.crime.jailChancePercent" type="number" min="0" max="100" /></div>
+                  <div><label>Prisão base (s)</label><input v-model.number="worldConfigs.crime.jailSeconds" type="number" min="0" /></div>
+                  <div><label>Prisão var (s)</label><input v-model.number="worldConfigs.crime.jailVarianceSeconds" type="number" min="0" /></div>
+                  <div><label>Prisão cap (s)</label><input v-model.number="worldConfigs.crime.jailMaxSeconds" type="number" min="0" /></div>
+                </div>
+                <div class="row">
+                  <div><label>Severidade (minor)</label><input v-model.number="worldConfigs.crime.severityMultipliers.minor" type="number" step="0.1" min="0" /></div>
+                  <div><label>Severidade (moderate)</label><input v-model.number="worldConfigs.crime.severityMultipliers.moderate" type="number" step="0.1" min="0" /></div>
+                  <div><label>Severidade (major)</label><input v-model.number="worldConfigs.crime.severityMultipliers.major" type="number" step="0.1" min="0" /></div>
+                </div>
+                <div class="actions">
+                  <button :disabled="worldSaving.crime" @click="saveCrimeConfig">Guardar Crimes</button>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
 
     <div class="tab-panel" v-show="currentTab === 'Logs & Cooldowns'">
