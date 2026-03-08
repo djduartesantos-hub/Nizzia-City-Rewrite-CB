@@ -77,8 +77,9 @@
             class="btn btn--primary btn--full"
             :disabled="busy || !canAct"
             @click="act">
-            {{ busy ? 'A procurar…' : 'Iniciar busca' }}
+            {{ busy ? 'A procurar…' : cooldownLabel ? `Cooldown ${cooldownLabel}` : 'Iniciar busca' }}
           </button>
+          <p v-if="cooldownLeft" class="cooldown-hint">Disponível em {{ cooldownLabel }}</p>
 
           <div v-if="last" class="result">
             <p class="result-label">Último relatório</p>
@@ -127,7 +128,7 @@ import { ref, onMounted, onUnmounted, computed } from 'vue'
 import api from '../../api/client'
 import { usePlayer } from '../../composables/usePlayer'
 import { useToast } from '../../composables/useToast'
-import { fmtInt as fmt, fmtMoney, fmtDateShort as formatDate } from '../../utils/format'
+import { fmtInt as fmt, fmtMoney, fmtDateShort as formatDate, fmtHms } from '../../utils/format'
 
 const { store, ensurePlayer } = usePlayer()
 const toast = useToast()
@@ -136,6 +137,7 @@ const last = ref(null)
 const locations = ref([])
 const selLoc = ref('')
 const cooldownLeft = ref(0)
+const cooldownLabel = computed(() => (cooldownLeft.value ? fmtHms(cooldownLeft.value) : ''))
 let cooldownTimer = null
 
 const nerve = computed(() => store.player?.nerveStats?.nerve ?? 0)

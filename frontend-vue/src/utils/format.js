@@ -60,3 +60,12 @@ export function fmtDuration(ms) {
 export function fmtPct(n) {
   return `${Number(n || 0).toFixed(1)}%`
 }
+
+/** 00:12:32 — fixed HH:MM:SS countdown */
+export function fmtHms(seconds) {
+  const total = Math.max(0, Number(seconds) || 0)
+  const h = Math.floor(total / 3600)
+  const m = Math.floor((total % 3600) / 60)
+  const s = total % 60
+  return [h, m, s].map(v => String(v).padStart(2, '0')).join(':')
+}

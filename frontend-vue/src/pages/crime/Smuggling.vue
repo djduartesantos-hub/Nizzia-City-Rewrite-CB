@@ -185,7 +185,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import api from '../../api/client'
 import { usePlayer } from '../../composables/usePlayer'
 import { useToast } from '../../composables/useToast'
-import { fmtMoney } from '../../utils/format'
+import { fmtHms, fmtMoney } from '../../utils/format'
 
 const { store, ensurePlayer } = usePlayer()
 const toast = useToast()
@@ -258,6 +258,7 @@ const selectedEscort = ref(escortOptions[0].id)
 const lastRun = ref(null)
 const busy = ref(false)
 const cooldownLeft = ref(0)
+const cooldownLabel = computed(() => fmtHms(cooldownLeft.value))
 let cooldownTimer = null
 
 const activeRoute = computed(() => routes.find(r => r.id === selectedRoute.value) || routes[0])
@@ -266,7 +267,7 @@ const escortCopy = computed(() => escortOptions.find(e => e.id === selectedEscor
 const canRun = computed(() => !busy.value && cooldownLeft.value === 0 && nerve.value >= 10)
 const actionLabel = computed(() => {
   if (busy.value) return 'Coordenando drones...'
-  if (cooldownLeft.value) return `Cooldown ${cooldownLeft.value}s`
+  if (cooldownLeft.value) return `Cooldown ${cooldownLabel.value}`
   return 'Despachar comboio'
 })
 

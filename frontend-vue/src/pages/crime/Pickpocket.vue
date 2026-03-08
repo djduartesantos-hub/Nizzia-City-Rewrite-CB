@@ -130,7 +130,7 @@
         <button class="btn btn--primary full" :disabled="!canRun" @click="runHeist">
           {{ actionLabel }}
         </button>
-        <p v-if="cooldownLeft" class="cooldown-hint">Disponível em {{ cooldownLeft }}s</p>
+        <p v-if="cooldownLeft" class="cooldown-hint">Disponível em {{ cooldownLabel }}</p>
 
         <article v-if="lastRun" class="result">
           <header>
@@ -183,7 +183,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import api from '../../api/client'
 import { usePlayer } from '../../composables/usePlayer'
 import { useToast } from '../../composables/useToast'
-import { fmtMoney } from '../../utils/format'
+import { fmtHms, fmtMoney } from '../../utils/format'
 
 const { store, ensurePlayer } = usePlayer()
 const toast = useToast()
@@ -248,6 +248,7 @@ const selectedCrew = ref(crewOptions[0].id)
 const lastRun = ref(null)
 const busy = ref(false)
 const cooldownLeft = ref(0)
+const cooldownLabel = computed(() => fmtHms(cooldownLeft.value))
 let cooldownTimer = null
 
 const activeTarget = computed(() => targets.find(t => t.id === selectedTarget.value) || targets[0])
@@ -256,7 +257,7 @@ const crewCopy = computed(() => crewOptions.find(c => c.id === selectedCrew.valu
 const canRun = computed(() => !busy.value && cooldownLeft.value === 0 && nerve.value >= 4)
 const actionLabel = computed(() => {
   if (busy.value) return 'A executar...'
-  if (cooldownLeft.value) return `Cooldown ${cooldownLeft.value}s`
+  if (cooldownLeft.value) return `Cooldown ${cooldownLabel.value}`
   return 'Iniciar operação'
 })
 
