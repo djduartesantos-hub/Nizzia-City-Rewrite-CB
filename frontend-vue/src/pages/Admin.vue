@@ -920,6 +920,173 @@
           </div>
         </div>
       </section>
+
+      <section class="section-block">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow mini">Design de Missões</p>
+            <h3>Catálogo de Crimes jogáveis</h3>
+            <p class="muted">Edita dificuldade, custos, recompensas, loot e blurb de eventos exibidos na página Crimes.</p>
+          </div>
+          <div class="actions">
+            <button class="secondary" @click="hydrateWorldTab(true)">Recarregar</button>
+            <button @click="saveCrimeCatalog" :disabled="catalogSaving">Guardar Catálogo</button>
+          </div>
+        </div>
+        <div class="card-grid two-col">
+          <div class="card">
+            <div class="card-header">
+              <h3>Lista de crimes</h3>
+              <small>Seleciona para editar detalhes</small>
+            </div>
+            <div class="inline">
+              <button @click="addCrime">+ Adicionar crime</button>
+              <button class="secondary" @click="saveCrimeCatalog" :disabled="catalogSaving">Guardar</button>
+            </div>
+            <div class="list">
+              <div
+                v-for="crime in crimeCatalog"
+                :key="crime.id"
+                class="list-row crime-row"
+                :class="{ active: crime.id === selectedCrimeId }"
+                @click="selectCrime(crime.id)">
+                <div>
+                  <strong>{{ crime.title }}</strong>
+                  <div class="muted">{{ crime.tag || 'Sem tag' }} · {{ crime.difficulty }}</div>
+                </div>
+                <div class="inline">
+                  <button class="ghost" title="Duplicar" @click.stop="duplicateCrime(crime.id)">Duplicar</button>
+                  <button class="ghost" title="Remover" @click.stop="deleteCrime(crime.id)">Remover</button>
+                </div>
+              </div>
+              <div v-if="crimeCatalog.length === 0" class="muted">Nenhum crime configurado.</div>
+            </div>
+          </div>
+
+          <div class="card card-full" v-if="selectedCrime">
+            <div class="card-header">
+              <h3>Detalhes do crime</h3>
+              <small>Alterações são guardadas localmente até clicar em "Guardar Catálogo".</small>
+            </div>
+            <div class="row">
+              <div><label>ID</label><input v-model.trim="selectedCrime.id" /></div>
+              <div><label>Nome</label><input v-model.trim="selectedCrime.title" /></div>
+              <div><label>Tag</label><input v-model.trim="selectedCrime.tag" /></div>
+            </div>
+            <div class="row">
+              <div>
+                <label>Dificuldade</label>
+                <select v-model="selectedCrime.difficulty">
+                  <option>Baixa</option>
+                  <option>Média</option>
+                  <option>Alta</option>
+                  <option>Muito alta</option>
+                </select>
+              </div>
+              <div>
+                <label>Status</label>
+                <select v-model="selectedCrime.status">
+                  <option value="available">Disponível</option>
+                  <option value="soon">Em preparação</option>
+                  <option value="locked">Bloqueado</option>
+                </select>
+              </div>
+              <div><label>CTA</label><input v-model.trim="selectedCrime.cta" /></div>
+              <div><label>Icone</label><input v-model.trim="selectedCrime.icon" maxlength="2" /></div>
+            </div>
+            <div class="row">
+              <div><label>Nerve</label><input v-model.number="selectedCrime.nerveCost" type="number" min="0" /></div>
+              <div><label>Cooldown (s)</label><input v-model.number="selectedCrime.cooldownSeconds" type="number" min="0" /></div>
+              <div><label>Custo cash</label><input v-model.number="selectedCrime.cashCost" type="number" min="0" /></div>
+            </div>
+            <div class="row">
+              <div><label>Payout mínimo</label><input v-model.number="selectedCrime.payoutMin" type="number" min="0" /></div>
+              <div><label>Payout máximo</label><input v-model.number="selectedCrime.payoutMax" type="number" min="selectedCrime.payoutMin || 0" /></div>
+            </div>
+            <div>
+              <label>Descrição</label>
+              <textarea v-model.trim="selectedCrime.description" rows="2"></textarea>
+            </div>
+
+            <div>
+              <label>Notas de loot</label>
+              <textarea v-model.trim="selectedCrime.lootNotes" rows="2"></textarea>
+            </div>
+
+            <div class="card-subsection">
+              <div class="inline">
+                <h4>Loot</h4>
+                <button class="secondary" @click="addLootEntry">Adicionar loot</button>
+              </div>
+              <div class="list" v-if="selectedCrime.loot.length">
+                <div class="list-row" v-for="(loot, idx) in selectedCrime.loot" :key="`loot-${idx}`">
+                  <div class="row">
+                    <div>
+                      <label>Nome</label>
+                      <input v-model.trim="loot.label" />
+                    </div>
+                    <div>
+                      <label>Tipo</label>
+                      <select v-model="loot.type">
+                        <option value="money">Money</option>
+                        <option value="item">Item</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label>Chance (%)</label>
+                      <input v-model.number="loot.chance" type="number" min="0" max="100" />
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div v-if="loot.type === 'money'">
+                      <label>Mínimo</label>
+                      <input v-model.number="loot.min" type="number" min="0" />
+                    </div>
+                    <div v-if="loot.type === 'money'">
+                      <label>Máximo</label>
+                      <input v-model.number="loot.max" type="number" :min="loot.min || 0" />
+                    </div>
+                    <div v-else>
+                      <label>Item ID</label>
+                      <input v-model.trim="loot.itemId" placeholder="mongo id ou slug" />
+                    </div>
+                    <div class="inline">
+                      <button class="secondary" @click="removeLootEntry(idx)">Remover</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div v-else class="muted">Sem loot definido.</div>
+            </div>
+
+            <div class="card-subsection">
+              <h4>Eventos & narrativa</h4>
+              <div class="row">
+                <div>
+                  <label>Success</label>
+                  <textarea :value="eventText('success')" @input="updateCrimeEvent('success', $event.target.value)" rows="3" placeholder="Uma frase por linha"></textarea>
+                </div>
+                <div>
+                  <label>Fail</label>
+                  <textarea :value="eventText('fail')" @input="updateCrimeEvent('fail', $event.target.value)" rows="3"></textarea>
+                </div>
+                <div>
+                  <label>Critical fail</label>
+                  <textarea :value="eventText('critical')" @input="updateCrimeEvent('critical', $event.target.value)" rows="3"></textarea>
+                </div>
+              </div>
+            </div>
+
+            <div class="actions">
+              <button class="secondary" @click="saveCrimeCatalog" :disabled="catalogSaving">Guardar alterações</button>
+            </div>
+          </div>
+
+          <div class="card empty-state" v-else>
+            Seleciona um crime para editar.
+          </div>
+        </div>
+      </section>
     </div>
 
     <div class="tab-panel" v-show="currentTab === 'Logs & Cooldowns'">
@@ -1190,6 +1357,9 @@ const worldBase = {
     logEvents: true,
     severityMultipliers: { minor: 0.6, moderate: 1, major: 1.4 },
   },
+  crimeCatalog: {
+    crimes: [],
+  },
 }
 
 function cloneWorldBase() {
@@ -1200,6 +1370,9 @@ const worldConfigs = reactive(cloneWorldBase())
 const worldLoading = ref(false)
 const worldLoaded = ref(false)
 const worldSaving = reactive({ prison: false, hospital: false, crime: false })
+const crimeCatalog = ref([])
+const selectedCrimeId = ref('')
+const catalogSaving = ref(false)
 
 const prisonOverview = reactive({
   loading: false,
@@ -1242,6 +1415,13 @@ async function loadWorldConfigs(force = false) {
     mergeWorldSection('prison', configs.prison)
     mergeWorldSection('hospital', configs.hospital)
     mergeWorldSection('crime', configs.crime)
+    crimeCatalog.value = (configs.crimeCatalog?.crimes || []).map((entry) => cloneCrimeEntry(entry))
+    if (!crimeCatalog.value.length) {
+      crimeCatalog.value.push(cloneCrimeEntry())
+    }
+    if (!crimeCatalog.value.some((crime) => crime.id === selectedCrimeId.value)) {
+      selectedCrimeId.value = crimeCatalog.value[0]?.id || ''
+    }
     worldLoaded.value = true
   } catch (e) {
     toast.error(e?.response?.data?.error || 'Falha ao carregar configs globais')
@@ -1287,6 +1467,130 @@ function shortCountdown(seconds) {
     return `${pad(h)}:${pad(m % 60)}:${pad(s)}`
   }
   return `${pad(m)}:${pad(s)}`
+}
+
+function cloneCrimeEntry(entry = {}) {
+  return {
+    id: entry.id || `crime_${Date.now()}`,
+    title: entry.title || 'Novo Crime',
+    tag: entry.tag || '',
+    description: entry.description || '',
+    difficulty: entry.difficulty || 'Baixa',
+    nerveCost: Number(entry.nerveCost ?? 0),
+    cooldownSeconds: Number(entry.cooldownSeconds ?? 0),
+    cashCost: Number(entry.cashCost ?? 0),
+    payoutMin: Number(entry.payoutMin ?? 0),
+    payoutMax: Number(entry.payoutMax ?? 0),
+    status: entry.status || 'available',
+    cta: entry.cta || 'Iniciar',
+    icon: entry.icon || '🎯',
+    lootNotes: entry.lootNotes || '',
+    loot: Array.isArray(entry.loot) ? entry.loot.map((loot) => ({
+      label: loot.label || 'Loot',
+      type: loot.type === 'item' ? 'item' : 'money',
+      chance: Number(loot.chance ?? 0),
+      itemId: loot.itemId || '',
+      min: Number(loot.min ?? 0),
+      max: Number(loot.max ?? loot.min ?? 0),
+    })) : [],
+    events: {
+      success: Array.isArray(entry?.events?.success) ? [...entry.events.success] : [],
+      fail: Array.isArray(entry?.events?.fail) ? [...entry.events.fail] : [],
+      critical: Array.isArray(entry?.events?.critical) ? [...entry.events.critical] : [],
+    },
+  }
+}
+
+const selectedCrime = computed(() => crimeCatalog.value.find((crime) => crime.id === selectedCrimeId.value) || null)
+
+function selectCrime(id) {
+  selectedCrimeId.value = id
+}
+
+function addCrime() {
+  const crime = cloneCrimeEntry()
+  crimeCatalog.value.push(crime)
+  selectedCrimeId.value = crime.id
+}
+
+function duplicateCrime(id) {
+  const source = crimeCatalog.value.find((crime) => crime.id === id)
+  if (!source) return
+  const copy = cloneCrimeEntry({ ...source, id: `${source.id}_copy` })
+  crimeCatalog.value.push(copy)
+  selectedCrimeId.value = copy.id
+}
+
+function deleteCrime(id) {
+  if (crimeCatalog.value.length === 1) {
+    toast.error('Mantém pelo menos um crime no catálogo')
+    return
+  }
+  crimeCatalog.value = crimeCatalog.value.filter((crime) => crime.id !== id)
+  if (!crimeCatalog.value.some((crime) => crime.id === selectedCrimeId.value)) {
+    selectedCrimeId.value = crimeCatalog.value[0]?.id || ''
+  }
+}
+
+function addLootEntry() {
+  if (!selectedCrime.value) return
+  selectedCrime.value.loot.push({
+    label: 'Novo loot',
+    type: 'money',
+    chance: 50,
+    min: 0,
+    max: 0,
+    itemId: '',
+  })
+}
+
+function removeLootEntry(index) {
+  if (!selectedCrime.value) return
+  selectedCrime.value.loot.splice(index, 1)
+}
+
+function updateCrimeEvent(field, text) {
+  if (!selectedCrime.value) return
+  selectedCrime.value.events[field] = text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+}
+
+function eventText(field) {
+  if (!selectedCrime.value) return ''
+  return (selectedCrime.value.events[field] || []).join('\n')
+}
+
+async function saveCrimeCatalog() {
+  if (catalogSaving.value) return
+  try {
+    catalogSaving.value = true
+    const payload = {
+      crimes: crimeCatalog.value.map((crime) => ({
+        ...crime,
+        loot: crime.loot.map((loot) => ({
+          label: loot.label,
+          type: loot.type === 'item' ? 'item' : 'money',
+          chance: Number(loot.chance ?? 0),
+          itemId: loot.itemId,
+          min: Number(loot.min ?? 0),
+          max: Number(loot.max ?? 0),
+        })),
+        events: {
+          success: crime.events.success,
+          fail: crime.events.fail,
+          critical: crime.events.critical,
+        },
+      })),
+    }
+    await api.post('/admin/world/config/crime-catalog', payload)
+    toast.success('Catálogo de crimes guardado')
+  } catch (e) {
+    toast.error(e?.response?.data?.error || 'Falha ao guardar catálogo de crimes')
+  } finally {
+    catalogSaving.value = false
+  }
 }
 
 async function refreshPrisonOverview(force = false) {

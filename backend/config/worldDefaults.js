@@ -46,4 +46,137 @@ module.exports = {
     jailVarianceSeconds: 180,
     logEvents: true,
   },
+  crimeCatalog: {
+    crimes: [
+      {
+        id: 'search_for_cash',
+        title: 'Search for Cash',
+        tag: 'Street run',
+        description: 'Revira vielas, cassinos clandestinos e cofres abandonados em busca de notas soltas.',
+        difficulty: 'Baixa',
+        nerveCost: 2,
+        cooldownSeconds: 60,
+        cashCost: 0,
+        payoutMin: 50,
+        payoutMax: 200,
+        icon: '💼',
+        status: 'available',
+        cta: 'Iniciar',
+        lootNotes: 'Notas pequenas e itens low-tier recuperados de máquinas abandonadas.',
+        loot: [
+          { label: 'Notas soltas', type: 'money', min: 50, max: 200, chance: 70 },
+          { label: 'Gadgets baratos', type: 'item', itemId: '6', chance: 40 },
+        ],
+        events: {
+          success: [
+            'Saída limpa via vielas secundárias.',
+            'Cassetes perdidas recolhidas antes do sweep da polícia.',
+          ],
+          fail: [
+            'Segurança aproxima-se antes do saque completo.',
+          ],
+          critical: [
+            'Alarmes silenciosos alertam patrulha próxima.',
+          ],
+        },
+      },
+      {
+        id: 'pickpocket',
+        title: 'Pickpocket League',
+        tag: 'Stealth',
+        description: 'Rondas silenciosas em mercados noturnos com timing perfeito e aliados coordenados.',
+        difficulty: 'Média',
+        nerveCost: 4,
+        cooldownSeconds: 180,
+        cashCost: 0,
+        payoutMin: 200,
+        payoutMax: 600,
+        icon: '🧤',
+        status: 'available',
+        cta: 'Iniciar',
+        lootNotes: 'Chips gold, wallets premium e colecionáveis raros.',
+        loot: [
+          { label: 'Chips gold', type: 'money', min: 200, max: 600, chance: 60 },
+          { label: 'Colecionáveis', type: 'item', itemId: '41', chance: 20 },
+        ],
+        events: {
+          success: [
+            'Lookout desvia chefe de segurança e abre espaço para o furto.',
+            'Saída limpa via túneis de serviço antes dos scanners calibrarem.',
+          ],
+          fail: [
+            'Sensor acústico detecta o jammer e a equipa é expulsa.',
+          ],
+          critical: [
+            'Um VIP reconhece o disfarce e chama reforços.',
+          ],
+        },
+      },
+      {
+        id: 'burglary',
+        title: 'Burglary Grid',
+        tag: 'Heist',
+        description: 'Invade apartamentos de alto luxo, dribla lasers e extrai relíquias tecnológicas.',
+        difficulty: 'Alta',
+        nerveCost: 7,
+        cooldownSeconds: 600,
+        cashCost: 1500,
+        payoutMin: 4200,
+        payoutMax: 11000,
+        icon: '🕵️‍♂️',
+        status: 'available',
+        cta: 'Iniciar',
+        lootNotes: 'Relíquias exclusivas, obras de arte e dados de cofres.',
+        loot: [
+          { label: 'Relíquias tech', type: 'item', itemId: 'relic', chance: 35 },
+          { label: 'Credchips premium', type: 'money', min: 4200, max: 11000, chance: 65 },
+        ],
+        events: {
+          success: [
+            'Drone fantasma sincronizado garante fuga pelo telhado auxiliar.',
+            'Elevador de serviço fica em loop e a equipa desce invisível.',
+          ],
+          fail: [
+            'Laser grid volta mais cedo e marca o traje com tinta UV.',
+          ],
+          critical: [
+            'Cartão insider bloqueado e a equipa é exposta no lobby principal.',
+          ],
+        },
+      },
+      {
+        id: 'smuggling',
+        title: 'Smuggling Ops',
+        tag: 'Logistics',
+        description: 'Rotas marítimas e drones para contrabando de tecnologia rara com apoio do cartel.',
+        difficulty: 'Muito alta',
+        nerveCost: 10,
+        cooldownSeconds: 1800,
+        cashCost: 5000,
+        payoutMin: 48000,
+        payoutMax: 96000,
+        icon: '🚁',
+        status: 'available',
+        cta: 'Iniciar',
+        lootNotes: 'Carga biochip, plasma cores e relíquias únicas escoltadas.',
+        loot: [
+          { label: 'Biochips', type: 'item', itemId: 'biochips', chance: 40 },
+          { label: 'Plasma cores', type: 'item', itemId: 'plasma', chance: 30 },
+          { label: 'Lucro em cash', type: 'money', min: 48000, max: 96000, chance: 60 },
+        ],
+        events: {
+          success: [
+            'Drones Mirage confundem satélites e entregam 100% da carga.',
+            'Escolta Phantom faz cortejo urbano que baralha as patrulhas.',
+          ],
+          fail: [
+            'Tempestade magnética derruba o VTOL e escolta aborta.',
+          ],
+          critical: [
+            'Interceptores detectam assinatura térmica e confiscam a carga.',
+          ],
+        },
+      },
+    ],
+  },
 }

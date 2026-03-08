@@ -54,6 +54,7 @@ const {
   updatePrisonConfig,
   updateHospitalConfig,
   updateCrimeConfig,
+  updateCrimeCatalog,
 } = require('../controllers/worldAdminController');
 
 // All admin routes require authentication
@@ -122,6 +123,7 @@ router.get('/world/config', getWorldConfigsController);
 router.post('/world/config/prison', updatePrisonConfig);
 router.post('/world/config/hospital', updateHospitalConfig);
 router.post('/world/config/crime', updateCrimeConfig);
+router.post('/world/config/crime-catalog', updateCrimeCatalog);
 
 // Database maintenance (danger)
 router.post('/database/purge', purgeDatabase);

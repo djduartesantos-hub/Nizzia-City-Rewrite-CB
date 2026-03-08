@@ -1,5 +1,5 @@
 const Player = require('../models/Player')
-const { getConfigs, updateConfig } = require('../services/worldConfigService')
+const { getConfigs, updateConfig, setConfig } = require('../services/worldConfigService')
 
 async function ensureAdmin(req) {
   const userId = req.authUserId
@@ -32,10 +32,87 @@ function pickPayload(body, shape) {
   return payload
 }
 
+function asString(value, fallback = '') {
+  if (value == null) return fallback
+  return String(value).trim()
+}
+
+function ensureStringArray(value) {
+  if (!value) return []
+  if (Array.isArray(value)) {
+    return value
+      .map((entry) => asString(entry))
+      .filter(Boolean)
+  }
+  if (typeof value === 'string') {
+    return value
+      .split('\n')
+      .map((entry) => asString(entry))
+      .filter(Boolean)
+  }
+  return []
+}
+
+function sanitizeLootEntries(entries) {
+  if (!Array.isArray(entries)) return []
+  return entries
+    .map((entry) => {
+      const type = entry?.type === 'item' ? 'item' : 'money'
+      const loot = {
+        label: asString(entry?.label, 'Loot'),
+        type,
+        chance: asNumber(entry?.chance, { min: 0, max: 100 }) ?? 0,
+      }
+      if (type === 'item') {
+        loot.itemId = asString(entry?.itemId)
+      } else {
+        const min = asNumber(entry?.min, { min: 0 }) ?? 0
+        const max = asNumber(entry?.max, { min }) ?? min
+        loot.min = min
+        loot.max = max
+      }
+      return loot
+    })
+    .filter((entry) => entry.label)
+}
+
+function sanitizeCrimeEntry(crime) {
+  if (!crime || typeof crime !== 'object') return null
+  const id = asString(crime.id)
+  if (!id) return null
+  const nerveCost = asNumber(crime.nerveCost, { min: 0 }) ?? 0
+  const cooldownSeconds = asNumber(crime.cooldownSeconds, { min: 0 }) ?? 0
+  const cashCost = asNumber(crime.cashCost, { min: 0 }) ?? 0
+  const payoutMin = asNumber(crime.payoutMin, { min: 0 }) ?? 0
+  const payoutMax = asNumber(crime.payoutMax, { min: payoutMin }) ?? payoutMin
+  return {
+    id,
+    title: asString(crime.title, 'Crime sem nome'),
+    tag: asString(crime.tag),
+    description: asString(crime.description),
+    difficulty: asString(crime.difficulty),
+    nerveCost,
+    cooldownSeconds,
+    cashCost,
+    payoutMin,
+    payoutMax,
+    status: asString(crime.status, 'available'),
+    cta: asString(crime.cta, 'Iniciar'),
+    icon: asString(crime.icon, '🎯'),
+    lootNotes: asString(crime.lootNotes),
+    loot: sanitizeLootEntries(crime.loot),
+    events: {
+      success: ensureStringArray(crime?.events?.success),
+      fail: ensureStringArray(crime?.events?.fail),
+      critical: ensureStringArray(crime?.events?.critical),
+    },
+  }
+}
+
 async function getWorldConfigsController(req, res) {
   try {
     await ensureAdmin(req)
-    const configs = await getConfigs(['prison', 'hospital', 'crime'])
+    const configs = await getConfigs(['prison', 'hospital', 'crime', 'crimeCatalog'])
     return res.json({ configs })
   } catch (err) {
     const status = err.message === 'Unauthorized' ? 401 : err.message === 'Forbidden' ? 403 : 500
@@ -139,9 +216,31 @@ async function updateCrimeConfig(req, res) {
   }
 }
 
+async function updateCrimeCatalog(req, res) {
+  try {
+    await ensureAdmin(req)
+    const crimesInput = req.body?.crimes
+    if (!Array.isArray(crimesInput) || crimesInput.length === 0) {
+      return res.status(400).json({ error: 'Lista de crimes inválida' })
+    }
+    const crimes = crimesInput
+      .map((entry) => sanitizeCrimeEntry(entry))
+      .filter(Boolean)
+    if (!crimes.length) {
+      return res.status(400).json({ error: 'Nenhum crime válido encontrado' })
+    }
+    const config = await setConfig('crimeCatalog', { crimes })
+    return res.json({ config })
+  } catch (err) {
+    const status = err.message === 'Unauthorized' ? 401 : err.message === 'Forbidden' ? 403 : 500
+    return res.status(status).json({ error: err.message || 'Falha ao guardar catálogo de crimes' })
+  }
+}
+
 module.exports = {
   getWorldConfigsController,
   updatePrisonConfig,
   updateHospitalConfig,
   updateCrimeConfig,
+  updateCrimeCatalog,
 }
