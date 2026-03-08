@@ -904,6 +904,7 @@ module.exports = {
   stocksRemove,
   bankForceWithdraw,
   searchPlayers,
+  getAdminPlayerProfile,
   setAllEnergyToMax,
   giveMoneyToAll,
   stocksCrash,
