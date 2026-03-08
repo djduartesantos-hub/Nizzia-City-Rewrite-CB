@@ -40,6 +40,11 @@ function clampNumber(value, min, max) {
   return next
 }
 
+function resolveTargetHealth(walkInConfig) {
+  const fallbackTarget = 100
+  return Math.max(1, Number(walkInConfig?.targetHealth) || fallbackTarget)
+}
+
 function getWalkInConfig(config) {
   return config?.walkIn || {}
 }
@@ -130,10 +135,16 @@ async function buildWalkInQuote(player, config) {
   ensureWalkInAccess(player, walkInConfig)
   const stats = await loadWalkInStats(walkInConfig)
   const rates = computeWalkInRates(walkInConfig, stats)
-  const targetHealth = Math.max(1, Number(walkInConfig.targetHealth) || 9999)
-  const currentHealth = Number(player.health || 0)
+  const targetHealth = resolveTargetHealth(walkInConfig)
+  const rawHealth = Number(player.health || 0)
+  const currentHealth = walkInConfig.autoClampHealth ? clampNumber(rawHealth, 0, targetHealth) : Math.max(0, rawHealth)
   const missingHp = Math.max(0, targetHealth - currentHealth)
-  const maxSession = Math.max(1, Number(walkInConfig.maxHpPerSession) || missingHp || 1)
+  const rawMaxSession = Number(walkInConfig.maxHpPerSession)
+  const maxSession = clampNumber(
+    Number.isFinite(rawMaxSession) ? rawMaxSession : missingHp || targetHealth,
+    1,
+    targetHealth
+  )
   const hpToRecover = Math.min(missingHp, maxSession)
   const totalCost = Math.round(rates.costPerHp * hpToRecover)
   const totalSeconds = hpToRecover > 0 ? Math.max(1, Math.round(rates.secondsPerHp * hpToRecover)) : 0

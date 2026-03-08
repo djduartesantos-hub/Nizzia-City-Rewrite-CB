@@ -40,9 +40,10 @@ module.exports = {
       treatmentsWeight: 0.4,
       costVariancePercent: 35,
       timeVariancePercent: 40,
-      targetHealth: 9999,
-      maxHpPerSession: 1200,
+      targetHealth: 100,
+      maxHpPerSession: 100,
       cooldownSeconds: 900,
+      autoClampHealth: true,
     },
   },
   crime: {
