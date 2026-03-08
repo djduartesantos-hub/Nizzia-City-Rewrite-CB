@@ -13,6 +13,8 @@ const { REP_LEVELS } = require('../config/cartel');
 const { getRepLevel, getRepInfo } = require('../services/cartel/cartelService');
 const PlayerAdminNote = require('../models/PlayerAdminNote');
 const ItemPreset = require('../models/ItemPreset');
+const PlayerSnapshot = require('../models/PlayerSnapshot');
+const Transaction = require('../models/Transaction');
 
 const PUNISHMENT_PRESETS = {
   warn_watch: {
@@ -136,7 +138,7 @@ async function setSupportFlag(req, res) {
       { user: targetUserId },
       { $set: { supportFlagUntil, supportFlagReason } },
       { new: true }
-    ).lean();
+    ).select('money battleStats portfolio energyStats nerveStats happiness cooldowns workStats').lean();
     if (!player) return res.status(404).json({ error: 'Target player not found' });
 
     return res.json({ supportFlagUntil: player.supportFlagUntil, supportFlagReason: player.supportFlagReason });
@@ -145,6 +147,89 @@ async function setSupportFlag(req, res) {
     if (err.message === 'Forbidden') return res.status(403).json({ error: 'Not authorized' });
     console.error('ADMIN setSupportFlag error:', err);
     return res.status(500).json({ error: 'Failed to set support flag' });
+  }
+}
+
+// ------------------------------
+// Active boosts
+// ------------------------------
+
+// GET /api/admin/player/boosts/:userId
+async function getPlayerBoosts(req, res) {
+  try {
+    await getAdminPlayerFromReq(req);
+    const userId = req.params.userId;
+    const player = await Player.findOne({ user: userId }).select('activeBoosts name').lean();
+    if (!player) return res.status(404).json({ error: 'Target player not found' });
+    const now = Date.now();
+    const boosts = (player.activeBoosts || []).map((b) => ({
+      _id: String(b._id),
+      label: b.label,
+      source: b.source,
+      appliedAt: b.appliedAt,
+      expiresAt: b.expiresAt,
+      meta: b.meta || {},
+      remainingSeconds: b.expiresAt ? Math.max(0, Math.floor((new Date(b.expiresAt).getTime() - now) / 1000)) : null,
+    }));
+    return res.json({ boosts });
+  } catch (err) {
+    if (err.message === 'Unauthorized') return res.status(401).json({ error: 'Unauthorized' });
+    if (err.message === 'Forbidden') return res.status(403).json({ error: 'Not authorized' });
+    console.error('ADMIN getPlayerBoosts error:', err);
+    return res.status(500).json({ error: 'Failed to get boosts' });
+  }
+}
+
+// POST /api/admin/player/boosts/add { targetUserId, label, durationSeconds?, source?, meta? }
+async function addPlayerBoost(req, res) {
+  try {
+    const admin = await getAdminPlayerFromReq(req);
+    const { targetUserId, label } = req.body;
+    if (!targetUserId || !label) return res.status(400).json({ error: 'targetUserId and label are required' });
+    const durationSeconds = req.body.durationSeconds != null ? Number(req.body.durationSeconds) : null;
+    const expiresAt = durationSeconds && Number.isFinite(durationSeconds) && durationSeconds > 0
+      ? new Date(Date.now() + durationSeconds * 1000)
+      : null;
+    const meta = req.body.meta && typeof req.body.meta === 'object' ? req.body.meta : {};
+    const player = await Player.findOne({ user: targetUserId });
+    if (!player) return res.status(404).json({ error: 'Target player not found' });
+    player.activeBoosts = player.activeBoosts || [];
+    player.activeBoosts.push({
+      label: String(label).trim(),
+      source: req.body.source || `admin:${admin.name}`,
+      appliedAt: new Date(),
+      expiresAt,
+      meta,
+    });
+    await player.save();
+    const boost = player.activeBoosts[player.activeBoosts.length - 1];
+    return res.status(201).json({ boost });
+  } catch (err) {
+    if (err.message === 'Unauthorized') return res.status(401).json({ error: 'Unauthorized' });
+    if (err.message === 'Forbidden') return res.status(403).json({ error: 'Not authorized' });
+    console.error('ADMIN addPlayerBoost error:', err);
+    return res.status(500).json({ error: 'Failed to add boost' });
+  }
+}
+
+// POST /api/admin/player/boosts/remove { targetUserId, boostId }
+async function removePlayerBoost(req, res) {
+  try {
+    await getAdminPlayerFromReq(req);
+    const { targetUserId, boostId } = req.body;
+    if (!targetUserId || !boostId) return res.status(400).json({ error: 'targetUserId and boostId are required' });
+    const player = await Player.findOne({ user: targetUserId });
+    if (!player) return res.status(404).json({ error: 'Target player not found' });
+    const before = (player.activeBoosts || []).length;
+    player.activeBoosts = (player.activeBoosts || []).filter((b) => String(b._id) !== String(boostId));
+    if (player.activeBoosts.length === before) return res.status(404).json({ error: 'Boost not found' });
+    await player.save();
+    return res.json({ ok: true, remaining: player.activeBoosts.length });
+  } catch (err) {
+    if (err.message === 'Unauthorized') return res.status(401).json({ error: 'Unauthorized' });
+    if (err.message === 'Forbidden') return res.status(403).json({ error: 'Not authorized' });
+    console.error('ADMIN removePlayerBoost error:', err);
+    return res.status(500).json({ error: 'Failed to remove boost' });
   }
 }
 
@@ -207,6 +292,36 @@ async function applyPunishmentPreset(req, res) {
     if (err.message === 'Forbidden') return res.status(403).json({ error: 'Not authorized' });
     console.error('ADMIN applyPunishmentPreset error:', err);
     return res.status(500).json({ error: 'Failed to apply punishment preset' });
+  }
+}
+
+// ------------------------------
+// Player logs (snapshots + transactions)
+// ------------------------------
+
+// GET /api/admin/player/logs/:userId?txLimit=20&snapshotLimit=50
+async function getPlayerLogs(req, res) {
+  try {
+    await getAdminPlayerFromReq(req);
+    const userId = req.params.userId;
+    const txLimit = Math.min(100, Math.max(1, Number(req.query.txLimit || 20)));
+    const snapshotLimit = Math.min(200, Math.max(5, Number(req.query.snapshotLimit || 50)));
+    const player = await Player.findOne({ user: userId }).select('_id id name user').lean();
+    if (!player) return res.status(404).json({ error: 'Target player not found' });
+    const [snapshots, transactions] = await Promise.all([
+      PlayerSnapshot.find({ player: player._id }).sort({ ts: -1 }).limit(snapshotLimit).lean(),
+      Transaction.find({ player: player._id }).sort({ createdAt: -1 }).limit(txLimit).lean(),
+    ]);
+    return res.json({
+      player: { userId: String(player.user), id: player.id, name: player.name },
+      snapshots,
+      transactions,
+    });
+  } catch (err) {
+    if (err.message === 'Unauthorized') return res.status(401).json({ error: 'Unauthorized' });
+    if (err.message === 'Forbidden') return res.status(403).json({ error: 'Not authorized' });
+    console.error('ADMIN getPlayerLogs error:', err);
+    return res.status(500).json({ error: 'Failed to load logs' });
   }
 }
 
@@ -718,6 +833,10 @@ module.exports = {
   setPlayerCooldown,
   clearPlayerCooldown,
   resetAllCooldowns,
+  getPlayerBoosts,
+  addPlayerBoost,
+  removePlayerBoost,
+  getPlayerLogs,
   // cartel
   setCartelRep,
   // database

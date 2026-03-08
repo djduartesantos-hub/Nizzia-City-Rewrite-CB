@@ -25,7 +25,9 @@ async function buildPricesMap(symbols){
 }
 
 async function takeSnapshot(){
-  const players = await Player.find({}).select('money battleStats portfolio').lean();
+  const players = await Player.find({})
+    .select('money battleStats portfolio energyStats nerveStats happiness cooldowns')
+    .lean();
   if (!players || players.length === 0) return;
 
   // Collect all symbols to price once
@@ -52,7 +54,32 @@ async function takeSnapshot(){
     const money = Number(p.money||0);
     const netWorth = Number((money + portfolioValue + bankLocked).toFixed(2));
     const battleTotals = sumBattle(p.battleStats);
-    docs.push({ player: p._id, ts, money, bankLocked, portfolioValue: Number(portfolioValue.toFixed(2)), netWorth, battleTotals });
+    const vitals = {
+      energy: Number(p.energyStats?.energy || 0),
+      energyMax: Number(p.energyStats?.energyMax || 0),
+      nerve: Number(p.nerveStats?.nerve || 0),
+      nerveMax: Number(p.nerveStats?.nerveMax || 0),
+      happy: Number(p.happiness?.happy || 0),
+      happyMax: Number(p.happiness?.happyMax || 0),
+    };
+    const cooldowns = {
+      drug: Number(p.cooldowns?.drugCooldown || 0),
+      medical: Number(p.cooldowns?.medicalCooldown || 0),
+      booster: Number(p.cooldowns?.boosterCooldown || 0),
+      alcohol: Number(p.cooldowns?.alcoholCooldown || 0),
+    };
+    docs.push({
+      player: p._id,
+      ts,
+      money,
+      bankLocked,
+      portfolioValue: Number(portfolioValue.toFixed(2)),
+      netWorth,
+      battleTotals,
+      workTotal: Number((p.workStats?.manuallabor || 0) + (p.workStats?.intelligence || 0) + (p.workStats?.endurance || 0) + (p.workStats?.employeEfficiency || 0)),
+      vitals,
+      cooldowns,
+    });
   }
 
   if (docs.length) {

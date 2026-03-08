@@ -17,6 +17,20 @@ const PlayerSnapshotSchema = new mongoose.Schema({
   netWorth: { type: Number, default: 0, index: true },
   battleTotals: { type: BattleTotalsSchema, default: () => ({}) },
   workTotal: { type: Number, default: 0 },
+  vitals: {
+    energy: { type: Number, default: 0 },
+    energyMax: { type: Number, default: 0 },
+    nerve: { type: Number, default: 0 },
+    nerveMax: { type: Number, default: 0 },
+    happy: { type: Number, default: 0 },
+    happyMax: { type: Number, default: 0 },
+  },
+  cooldowns: {
+    drug: { type: Number, default: 0 },
+    medical: { type: Number, default: 0 },
+    booster: { type: Number, default: 0 },
+    alcohol: { type: Number, default: 0 },
+  },
 });
 
 // TTL: keep snapshots for ~60 days to limit growth

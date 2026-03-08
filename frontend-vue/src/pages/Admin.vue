@@ -40,6 +40,86 @@
       </div>
     </div>
 
+    <!-- Boosts -->
+    <div class="card" v-if="isLogsTab">
+      <h3>Boosts & Effects</h3>
+      <div class="muted">Use this block to review and revoke buggy boosts or grant manual buffs.</div>
+      <div class="actions">
+        <button @click="fetchBoosts" :disabled="boostsLoading">Refresh Boosts</button>
+      </div>
+      <div class="list">
+        <div v-if="boostsLoading" class="muted">Loading boosts…</div>
+        <div v-else-if="!boosts.length" class="muted">No active boosts</div>
+        <div v-else>
+          <div class="list-row" v-for="boost in boosts" :key="boost._id">
+            <div>
+              <strong>{{ boost.label }}</strong>
+              <div class="muted">
+                Fonte: {{ boost.source || 'desconhecida' }} · Aplicado {{ fmt(boost.appliedAt) }}
+                <span v-if="boost.expiresAt"> · Expira {{ fmt(boost.expiresAt) }} ({{ boost.remainingSeconds }}s)</span>
+              </div>
+              <div class="muted" v-if="Object.keys(boost.meta||{}).length">Meta: {{ JSON.stringify(boost.meta) }}</div>
+            </div>
+            <button class="secondary" @click="removeBoost(boost._id)">Remover</button>
+          </div>
+        </div>
+      </div>
+      <div class="list">
+        <h4>Adicionar Boost Manual</h4>
+        <div class="row">
+          <div><label>Nome</label><input v-model.trim="boostForm.label" placeholder="ex: Evento Carnaval" /></div>
+          <div><label>Duração (seg)</label><input v-model.number="boostForm.durationSeconds" type="number" min="0" /></div>
+          <div><label>Fonte (opcional)</label><input v-model.trim="boostForm.source" placeholder="admin:Nome" /></div>
+        </div>
+        <div>
+          <label>Meta (JSON opcional)</label>
+          <textarea v-model.trim="boostForm.metaJson" rows="2" placeholder='{"bonus":"+20% exp"}'></textarea>
+        </div>
+        <div class="actions">
+          <button @click="addBoost" :disabled="boostsLoading || !boostForm.label">Adicionar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Logs -->
+    <div class="card" v-if="isLogsTab">
+      <h3>Logs do Jogador</h3>
+      <div class="inline">
+        <div><label>Tx limite</label><input v-model.number="logsFilters.txLimit" type="number" min="5" max="100" /></div>
+        <div><label>Snapshots limite</label><input v-model.number="logsFilters.snapshotLimit" type="number" min="10" max="200" /></div>
+        <button @click="fetchLogs" :disabled="logsLoading">Atualizar</button>
+        <span class="muted" v-if="logsLastFetched">Última atualização: {{ fmt(logsLastFetched) }}</span>
+      </div>
+      <div class="list">
+        <h4>Snapshots ({{ logs.snapshots.length }})</h4>
+        <div v-if="logsLoading" class="muted">Carregando snapshots…</div>
+        <div v-else-if="!logs.snapshots.length" class="muted">Sem snapshots recentes</div>
+        <div v-else>
+          <div class="list-row" v-for="snap in logs.snapshots" :key="snap._id || snap.ts">
+            <div>
+              <strong>{{ fmt(snap.ts) }}</strong>
+              <div class="muted">Net worth ${{ num(snap.netWorth || 0) }} · Money ${{ num(snap.money || 0) }} · Bank ${{ num(snap.bankLocked || 0) }} · Portfolio ${{ num(snap.portfolioValue || 0) }}</div>
+              <div class="muted">Battle total {{ num(snap.battleTotals?.total || 0) }} · Work {{ num(snap.workTotal || 0) }} · Energy {{ snap.vitals?.energy }}/{{ snap.vitals?.energyMax }}</div>
+              <div class="muted">Cooldowns: D {{ snap.cooldowns?.drug || 0 }}s | M {{ snap.cooldowns?.medical || 0 }}s | B {{ snap.cooldowns?.booster || 0 }}s | A {{ snap.cooldowns?.alcohol || 0 }}s</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="list">
+        <h4>Transações recentes ({{ logs.transactions.length }})</h4>
+        <div v-if="logsLoading" class="muted">Carregando transações…</div>
+        <div v-else-if="!logs.transactions.length" class="muted">Sem transações no intervalo</div>
+        <div v-else>
+          <div class="list-row" v-for="tx in logs.transactions" :key="tx._id">
+            <div>
+              <strong>{{ tx.type }}</strong> — {{ fmt(tx.createdAt) }}<br />
+              <span class="muted">${{ num(tx.amount || 0) }} (saldo {{ num(tx.balanceAfter || 0) }}) · {{ tx.description }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="card" v-if="profile">
       <h3>Player Profile</h3>
       <div class="list">
@@ -568,7 +648,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import api from '../api/client'
 import { useToast } from '../composables/useToast'
 import { fmtInt as num, fmtDate as fmt } from '../utils/format'
@@ -581,6 +661,7 @@ const profile = ref(null)
 const newName = ref('')
 const tabs = ['Jogador', 'Economia', 'Stats', 'Inventário & Itens', 'Mundo', 'Logs & Cooldowns']
 const currentTab = ref('Jogador')
+const isLogsTab = computed(() => currentTab.value === 'Logs & Cooldowns')
 
 const searchQuery = ref('')
 const searchResults = ref([])
@@ -651,6 +732,15 @@ const cdBooster = ref(0)
 const cdAlcohol = ref(0)
 const cdIncludeNPC = ref('false')
 const cdCurrentSummary = ref('')
+
+// Boosts & logs
+const boosts = ref([])
+const boostsLoading = ref(false)
+const boostForm = ref({ label: '', durationSeconds: 0, source: '', metaJson: '' })
+const logs = ref({ snapshots: [], transactions: [] })
+const logsLoading = ref(false)
+const logsFilters = ref({ txLimit: 20, snapshotLimit: 40 })
+const logsLastFetched = ref(null)
 
 const dbConfirm = ref('')
 const addictionValue = ref(0)
@@ -1254,12 +1344,101 @@ async function setAddiction(){
   } catch (e) { alert(e?.response?.data?.error || e?.message || 'Failed') }
 }
 
+// Boosts & logs helpers
+async function fetchBoosts(){
+  if (!targetUserId.value) { boosts.value = []; return }
+  boostsLoading.value = true
+  try {
+    const t = ensureTarget()
+    const res = await api.get(`/admin/player/boosts/${encodeURIComponent(t)}`)
+    boosts.value = res.data?.boosts || []
+  } catch (e) {
+    toast.error(e?.response?.data?.error || e?.message || 'Falha ao carregar boosts')
+  } finally {
+    boostsLoading.value = false
+  }
+}
+
+async function addBoost(){
+  try {
+    const t = ensureTarget()
+    if (!boostForm.value.label.trim()) throw new Error('Nome do boost é obrigatório')
+    let meta = {}
+    const metaText = boostForm.value.metaJson?.trim()
+    if (metaText) {
+      try { meta = JSON.parse(metaText) }
+      catch { throw new Error('Meta JSON inválido') }
+    }
+    const body = {
+      targetUserId: t,
+      label: boostForm.value.label.trim(),
+      durationSeconds: Number(boostForm.value.durationSeconds || 0) || undefined,
+      source: boostForm.value.source?.trim() || undefined,
+      meta,
+    }
+    await api.post('/admin/player/boosts/add', body)
+    boostForm.value = { label: '', durationSeconds: 0, source: '', metaJson: '' }
+    await fetchBoosts()
+    toast.success('Boost adicionado')
+  } catch (e) { toast.error(e?.response?.data?.error || e?.message || 'Falha ao adicionar boost') }
+}
+
+async function removeBoost(boostId){
+  try {
+    const t = ensureTarget()
+    await api.post('/admin/player/boosts/remove', { targetUserId: t, boostId })
+    boosts.value = boosts.value.filter(b => b._id !== boostId)
+    toast.success('Boost removido')
+  } catch (e) {
+    toast.error(e?.response?.data?.error || e?.message || 'Falha ao remover boost')
+  }
+}
+
+async function fetchLogs(){
+  if (!targetUserId.value) { logs.value = { snapshots: [], transactions: [] }; return }
+  logsLoading.value = true
+  try {
+    const t = ensureTarget()
+    const params = new URLSearchParams({
+      txLimit: String(Math.max(5, Math.min(100, logsFilters.value.txLimit || 20))),
+      snapshotLimit: String(Math.max(10, Math.min(200, logsFilters.value.snapshotLimit || 40))),
+    })
+    const res = await api.get(`/admin/player/logs/${encodeURIComponent(t)}?${params.toString()}`)
+    logs.value = {
+      snapshots: res.data?.snapshots || [],
+      transactions: res.data?.transactions || [],
+    }
+    logsLastFetched.value = new Date()
+  } catch (e) {
+    toast.error(e?.response?.data?.error || e?.message || 'Falha ao carregar logs')
+  } finally {
+    logsLoading.value = false
+  }
+}
+
 onMounted(() => { loadSavedIds(); loadTitles(); fetchItems(); loadItemPresets() })
+
+watch(currentTab, async (tab) => {
+  if (tab === 'Logs & Cooldowns' && targetUserId.value) {
+    await Promise.allSettled([fetchBoosts(), fetchLogs(), cdLoad()])
+  }
+})
 
 watch(profile, () => { syncStateFromProfile() }, { immediate: true })
 watch(targetUserId, (val) => {
-  if (val) loadNotes()
-  else notes.value = []
+  if (val) {
+    loadNotes()
+    if (isLogsTab.value) {
+      fetchBoosts()
+      fetchLogs()
+      cdLoad()
+    }
+  } else {
+    notes.value = []
+    boosts.value = []
+    logs.value = { snapshots: [], transactions: [] }
+    cdCurrentSummary.value = ''
+  }
 })
 </script>
 

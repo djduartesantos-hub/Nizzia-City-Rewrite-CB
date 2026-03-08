@@ -35,6 +35,10 @@ const {
   listPlayerNotes,
   createPlayerNote,
   deletePlayerNote,
+  getPlayerBoosts,
+  addPlayerBoost,
+  removePlayerBoost,
+  getPlayerLogs,
   // cooldowns
   getPlayerCooldowns,
   setPlayerCooldown,
@@ -86,6 +90,10 @@ router.patch('/player/health', updatePlayerHealth);
 router.get('/player/notes/:userId', listPlayerNotes);
 router.post('/player/notes', createPlayerNote);
 router.delete('/player/notes/:noteId', deletePlayerNote);
+router.get('/player/boosts/:userId', getPlayerBoosts);
+router.post('/player/boosts/add', addPlayerBoost);
+router.post('/player/boosts/remove', removePlayerBoost);
+router.get('/player/logs/:userId', getPlayerLogs);
 // Item presets
 router.get('/item-presets', listItemPresets);
 router.post('/item-presets', createItemPreset);

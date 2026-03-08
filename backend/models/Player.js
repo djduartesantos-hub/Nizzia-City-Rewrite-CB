@@ -94,6 +94,17 @@ const playerSchema = new mongoose.Schema({
     alcoholCooldown: { type: Number, default: 0 },
   },
 
+  // Active boosts applied to the player (items, events, admin actions)
+  activeBoosts: [
+    {
+      label: { type: String, required: true, trim: true },
+      source: { type: String, default: null },
+      appliedAt: { type: Date, default: Date.now },
+      expiresAt: { type: Date, default: null },
+      meta: { type: mongoose.Schema.Types.Mixed, default: {} },
+    }
+  ],
+
   job: {
     jobId: { type: String, default: null },          // city job id (e.g. 'army') or null
     jobRank: { type: Number, default: 0 },           // 0-9
