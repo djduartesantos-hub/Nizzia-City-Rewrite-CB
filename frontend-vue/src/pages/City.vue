@@ -1,23 +1,60 @@
 <template>
   <section class="city">
-    <h2>City</h2>
-    <p class="muted">Pick a destination on the map or use the list below.</p>
+    <div class="city__head">
+      <div>
+        <h2>City Map</h2>
+        <p class="muted">Navega pelos distritos, participa em eventos e acede rapidamente aos destinos clássicos da cidade.</p>
+      </div>
+      <button class="btn" @click="openFullMap">Abrir city-map completo</button>
+    </div>
 
-    <div class="city__wrap panel">
-      <div class="city__map">
-        <button
-          v-for="poi in pois"
-          :key="poi.id"
-          class="poi"
-          :style="{ left: poi.x + '%', top: poi.y + '%'}"
-          :title="poi.name"
-          @click="go(poi)"
-          :disabled="poi.comingSoon"
-        >
-          <span class="poi__icon" aria-hidden="true">{{ poi.icon }}</span>
-          <span class="poi__name">{{ poi.name }}</span>
-          <span v-if="poi.comingSoon" class="poi__soon">Soon</span>
-        </button>
+    <div class="city__layout">
+      <div class="city__wrap panel">
+        <h3>Mapa clássico de destinos</h3>
+        <div class="city__map" style="background-image: url('/map-reference.png'); background-size: cover; background-position: center;">
+          <button
+            v-for="poi in pois"
+            :key="poi.id"
+            class="poi"
+            :style="{ left: poi.x + '%', top: poi.y + '%' }"
+            :title="poi.name"
+            @click="go(poi)"
+            :disabled="poi.comingSoon"
+          >
+            <span class="poi__icon" aria-hidden="true">{{ poi.icon }}</span>
+            <span class="poi__name">{{ poi.name }}</span>
+            <span v-if="poi.comingSoon" class="poi__soon">Soon</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="city__embed panel">
+        <h3>City-map tático (novo)</h3>
+        <iframe class="city__iframe" src="/city-map.html" title="City Map Tático" loading="lazy"></iframe>
+      </div>
+    </div>
+
+    <div class="city__grid">
+      <article v-for="poi in linkablePois" :key="`card-${poi.id}`" class="city__card panel">
+        <div class="city__card-head">
+          <span>{{ poi.icon }}</span>
+          <strong>{{ poi.name }}</strong>
+        </div>
+        <p class="muted">{{ descriptions[poi.id] || 'Destino disponível na cidade.' }}</p>
+        <button class="btn" @click="go(poi)">Ir para {{ poi.name }}</button>
+      </article>
+    </div>
+
+    <div class="city__shops">
+      <h3>Lojas da cidade</h3>
+      <div class="city__grid">
+        <article v-for="shop in shopPois" :key="shop.id" :id="shop.id" class="city__card panel">
+          <div class="city__card-head">
+            <span>{{ shop.icon }}</span>
+            <strong>{{ shop.name }}</strong>
+          </div>
+          <p class="muted">Acede rapidamente à área de {{ shop.name.toLowerCase() }}.</p>
+        </article>
       </div>
     </div>
   </section>
@@ -54,6 +91,7 @@ const pois = [
 ]
 
 const linkablePois = computed(() => pois.filter(p => p.route && !p.comingSoon))
+const shopPois = computed(() => pois.filter(p => p.sectionId))
 
 const descriptions = {
   gym: 'Train your battle stats and get stronger.',
@@ -76,6 +114,10 @@ function go(poi){
     const el = document.querySelector(poi.sectionId)
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
+}
+
+function openFullMap() {
+  window.open('/city-map.html', '_blank', 'noopener')
 }
 </script>
 
