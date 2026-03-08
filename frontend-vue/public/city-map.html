@@ -22,24 +22,23 @@
 
     body {
       margin: 0;
-      min-height: 100vh;
       background: radial-gradient(circle at 20% 10%, #161616 0%, #070707 70%);
       color: var(--text);
       font-family: 'Share Tech Mono', monospace;
       overflow: hidden;
-      display: grid;
-      place-items: center;
-      padding: 12px;
+      width: 100vw;
+      height: 100vh;
+      padding: 0;
     }
 
     #app {
       position: relative;
-      width: min(1250px, 100vw - 20px);
-      height: min(860px, 100vh - 20px);
-      border: 1px solid #2d2d2d;
-      border-radius: 10px;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      border-radius: 0;
       overflow: hidden;
-      box-shadow: var(--shadow);
+      box-shadow: none;
       background: #111;
     }
 
@@ -52,8 +51,9 @@
     }
 
     .map-topbar {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       background: linear-gradient(#515151, #2e2e2e);
       border-bottom: 1px solid #5b5b5b;
       font-family: 'Bebas Neue', sans-serif;
@@ -98,6 +98,14 @@
       position: absolute;
       inset: 0;
       pointer-events: none;
+      z-index: 18;
+    }
+
+    #locationLayer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 16;
     }
 
     .hud {
@@ -248,34 +256,6 @@
       color: #e8e8e8;
     }
 
-    .symbol-grid {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      border: 1px solid rgba(255,255,255,.13);
-      border-radius: 6px;
-      overflow: hidden;
-      background: rgba(24, 24, 24, 0.84);
-    }
-
-    .symbol-grid li {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: .92rem;
-      padding: 8px 10px;
-      border-right: 1px solid rgba(255,255,255,.11);
-      border-bottom: 1px solid rgba(255,255,255,.11);
-    }
-
-    .symbol-grid li:nth-child(3n) { border-right: 0; }
-    .symbol-grid li:nth-last-child(-n+3) { border-bottom: 0; }
-
-    .footer-pane { display: none; }
-    .footer-pane.active { display: grid; gap: 8px; }
-
     .quick-links {
       list-style: none;
       margin: 0;
@@ -300,6 +280,43 @@
       border-color: rgba(243, 200, 84, 0.55);
       color: #ffe9bf;
       transform: translateY(-1px);
+    }
+
+    .location-link {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      pointer-events: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 232, 168, 0.6);
+      background: rgba(10, 10, 10, 0.72);
+      color: #ffeab7;
+      text-decoration: none;
+      font-size: 1rem;
+      font-weight: 700;
+      line-height: 1;
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(2px);
+      white-space: nowrap;
+    }
+
+    .location-link:hover {
+      background: rgba(26, 19, 8, 0.92);
+      border-color: rgba(255, 220, 130, 0.95);
+      transform: translate(-50%, -52%);
+    }
+
+    .location-link__icon {
+      font-size: 1.28rem;
+      line-height: 1;
+    }
+
+    .location-link__label {
+      font-size: 1rem;
+      letter-spacing: 0.02em;
     }
 
     .dot {
@@ -444,9 +461,6 @@
     @media (max-width: 980px) {
       #app { height: calc(100vh - 12px); width: calc(100vw - 12px); }
       .hud-grid { grid-template-columns: repeat(2, minmax(94px, 1fr)); }
-      .symbol-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .symbol-grid li:nth-child(2n) { border-right: 0; }
-      .symbol-grid li:nth-last-child(-n+2) { border-bottom: 0; }
       .quick-links { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .mini-wrap { width: 170px; }
       #miniMap { height: 96px; }
@@ -458,12 +472,12 @@
   <div id="app">
     <div class="map-shell">
       <div class="map-topbar">
-        <button class="top-tab active" id="tabMap">Map</button>
-        <button class="top-tab" id="tabQuickLinks">Quick Links</button>
+        <div class="top-tab active">Quick Links</div>
       </div>
 
       <div class="map-stage">
         <canvas id="cityCanvas"></canvas>
+        <div id="locationLayer"></div>
         <div id="eventLayer"></div>
 
         <div class="hud">
@@ -489,14 +503,8 @@
       </div>
 
       <div class="symbol-key">
-        <div class="footer-pane active" id="paneMap">
-          <h3>Key of Symbols</h3>
-          <ul class="symbol-grid" id="legendList"></ul>
-        </div>
-        <div class="footer-pane" id="paneQuickLinks">
-          <h3>Quick Links</h3>
-          <ul class="quick-links" id="quickLinksList"></ul>
-        </div>
+        <h3>Quick Links</h3>
+        <ul class="quick-links" id="quickLinksList"></ul>
       </div>
     </div>
 
@@ -820,18 +828,28 @@
       { href: '/hall-of-fame', label: '🏆 Hall of Fame' },
     ]
 
+    const LOCATION_ROUTES = {
+      bank: '/bank',
+      hospital: '/hospital',
+      prison: '/prison',
+      gym: '/gym',
+      school: '/education',
+      shop: '/market',
+      casino: '/casino',
+      warehouse: '/grow',
+      harbor: '/job',
+      club: '/casino',
+      factory: '/job',
+    }
+
     const canvas = document.getElementById('cityCanvas')
     const ctx = canvas.getContext('2d')
+    const locationLayer = document.getElementById('locationLayer')
     const eventLayer = document.getElementById('eventLayer')
 
     const cityMetaEl = document.getElementById('cityMeta')
     const locationInfoEl = document.getElementById('locationInfo')
-    const legendListEl = document.getElementById('legendList')
     const quickLinksListEl = document.getElementById('quickLinksList')
-    const tabMap = document.getElementById('tabMap')
-    const tabQuickLinks = document.getElementById('tabQuickLinks')
-    const paneMap = document.getElementById('paneMap')
-    const paneQuickLinks = document.getElementById('paneQuickLinks')
     const hudHp = document.getElementById('hudHp')
     const hudMoney = document.getElementById('hudMoney')
     const hudXp = document.getElementById('hudXp')
@@ -1061,37 +1079,43 @@
         ctx.fillText(z.districtName, z.x - z.w / 2 + 8, z.y - z.h / 2 + 18)
       }
 
-      for (const loc of state.city.locations) {
-        ctx.fillStyle = 'rgba(0,0,0,.55)'
-        ctx.beginPath()
-        ctx.arc(loc.x, loc.y, 18, 0, Math.PI * 2)
-        ctx.fill()
-
-        ctx.fillStyle = '#f3c34f'
-        ctx.beginPath()
-        ctx.moveTo(loc.x, loc.y - 16)
-        ctx.bezierCurveTo(loc.x + 12, loc.y - 16, loc.x + 13, loc.y + 3, loc.x, loc.y + 19)
-        ctx.bezierCurveTo(loc.x - 13, loc.y + 3, loc.x - 12, loc.y - 16, loc.x, loc.y - 16)
-        ctx.fill()
-
-        ctx.strokeStyle = 'rgba(24, 18, 8, 0.8)'
-        ctx.lineWidth = 1.6
-        ctx.stroke()
-
-        ctx.fillStyle = '#1b1b1b'
-        ctx.font = 'bold 13px "Share Tech Mono"'
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)'
-        ctx.lineWidth = 3
-        ctx.strokeText(loc.name, loc.x + 20, loc.y + 5)
-        ctx.fillText(loc.name, loc.x + 20, loc.y + 5)
-      }
-
       drawFogOfWar(ctx)
 
       ctx.restore()
 
+      drawLocationLinks()
       drawEventChips()
       drawCursorHUD()
+    }
+
+    function drawLocationLinks() {
+      if (!locationLayer) return
+      locationLayer.innerHTML = ''
+      for (const loc of state.city.locations) {
+        const p = worldToScreen(loc.x, loc.y)
+        if (p.x < -140 || p.y < -60 || p.x > canvas.clientWidth + 140 || p.y > canvas.clientHeight + 60) continue
+
+        const route = LOCATION_ROUTES[loc.key]
+        const [icon = '📍', ...labelParts] = String(loc.name || '').split(' ')
+        const label = labelParts.join(' ') || loc.key
+
+        const link = document.createElement('a')
+        link.className = 'location-link'
+        link.style.left = `${p.x}px`
+        link.style.top = `${p.y}px`
+        link.innerHTML = `<span class="location-link__icon">${icon}</span><span class="location-link__label">${label}</span>`
+
+        if (route) {
+          link.href = route
+          link.target = '_top'
+          link.rel = 'noopener'
+        } else {
+          link.href = '#'
+          link.addEventListener('click', (ev) => ev.preventDefault())
+        }
+
+        locationLayer.appendChild(link)
+      }
     }
 
     function drawFogOfWar(g) {
@@ -1229,23 +1253,6 @@
       if (stroke) g.stroke()
     }
 
-    function buildLegend() {
-      const keyItems = [
-        { label: 'Água', color: '#4ea7bd' },
-        { label: 'Floresta', color: '#557f4c' },
-        { label: 'Agrícola', color: '#9b9c5f' },
-        { label: 'Industrial', color: '#9b978f' },
-        { label: 'Rodovia', color: '#8d8d8d' },
-        { label: 'Evento ativo', color: '#b47b4d' },
-      ]
-      legendListEl.innerHTML = ''
-      for (const item of keyItems) {
-        const li = document.createElement('li')
-        li.innerHTML = `<span class="dot" style="background:${item.color}"></span><span>${item.label}</span>`
-        legendListEl.appendChild(li)
-      }
-    }
-
     function buildQuickLinks() {
       if (!quickLinksListEl) return
       quickLinksListEl.innerHTML = ''
@@ -1254,14 +1261,6 @@
         item.innerHTML = `<a href="${link.href}" target="_top" rel="noopener">${link.label}</a>`
         quickLinksListEl.appendChild(item)
       }
-    }
-
-    function setActiveFooterTab(mode) {
-      const mapMode = mode === 'map'
-      tabMap?.classList.toggle('active', mapMode)
-      tabQuickLinks?.classList.toggle('active', !mapMode)
-      paneMap?.classList.toggle('active', mapMode)
-      paneQuickLinks?.classList.toggle('active', !mapMode)
     }
 
     function updateHUD() {
@@ -1543,8 +1542,6 @@
       beginAction(selectedEvent)
     })
     btnBackMap.addEventListener('click', leaveActionScreen)
-    tabMap?.addEventListener('click', () => setActiveFooterTab('map'))
-    tabQuickLinks?.addEventListener('click', () => setActiveFooterTab('links'))
 
     canvas.addEventListener('mousemove', (ev) => {
       const rect = canvas.getBoundingClientRect()
@@ -1587,9 +1584,7 @@
       const imageUrl = state.mapConfig.imageUrl || BASE_MAP_IMAGE_URL
       state.baseMapImage = await loadBaseMapImage(imageUrl)
       state.city = createStaticCity(state.mapConfig)
-      buildLegend()
       buildQuickLinks()
-      setActiveFooterTab('map')
       regenerateEvents()
       updateHUD()
       resize()
