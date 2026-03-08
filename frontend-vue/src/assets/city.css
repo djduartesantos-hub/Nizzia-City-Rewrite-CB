@@ -2,6 +2,39 @@
    CITY MAP — Terminal style
    ═══════════════════════════════════════════════════ */
 .city__wrap { margin-top: 12px; }
+.city__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.city__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.city__embed {
+  display: flex;
+  flex-direction: column;
+  min-height: 380px;
+}
+
+.city__embed h3,
+.city__wrap h3 {
+  margin: 0 0 8px 0;
+}
+
+.city__iframe {
+  width: 100%;
+  min-height: 520px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: #06070a;
+}
+
 .city__map {
   position: relative;
   height: 380px;
@@ -61,4 +94,29 @@
   color: #fff;
   cursor: pointer;
   font-size: 12px;
+}
+
+@media (max-width: 1100px) {
+  .city__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .city__iframe {
+    min-height: 420px;
+  }
+}
+
+@media (max-width: 760px) {
+  .city__head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .city__map {
+    height: 320px;
+  }
+
+  .city__iframe {
+    min-height: 360px;
+  }
 }
