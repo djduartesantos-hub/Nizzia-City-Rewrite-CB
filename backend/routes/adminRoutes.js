@@ -61,6 +61,11 @@ const {
   updateHospitalConfig,
   updateCrimeConfig,
   updateCrimeCatalog,
+  updateCityMapConfig,
+  listCityMapZones,
+  createCityMapZone,
+  updateCityMapZone,
+  deleteCityMapZone,
 } = require('../controllers/worldAdminController');
 
 // All admin routes require authentication
@@ -137,6 +142,11 @@ router.post('/world/config/prison', updatePrisonConfig);
 router.post('/world/config/hospital', updateHospitalConfig);
 router.post('/world/config/crime', updateCrimeConfig);
 router.post('/world/config/crime-catalog', updateCrimeCatalog);
+router.post('/world/config/city-map', updateCityMapConfig);
+router.get('/world/city-map/zones', listCityMapZones);
+router.post('/world/city-map/zones', createCityMapZone);
+router.patch('/world/city-map/zones/:zoneId', updateCityMapZone);
+router.delete('/world/city-map/zones/:zoneId', deleteCityMapZone);
 
 // Database maintenance (danger)
 router.post('/database/purge', purgeDatabase);

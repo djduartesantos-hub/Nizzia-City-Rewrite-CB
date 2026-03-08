@@ -462,8 +462,8 @@
         </div>
 
         <div class="map-tools">
-          <button class="tool-btn" title="Zoom">🔎</button>
-          <button class="tool-btn" title="Expandir">⤢</button>
+          <button class="tool-btn" id="btnZoomIn" title="Zoom +">🔎</button>
+          <button class="tool-btn" id="btnZoomOut" title="Zoom -">➖</button>
           <button class="tool-btn" title="Links">🔗</button>
           <button class="tool-btn" title="Camadas">🎨</button>
           <button class="tool-btn" title="Mira">◎</button>
@@ -530,7 +530,7 @@
   <script>
     const CITY_W = 2000
     const CITY_H = 1400
-    const MAP_SEED = 7
+    const EVENT_SEED = 7
     const BASE_MAP_IMAGE_URL = './map-reference.png'
 
     const EVENT_TYPES = {
@@ -590,23 +590,54 @@
       },
     }
 
-    const ZONE_ARCHETYPES = [
-      { key: 'residencial', label: 'Residencial', color: '#8a946f', density: 0.45 },
-      { key: 'comercial', label: 'Comercial', color: '#8f8d79', density: 0.62 },
-      { key: 'industrial', label: 'Industrial', color: '#9a9287', density: 0.56 },
-      { key: 'porto', label: 'Porto/Docas', color: '#859384', density: 0.5 },
-      { key: 'suburbio', label: 'Subúrbio', color: '#82986b', density: 0.36 },
-      { key: 'gueto', label: 'Gueto', color: '#8d846f', density: 0.67 },
-      { key: 'rico', label: 'Bairro Rico', color: '#8f9d79', density: 0.48 },
-      { key: 'abandonada', label: 'Zona Abandonada', color: '#8a8a86', density: 0.2 },
-      { key: 'parque', label: 'Parque', color: '#6e8f62', density: 0.15 },
-      { key: 'mercado-negro', label: 'Mercado Negro', color: '#8f8b75', density: 0.58 },
+    const STATIC_CITY_NAME = 'Nizzia City'
+
+    const ZONE_GRID_LAYOUT = [
+      { id: 'zone_0', key: 'residencial', label: 'Residencial', color: '#8a946f', density: 0.45, col: 6, row: 4, cw: 4, rh: 3, reveal: 0.88, districtName: 'North Residencial' },
+      { id: 'zone_1', key: 'comercial', label: 'Comercial', color: '#8f8d79', density: 0.62, col: 9, row: 3, cw: 4, rh: 3, reveal: 0.94, districtName: 'Central Comercial' },
+      { id: 'zone_2', key: 'industrial', label: 'Industrial', color: '#9a9287', density: 0.56, col: 12, row: 6, cw: 4, rh: 3, reveal: 0.9, districtName: 'East Industrial' },
+      { id: 'zone_3', key: 'porto', label: 'Porto/Docas', color: '#859384', density: 0.5, col: 14, row: 8, cw: 4, rh: 3, reveal: 0.86, districtName: 'South Docks' },
+      { id: 'zone_4', key: 'suburbio', label: 'Subúrbio', color: '#82986b', density: 0.36, col: 3, row: 6, cw: 5, rh: 3, reveal: 0.82, districtName: 'West Suburbio' },
+      { id: 'zone_5', key: 'gueto', label: 'Gueto', color: '#8d846f', density: 0.67, col: 8, row: 7, cw: 3, rh: 2, reveal: 0.76, districtName: 'Old Gueto' },
+      { id: 'zone_6', key: 'rico', label: 'Bairro Rico', color: '#8f9d79', density: 0.48, col: 11, row: 2, cw: 3, rh: 2, reveal: 0.92, districtName: 'North Heights' },
+      { id: 'zone_7', key: 'abandonada', label: 'Zona Abandonada', color: '#8a8a86', density: 0.2, col: 2, row: 9, cw: 4, rh: 3, reveal: 0.64, districtName: 'Derelict Belt' },
+      { id: 'zone_8', key: 'parque', label: 'Parque', color: '#6e8f62', density: 0.15, col: 5, row: 2, cw: 4, rh: 2, reveal: 0.8, districtName: 'Green Park' },
+      { id: 'zone_9', key: 'mercado-negro', label: 'Mercado Negro', color: '#8f8b75', density: 0.58, col: 9, row: 9, cw: 3, rh: 2, reveal: 0.72, districtName: 'Shadow Market' },
     ]
 
-    const STREET_PART_A = ['Avenida', 'Rua', 'Travessa', 'Boulevard', 'Alameda', 'Viela', 'Via']
-    const STREET_PART_B = ['Sombra', 'Ferro', 'Aurora', 'Néon', 'Orquídea', 'Ponte', 'Mercúrio', 'Fênix', 'Vulcão', 'Bruma']
-    const CITY_PREFIX = ['Nova', 'Santa', 'Porto', 'Vila', 'Neo', 'Alta', 'Baixa', 'Fort']
-    const CITY_CORE = ['Mirage', 'Vesper', 'Crown', 'Argos', 'Haven', 'Riven', 'Solace', 'Hexa', 'Nizzia', 'Veridian']
+    const LOCATION_GRID_LAYOUT = [
+      { key: 'bank', name: '🏦 Banco', col: 10, row: 4 },
+      { key: 'hospital', name: '🏥 Hospital', col: 9, row: 6 },
+      { key: 'prison', name: '⛓️ Prisão', col: 11, row: 9 },
+      { key: 'gym', name: '💪 Gym', col: 8, row: 7 },
+      { key: 'school', name: '🏫 Escola', col: 7, row: 6 },
+      { key: 'shop', name: '🛒 Loja', col: 9, row: 5 },
+      { key: 'casino', name: '🎰 Casino', col: 12, row: 4 },
+      { key: 'warehouse', name: '📦 Armazém', col: 13, row: 8 },
+      { key: 'harbor', name: '🚢 Porto Seco', col: 15, row: 9 },
+      { key: 'club', name: '🎵 Clube Nocturno', col: 10, row: 8 },
+      { key: 'factory', name: '🏭 Fábrica', col: 14, row: 7 },
+    ]
+
+    const DEFAULT_CITY_MAP_CONFIG = {
+      imageUrl: BASE_MAP_IMAGE_URL,
+      grid: {
+        cols: 20,
+        rows: 14,
+        majorCols: 6,
+        majorRows: 4,
+        subDivisionFactor: 2,
+        maxSubDivisions: 3,
+      },
+      zoom: {
+        min: 1,
+        max: 4,
+        step: 0.25,
+        initial: 1,
+      },
+      zones: ZONE_GRID_LAYOUT,
+      locations: LOCATION_GRID_LAYOUT,
+    }
 
     function clamp(v, min, max) { return Math.max(min, Math.min(max, v)) }
     function fmtTime(seconds) {
@@ -627,287 +658,110 @@
       pick(arr) { return arr[this.int(0, arr.length - 1)] }
     }
 
-    class CityGenerator {
-      constructor(seed) {
-        this.seed = clamp(Number(seed) || 1, 1, 10)
-        this.rng = new RNG(this.seed * 987654321)
+    function deepClone(obj) {
+      return JSON.parse(JSON.stringify(obj))
+    }
+
+    function normalizeCityMapConfig(input) {
+      const raw = input && typeof input === 'object' ? input : {}
+      const cfg = {
+        imageUrl: typeof raw.imageUrl === 'string' && raw.imageUrl.trim() ? raw.imageUrl.trim() : DEFAULT_CITY_MAP_CONFIG.imageUrl,
+        grid: {
+          cols: Math.max(4, Number(raw.grid?.cols || DEFAULT_CITY_MAP_CONFIG.grid.cols)),
+          rows: Math.max(4, Number(raw.grid?.rows || DEFAULT_CITY_MAP_CONFIG.grid.rows)),
+          majorCols: Math.max(1, Number(raw.grid?.majorCols || DEFAULT_CITY_MAP_CONFIG.grid.majorCols)),
+          majorRows: Math.max(1, Number(raw.grid?.majorRows || DEFAULT_CITY_MAP_CONFIG.grid.majorRows)),
+          subDivisionFactor: Math.max(1, Number(raw.grid?.subDivisionFactor || DEFAULT_CITY_MAP_CONFIG.grid.subDivisionFactor)),
+          maxSubDivisions: Math.max(1, Number(raw.grid?.maxSubDivisions || DEFAULT_CITY_MAP_CONFIG.grid.maxSubDivisions)),
+        },
+        zoom: {
+          min: Math.max(0.25, Number(raw.zoom?.min || DEFAULT_CITY_MAP_CONFIG.zoom.min)),
+          max: Math.max(0.5, Number(raw.zoom?.max || DEFAULT_CITY_MAP_CONFIG.zoom.max)),
+          step: Math.max(0.05, Number(raw.zoom?.step || DEFAULT_CITY_MAP_CONFIG.zoom.step)),
+          initial: Number(raw.zoom?.initial || DEFAULT_CITY_MAP_CONFIG.zoom.initial),
+        },
+        zones: Array.isArray(raw.zones) && raw.zones.length ? raw.zones : deepClone(DEFAULT_CITY_MAP_CONFIG.zones),
+        locations: Array.isArray(raw.locations) && raw.locations.length ? raw.locations : deepClone(DEFAULT_CITY_MAP_CONFIG.locations),
       }
+      if (cfg.zoom.max < cfg.zoom.min) cfg.zoom.max = cfg.zoom.min
+      cfg.zoom.initial = clamp(cfg.zoom.initial, cfg.zoom.min, cfg.zoom.max)
+      return cfg
+    }
 
-      generate() {
-        const cityName = this.generateCityName()
-        const zones = this.generateZones()
-        const roads = this.generateRoads()
-        const backdrop = this.generateBackdrop(zones)
-        const streets = this.generateStreetNames(roads.length)
-        const locations = this.generateLocations(zones)
-
-        return { cityName, zones, roads, backdrop, streets, locations }
+    function getGridMetrics() {
+      const cols = Math.max(1, Number(state.mapConfig?.grid?.cols || DEFAULT_CITY_MAP_CONFIG.grid.cols))
+      const rows = Math.max(1, Number(state.mapConfig?.grid?.rows || DEFAULT_CITY_MAP_CONFIG.grid.rows))
+      return {
+        cols,
+        rows,
+        cellW: CITY_W / cols,
+        cellH: CITY_H / rows,
       }
+    }
 
-      generateCityName() {
-        const prefix = CITY_PREFIX[(this.seed - 1) % CITY_PREFIX.length]
-        const core = CITY_CORE[(this.seed * 2 - 1) % CITY_CORE.length]
-        const suffix = this.rng.pick(['City', 'Heights', 'Bay', 'District', 'Point'])
-        return `${prefix} ${core} ${suffix}`
-      }
-
-      generateZones() {
-        const zones = []
-        const cx = CITY_W / 2
-        const cy = CITY_H / 2
-        const baseR = Math.min(CITY_W, CITY_H) * 0.34
-        for (let i = 0; i < ZONE_ARCHETYPES.length; i += 1) {
-          const z = ZONE_ARCHETYPES[i]
-          const angle = (Math.PI * 2 * i) / ZONE_ARCHETYPES.length + this.rng.range(-0.22, 0.22)
-          const radius = baseR + this.rng.range(-130, 140)
-          const x = clamp(cx + Math.cos(angle) * radius + this.rng.range(-70, 70), 160, CITY_W - 160)
-          const y = clamp(cy + Math.sin(angle) * radius + this.rng.range(-70, 70), 130, CITY_H - 130)
-          const w = clamp(310 + this.rng.range(-75, 95), 250, 440)
-          const h = clamp(230 + this.rng.range(-65, 85), 180, 360)
-          zones.push({
-            id: `zone_${i}`,
-            key: z.key,
-            label: z.label,
-            color: z.color,
-            density: z.density,
-            x,
-            y,
-            w,
-            h,
-            reveal: this.rng.range(0.15, 1),
-            districtName: `${this.rng.pick(['North', 'South', 'East', 'West', 'Old', 'Neo'])} ${z.label}`,
-          })
-        }
-        return zones
-      }
-
-      generateRoads() {
-        const roads = []
-        const cx = CITY_W * 0.5 + this.rng.range(-80, 80)
-        const cy = CITY_H * 0.47 + this.rng.range(-80, 70)
-
-        const ringCount = 3
-        for (let r = 0; r < ringCount; r += 1) {
-          const radius = 240 + r * 170 + this.rng.range(-20, 25)
-          const points = []
-          const slices = 18 + r * 2
-          for (let i = 0; i <= slices; i += 1) {
-            const a = (Math.PI * 2 * i) / slices
-            const wobble = this.rng.range(-40, 40)
-            points.push({
-              x: clamp(cx + Math.cos(a) * (radius + wobble), 30, CITY_W - 30),
-              y: clamp(cy + Math.sin(a) * (radius * 0.72 + wobble * 0.55), 30, CITY_H - 30),
-            })
-          }
-          roads.push({ kind: 'poly', points, width: this.rng.range(7.5, 12.5) })
-        }
-
-        const spokeCount = 10 + this.rng.int(0, 3)
-        for (let i = 0; i < spokeCount; i += 1) {
-          const a = (Math.PI * 2 * i) / spokeCount + this.rng.range(-0.12, 0.12)
-          roads.push({
-            kind: 'curve',
-            x1: clamp(cx + Math.cos(a) * this.rng.range(50, 140), 20, CITY_W - 20),
-            y1: clamp(cy + Math.sin(a) * this.rng.range(50, 120), 20, CITY_H - 20),
-            cx: clamp(cx + Math.cos(a + this.rng.range(-0.45, 0.45)) * this.rng.range(280, 460), 20, CITY_W - 20),
-            cy: clamp(cy + Math.sin(a + this.rng.range(-0.45, 0.45)) * this.rng.range(220, 410), 20, CITY_H - 20),
-            x2: clamp(cx + Math.cos(a) * this.rng.range(680, 1080), 10, CITY_W - 10),
-            y2: clamp(cy + Math.sin(a) * this.rng.range(560, 880), 10, CITY_H - 10),
-            width: this.rng.range(6.8, 10.8),
-          })
-        }
-        return roads
-      }
-
-      generateBackdrop(zones) {
-        const shoreline = []
-        const bandY = CITY_H * 0.77
-        const step = 72
-        for (let x = 0; x <= CITY_W + step; x += step) {
-          const waveA = Math.sin((x / CITY_W) * Math.PI * 2.6 + this.seed * 0.34) * 46
-          const waveB = Math.sin((x / CITY_W) * Math.PI * 6.2 + this.seed * 0.77) * 19
-          shoreline.push({ x, y: bandY + waveA + waveB })
-        }
-
-        const islands = []
-        for (let i = 0; i < 22; i += 1) {
-          islands.push({
-            x: this.rng.range(40, CITY_W - 40),
-            y: this.rng.range(CITY_H * 0.83, CITY_H - 14),
-            r: this.rng.range(6, 26),
-          })
-        }
-
-        const arterials = []
-        for (let i = 0; i < 6; i += 1) {
-          arterials.push({
-            x1: this.rng.range(-100, CITY_W * 0.2),
-            y1: this.rng.range(40, CITY_H * 0.45),
-            cx: this.rng.range(CITY_W * 0.25, CITY_W * 0.75),
-            cy: this.rng.range(80, CITY_H * 0.55),
-            x2: this.rng.range(CITY_W * 0.75, CITY_W + 120),
-            y2: this.rng.range(40, CITY_H * 0.58),
-            width: this.rng.range(12, 22),
-          })
-        }
-
-        const localRoads = []
-        for (let i = 0; i < 24; i += 1) {
-          const points = []
-          const x0 = this.rng.range(60, CITY_W - 60)
-          const vertical = this.rng.next() > 0.5
-          if (vertical) {
-            for (let y = -30; y <= CITY_H + 30; y += this.rng.range(90, 140)) {
-              points.push({ x: x0 + this.rng.range(-25, 25), y: y + this.rng.range(-8, 8) })
-            }
-          } else {
-            const y0 = this.rng.range(40, CITY_H * 0.78)
-            for (let x = -40; x <= CITY_W + 40; x += this.rng.range(90, 150)) {
-              points.push({ x: x + this.rng.range(-10, 10), y: y0 + this.rng.range(-22, 22) })
-            }
-          }
-          localRoads.push({ points, width: this.rng.range(2.4, 5.2) })
-        }
-
-        const districtBlobs = zones.map((z) => {
-          const points = []
-          const slices = 10
-          for (let i = 0; i < slices; i += 1) {
-            const a = (Math.PI * 2 * i) / slices
-            const rx = (z.w * 0.5) * this.rng.range(0.72, 1.08)
-            const ry = (z.h * 0.5) * this.rng.range(0.72, 1.08)
-            points.push({
-              x: z.x + Math.cos(a) * rx,
-              y: z.y + Math.sin(a) * ry,
-            })
-          }
-          return { zoneId: z.id, color: z.color, points }
-        })
-
-        const lakes = []
-        for (let i = 0; i < 3; i += 1) {
-          lakes.push({
-            x: this.rng.range(CITY_W * 0.62, CITY_W * 0.88),
-            y: this.rng.range(CITY_H * 0.22, CITY_H * 0.62),
-            rx: this.rng.range(60, 130),
-            ry: this.rng.range(50, 120),
-            rot: this.rng.range(-0.5, 0.5),
-          })
-        }
-        lakes.push({
-          x: this.rng.range(CITY_W * 0.08, CITY_W * 0.22),
-          y: this.rng.range(CITY_H * 0.28, CITY_H * 0.48),
-          rx: this.rng.range(35, 75),
-          ry: this.rng.range(32, 68),
-          rot: this.rng.range(-0.4, 0.4),
-        })
-
-        const forestPatches = []
-        for (let i = 0; i < 110; i += 1) {
-          forestPatches.push({
-            x: this.rng.range(0, CITY_W),
-            y: this.rng.range(0, CITY_H),
-            r: this.rng.range(22, 82),
-            a: this.rng.range(0.12, 0.32),
-          })
-        }
-
-        const farmPatches = []
-        for (let i = 0; i < 120; i += 1) {
-          farmPatches.push({
-            x: this.rng.range(20, CITY_W - 20),
-            y: this.rng.range(20, CITY_H - 20),
-            w: this.rng.range(22, 90),
-            h: this.rng.range(16, 70),
-            rot: this.rng.range(-0.4, 0.4),
-            tone: this.rng.int(0, 3),
-          })
-        }
-
-        const industrialZone = zones.find((z) => z.key === 'industrial') || zones[0]
-        const industrialArea = {
-          x: clamp(industrialZone.x + this.rng.range(120, 260), CITY_W * 0.56, CITY_W - 430),
-          y: clamp(industrialZone.y + this.rng.range(90, 170), CITY_H * 0.52, CITY_H - 310),
-          w: this.rng.range(280, 390),
-          h: this.rng.range(190, 270),
-        }
-
-        const parcels = []
-        for (const z of zones) {
-          const count = Math.floor(70 + z.density * 120)
-          for (let i = 0; i < count; i += 1) {
-            const px = z.x + this.rng.range(-z.w * 0.46, z.w * 0.46)
-            const py = z.y + this.rng.range(-z.h * 0.46, z.h * 0.46)
-            const pw = this.rng.range(6, 22)
-            const ph = this.rng.range(6, 20)
-            const rot = this.rng.range(-0.16, 0.16)
-            parcels.push({ x: px, y: py, w: pw, h: ph, rot })
-          }
-        }
-
-        const residentialBlocks = []
-        for (const z of zones) {
-          if (!['residencial', 'suburbio', 'rico', 'gueto'].includes(z.key)) continue
-          const blockCount = Math.floor(90 + z.density * 160)
-          for (let i = 0; i < blockCount; i += 1) {
-            residentialBlocks.push({
-              x: clamp(z.x + this.rng.range(-z.w * 0.44, z.w * 0.44), 20, CITY_W - 20),
-              y: clamp(z.y + this.rng.range(-z.h * 0.44, z.h * 0.44), 20, CITY_H - 20),
-              w: this.rng.range(4, 12),
-              h: this.rng.range(4, 12),
-              rot: this.rng.range(-0.22, 0.22),
-              t: this.rng.int(0, 2),
-            })
-          }
-        }
-
+    function createStaticCity(mapConfig) {
+      const cfg = normalizeCityMapConfig(mapConfig)
+      const { cellW, cellH } = getGridMetrics()
+      const zones = cfg.zones.map((z, index) => {
+        const cw = Math.max(1, Number(z.cw || 1))
+        const rh = Math.max(1, Number(z.rh || 1))
+        const col = Math.max(0, Number(z.col || 0))
+        const row = Math.max(0, Number(z.row || 0))
+        const w = cw * cellW
+        const h = rh * cellH
         return {
-          shoreline,
-          islands,
-          arterials,
-          localRoads,
-          districtBlobs,
-          lakes,
-          forestPatches,
-          farmPatches,
-          industrialArea,
-          parcels,
-          residentialBlocks,
+          id: z.id || `zone_${index}`,
+          key: z.key || 'zona',
+          label: z.label || 'Zona',
+          color: z.color || '#8a946f',
+          density: Number(z.density ?? 0.4),
+          x: (col + cw * 0.5) * cellW,
+          y: (row + rh * 0.5) * cellH,
+          w,
+          h,
+          reveal: clamp(Number(z.reveal ?? 0.8), 0, 1),
+          districtName: z.districtName || z.label || 'Zona',
         }
-      }
-
-      generateStreetNames(count) {
-        const names = []
-        for (let i = 0; i < count; i += 1) {
-          names.push(`${this.rng.pick(STREET_PART_A)} ${this.rng.pick(STREET_PART_B)} ${this.rng.int(1, 99)}`)
-        }
-        return names
-      }
-
-      generateLocations(zones) {
-        const fixed = [
-          ['bank', '🏦 Banco'], ['hospital', '🏥 Hospital'], ['prison', '⛓️ Prisão'], ['gym', '💪 Gym'], ['school', '🏫 Escola'], ['shop', '🛒 Loja'],
-        ]
-        const unique = [
-          ['casino', '🎰 Casino'], ['warehouse', '📦 Armazém'], ['harbor', '🚢 Porto Seco'], ['club', '🎵 Clube Nocturno'], ['factory', '🏭 Fábrica'],
-        ]
-        const all = [...fixed, ...unique]
-        const locations = all.map(([key, name], idx) => {
-          const zone = zones[(idx * 3 + this.seed) % zones.length]
-          return {
-            key,
-            name,
-            x: clamp(zone.x + this.rng.range(-zone.w * 0.28, zone.w * 0.28), 80, CITY_W - 80),
-            y: clamp(zone.y + this.rng.range(-zone.h * 0.28, zone.h * 0.28), 80, CITY_H - 80),
-          }
-        })
-        return locations
+      })
+      const locations = cfg.locations.map((loc) => ({
+        key: loc.key,
+        name: loc.name,
+        x: (Number(loc.col || 0) + 0.5) * cellW,
+        y: (Number(loc.row || 0) + 0.5) * cellH,
+      }))
+      return {
+        cityName: STATIC_CITY_NAME,
+        zones,
+        roads: [],
+        backdrop: {
+          shoreline: [],
+          islands: [],
+          arterials: [],
+          localRoads: [],
+          districtBlobs: [],
+          lakes: [],
+          forestPatches: [],
+          farmPatches: [],
+          industrialArea: null,
+          parcels: [],
+          residentialBlocks: [],
+        },
+        locations,
       }
     }
 
     const state = {
       city: null,
+      mapConfig: normalizeCityMapConfig(DEFAULT_CITY_MAP_CONFIG),
       baseMapImage: null,
+      camera: {
+        zoom: 1,
+        minZoom: 1,
+        maxZoom: 4,
+        zoomStep: 0.25,
+        cx: CITY_W / 2,
+        cy: CITY_H / 2,
+      },
       events: [],
       hover: { x: 0, y: 0 },
       selectedEventId: null,
@@ -960,6 +814,8 @@
     const resultPanel = document.getElementById('resultPanel')
     const resultData = document.getElementById('resultData')
     const btnBackMap = document.getElementById('btnBackMap')
+    const btnZoomIn = document.getElementById('btnZoomIn')
+    const btnZoomOut = document.getElementById('btnZoomOut')
 
     function resize() {
       const dpr = window.devicePixelRatio || 1
@@ -980,10 +836,30 @@
     function viewTransform() {
       const sx = canvas.clientWidth / CITY_W
       const sy = canvas.clientHeight / CITY_H
-      const scale = Math.min(sx, sy)
-      const offsetX = (canvas.clientWidth - CITY_W * scale) / 2
-      const offsetY = (canvas.clientHeight - CITY_H * scale) / 2
+      const baseScale = Math.min(sx, sy)
+      const zoom = clamp(state.camera.zoom, state.camera.minZoom, state.camera.maxZoom)
+      const scale = baseScale * zoom
+      const offsetX = canvas.clientWidth / 2 - state.camera.cx * scale
+      const offsetY = canvas.clientHeight / 2 - state.camera.cy * scale
       return { scale, offsetX, offsetY }
+    }
+
+    function clampCamera() {
+      state.camera.cx = clamp(state.camera.cx, 0, CITY_W)
+      state.camera.cy = clamp(state.camera.cy, 0, CITY_H)
+    }
+
+    function setZoom(nextZoom, focusScreenX = canvas.clientWidth / 2, focusScreenY = canvas.clientHeight / 2) {
+      const prev = viewTransform()
+      const worldX = (focusScreenX - prev.offsetX) / prev.scale
+      const worldY = (focusScreenY - prev.offsetY) / prev.scale
+      const z = clamp(nextZoom, state.camera.minZoom, state.camera.maxZoom)
+      state.camera.zoom = z
+
+      const next = viewTransform()
+      state.camera.cx = worldX + (canvas.clientWidth / 2 - focusScreenX) / next.scale
+      state.camera.cy = worldY + (canvas.clientHeight / 2 - focusScreenY) / next.scale
+      clampCamera()
     }
 
     function worldToScreen(x, y) {
@@ -1018,6 +894,8 @@
         ctx.restore()
       }
 
+      drawGridOverlay(ctx)
+
       for (const patch of state.city.backdrop.forestPatches) {
         ctx.fillStyle = `rgba(46, 84, 42, ${patch.a})`
         ctx.beginPath()
@@ -1044,19 +922,21 @@
       }
 
       const shore = state.city.backdrop.shoreline
-      ctx.strokeStyle = 'rgba(196, 189, 144, 0.7)'
-      ctx.lineWidth = 10
-      ctx.beginPath()
-      ctx.moveTo(shore[0].x, shore[0].y)
-      for (let i = 1; i < shore.length; i += 1) ctx.lineTo(shore[i].x, shore[i].y)
-      ctx.stroke()
+      if (shore.length) {
+        ctx.strokeStyle = 'rgba(196, 189, 144, 0.7)'
+        ctx.lineWidth = 10
+        ctx.beginPath()
+        ctx.moveTo(shore[0].x, shore[0].y)
+        for (let i = 1; i < shore.length; i += 1) ctx.lineTo(shore[i].x, shore[i].y)
+        ctx.stroke()
 
-      ctx.strokeStyle = 'rgba(83, 107, 151, 0.32)'
-      ctx.lineWidth = 4
-      ctx.beginPath()
-      ctx.moveTo(shore[0].x, shore[0].y + 6)
-      for (let i = 1; i < shore.length; i += 1) ctx.lineTo(shore[i].x, shore[i].y + 6)
-      ctx.stroke()
+        ctx.strokeStyle = 'rgba(83, 107, 151, 0.32)'
+        ctx.lineWidth = 4
+        ctx.beginPath()
+        ctx.moveTo(shore[0].x, shore[0].y + 6)
+        for (let i = 1; i < shore.length; i += 1) ctx.lineTo(shore[i].x, shore[i].y + 6)
+        ctx.stroke()
+      }
 
       for (const lake of state.city.backdrop.lakes) {
         ctx.save()
@@ -1093,11 +973,6 @@
         ctx.fill()
       }
 
-      for (const lr of state.city.backdrop.localRoads) {
-        drawPolyline(ctx, lr.points, 'rgba(45,45,45,0.88)', lr.width + 2.8)
-        drawPolyline(ctx, lr.points, 'rgba(132,132,132,0.84)', lr.width)
-      }
-
       for (const parcel of state.city.backdrop.parcels) {
         ctx.save()
         ctx.translate(parcel.x, parcel.y)
@@ -1124,40 +999,17 @@
       }
 
       const ia = state.city.backdrop.industrialArea
-      ctx.fillStyle = 'rgba(196, 194, 186, 0.78)'
-      roundRect(ctx, ia.x, ia.y, ia.w, ia.h, 8, true, false)
-      for (let gy = ia.y + 10; gy < ia.y + ia.h - 10; gy += 28) {
-        for (let gx = ia.x + 10; gx < ia.x + ia.w - 10; gx += 40) {
-          ctx.fillStyle = 'rgba(160, 162, 158, 0.92)'
-          ctx.fillRect(gx, gy, 28, 18)
-          ctx.strokeStyle = 'rgba(120, 122, 118, 0.7)'
-          ctx.strokeRect(gx, gy, 28, 18)
+      if (ia) {
+        ctx.fillStyle = 'rgba(196, 194, 186, 0.78)'
+        roundRect(ctx, ia.x, ia.y, ia.w, ia.h, 8, true, false)
+        for (let gy = ia.y + 10; gy < ia.y + ia.h - 10; gy += 28) {
+          for (let gx = ia.x + 10; gx < ia.x + ia.w - 10; gx += 40) {
+            ctx.fillStyle = 'rgba(160, 162, 158, 0.92)'
+            ctx.fillRect(gx, gy, 28, 18)
+            ctx.strokeStyle = 'rgba(120, 122, 118, 0.7)'
+            ctx.strokeRect(gx, gy, 28, 18)
+          }
         }
-      }
-
-      for (const a of state.city.backdrop.arterials) {
-        ctx.strokeStyle = 'rgba(66,66,66,0.95)'
-        ctx.lineWidth = a.width + 10
-        ctx.beginPath()
-        ctx.moveTo(a.x1, a.y1)
-        ctx.quadraticCurveTo(a.cx, a.cy, a.x2, a.y2)
-        ctx.stroke()
-
-        ctx.strokeStyle = 'rgba(188,188,188,0.86)'
-        ctx.lineWidth = a.width + 4
-        ctx.beginPath()
-        ctx.moveTo(a.x1, a.y1)
-        ctx.quadraticCurveTo(a.cx, a.cy, a.x2, a.y2)
-        ctx.stroke()
-
-        ctx.strokeStyle = 'rgba(245,245,245,0.34)'
-        ctx.lineWidth = 1
-        ctx.setLineDash([10, 10])
-        ctx.beginPath()
-        ctx.moveTo(a.x1, a.y1)
-        ctx.quadraticCurveTo(a.cx, a.cy, a.x2, a.y2)
-        ctx.stroke()
-        ctx.setLineDash([])
       }
 
       for (const z of state.city.zones) {
@@ -1165,29 +1017,6 @@
         ctx.fillStyle = 'rgba(50,52,46,0.7)'
         ctx.font = '10px "Share Tech Mono"'
         ctx.fillText(z.districtName, z.x - z.w / 2 + 8, z.y - z.h / 2 + 18)
-      }
-
-      for (let i = 0; i < state.city.roads.length; i += 1) {
-        const r = state.city.roads[i]
-        ctx.strokeStyle = 'rgba(68,68,68,0.95)'
-        ctx.lineWidth = r.width + 8
-        ctx.beginPath()
-        traceRoadPath(ctx, r)
-        ctx.stroke()
-
-        ctx.strokeStyle = 'rgba(170,170,170,0.95)'
-        ctx.lineWidth = r.width + 3
-        ctx.beginPath()
-        traceRoadPath(ctx, r)
-        ctx.stroke()
-
-        ctx.strokeStyle = 'rgba(255,255,255,0.44)'
-        ctx.lineWidth = 1
-        ctx.setLineDash([8, 10])
-        ctx.beginPath()
-        traceRoadPath(ctx, r)
-        ctx.stroke()
-        ctx.setLineDash([])
       }
 
       for (const loc of state.city.locations) {
@@ -1206,15 +1035,6 @@
         ctx.fillStyle = '#1b1b1b'
         ctx.font = '10px "Share Tech Mono"'
         ctx.fillText(loc.name, loc.x + 14, loc.y + 3)
-      }
-
-      for (let i = 0; i < 180; i += 1) {
-        const px = ((i * 157) % CITY_W)
-        const py = ((i * 223 + MAP_SEED * 31) % CITY_H)
-        ctx.fillStyle = i % 3 ? 'rgba(198, 77, 77, 0.28)' : 'rgba(58, 130, 96, 0.26)'
-        ctx.beginPath()
-        ctx.arc(px, py, 1.1, 0, Math.PI * 2)
-        ctx.fill()
       }
 
       drawFogOfWar(ctx)
@@ -1286,7 +1106,53 @@
     function drawCursorHUD() {
       const { x, y } = state.hover
       const zone = pickZoneForPoint(x, y)
-      cityMetaEl.textContent = `COORD ${Math.round(x)},${Math.round(y)}${zone ? ` · ${zone.label}` : ''}`
+      const cfg = state.mapConfig.grid || DEFAULT_CITY_MAP_CONFIG.grid
+      const zoom = state.camera.zoom
+      const subLevel = Math.min(
+        Number(cfg.maxSubDivisions || 1),
+        Math.max(1, Math.floor((zoom - 1) / 0.75) + 1)
+      )
+      const factor = Math.pow(Number(cfg.subDivisionFactor || 2), Math.max(0, subLevel - 1))
+      const cols = Math.max(1, Number(cfg.majorCols || 6) * factor)
+      const rows = Math.max(1, Number(cfg.majorRows || 4) * factor)
+      const cellW = CITY_W / cols
+      const cellH = CITY_H / rows
+      const col = clamp(Math.floor(x / cellW), 0, cols - 1)
+      const row = clamp(Math.floor(y / cellH), 0, rows - 1)
+      cityMetaEl.textContent = `COORD ${Math.round(x)},${Math.round(y)} · GRID L${subLevel} ${col},${row}${zone ? ` · ${zone.label}` : ''}`
+    }
+
+    function drawGridOverlay(g) {
+      const cfg = state.mapConfig.grid || DEFAULT_CITY_MAP_CONFIG.grid
+      const zoom = state.camera.zoom
+      const subLevel = Math.min(
+        Number(cfg.maxSubDivisions || 1),
+        Math.max(1, Math.floor((zoom - 1) / 0.75) + 1)
+      )
+      const factor = Math.pow(Number(cfg.subDivisionFactor || 2), Math.max(0, subLevel - 1))
+      const cols = Math.max(1, Number(cfg.majorCols || 6) * factor)
+      const rows = Math.max(1, Number(cfg.majorRows || 4) * factor)
+      const cellW = CITY_W / cols
+      const cellH = CITY_H / rows
+
+      g.save()
+      g.strokeStyle = 'rgba(42, 48, 42, 0.28)'
+      g.lineWidth = 1
+      for (let c = 1; c < cols; c += 1) {
+        const x = c * cellW
+        g.beginPath()
+        g.moveTo(x, 0)
+        g.lineTo(x, CITY_H)
+        g.stroke()
+      }
+      for (let r = 1; r < rows; r += 1) {
+        const y = r * cellH
+        g.beginPath()
+        g.moveTo(0, y)
+        g.lineTo(CITY_W, y)
+        g.stroke()
+      }
+      g.restore()
     }
 
     function loadBaseMapImage(src) {
@@ -1296,6 +1162,17 @@
         img.onerror = () => resolve(null)
         img.src = src
       })
+    }
+
+    async function loadCityMapConfig() {
+      try {
+        const res = await fetch('/api/world/city-map/config', { cache: 'no-store' })
+        if (!res.ok) throw new Error('fetch_failed')
+        const data = await res.json()
+        return normalizeCityMapConfig(data?.cityMap)
+      } catch (error) {
+        return normalizeCityMapConfig(DEFAULT_CITY_MAP_CONFIG)
+      }
     }
 
     function roundRect(g, x, y, w, h, r, fill, stroke) {
@@ -1311,45 +1188,6 @@
       g.quadraticCurveTo(x, y, x + r, y)
       if (fill) g.fill()
       if (stroke) g.stroke()
-    }
-
-    function drawPolyline(g, points, color, width) {
-      if (!points || points.length < 2) return
-      g.strokeStyle = color
-      g.lineWidth = width
-      g.beginPath()
-      g.moveTo(points[0].x, points[0].y)
-      for (let i = 1; i < points.length; i += 1) {
-        const prev = points[i - 1]
-        const curr = points[i]
-        const mx = (prev.x + curr.x) * 0.5
-        const my = (prev.y + curr.y) * 0.5
-        g.quadraticCurveTo(prev.x, prev.y, mx, my)
-      }
-      g.lineTo(points[points.length - 1].x, points[points.length - 1].y)
-      g.stroke()
-    }
-
-    function traceRoadPath(g, road) {
-      if (road.kind === 'poly' && road.points && road.points.length > 1) {
-        g.moveTo(road.points[0].x, road.points[0].y)
-        for (let i = 1; i < road.points.length; i += 1) {
-          const prev = road.points[i - 1]
-          const curr = road.points[i]
-          const mx = (prev.x + curr.x) * 0.5
-          const my = (prev.y + curr.y) * 0.5
-          g.quadraticCurveTo(prev.x, prev.y, mx, my)
-        }
-        g.lineTo(road.points[road.points.length - 1].x, road.points[road.points.length - 1].y)
-        return
-      }
-      if (road.kind === 'curve' && Number.isFinite(road.cx) && Number.isFinite(road.cy)) {
-        g.moveTo(road.x1, road.y1)
-        g.quadraticCurveTo(road.cx, road.cy, road.x2, road.y2)
-        return
-      }
-      g.moveTo(road.x1, road.y1)
-      g.lineTo(road.x2, road.y2)
     }
 
     function buildLegend() {
@@ -1394,7 +1232,7 @@
     }
 
     function regenerateEvents() {
-      const rng = new RNG(MAP_SEED * 73129 + Date.now())
+      const rng = new RNG(EVENT_SEED * 73129 + Date.now())
       const count = 9 + rng.int(0, 6)
       const events = []
       for (let i = 0; i < count; i += 1) {
@@ -1445,7 +1283,7 @@
     }
 
     function computeOutcome(eventObj, actionState) {
-      const rng = new RNG(Date.now() + MAP_SEED * 91)
+      const rng = new RNG(Date.now() + EVENT_SEED * 91)
       const riskBase = actionState.riskFactor
       const hpFactor = state.playerState.hp / 100
       const stressFactor = clamp(1 - state.playerState.stress / 120, 0.2, 1)
@@ -1661,12 +1499,35 @@
       closeEventModal()
     })
 
+    canvas.addEventListener('wheel', (ev) => {
+      ev.preventDefault()
+      const rect = canvas.getBoundingClientRect()
+      const x = ev.clientX - rect.left
+      const y = ev.clientY - rect.top
+      const dir = ev.deltaY < 0 ? 1 : -1
+      setZoom(state.camera.zoom + dir * state.camera.zoomStep, x, y)
+    }, { passive: false })
+
+    btnZoomIn?.addEventListener('click', () => {
+      setZoom(state.camera.zoom + state.camera.zoomStep)
+    })
+    btnZoomOut?.addEventListener('click', () => {
+      setZoom(state.camera.zoom - state.camera.zoomStep)
+    })
+
     window.addEventListener('resize', resize)
 
     async function init() {
-      state.baseMapImage = await loadBaseMapImage(BASE_MAP_IMAGE_URL)
-      const generator = new CityGenerator(MAP_SEED)
-      state.city = generator.generate()
+      state.mapConfig = await loadCityMapConfig()
+      const zcfg = state.mapConfig.zoom || DEFAULT_CITY_MAP_CONFIG.zoom
+      state.camera.minZoom = Math.max(0.25, Number(zcfg.min || 1))
+      state.camera.maxZoom = Math.max(state.camera.minZoom, Number(zcfg.max || 4))
+      state.camera.zoomStep = Math.max(0.05, Number(zcfg.step || 0.25))
+      state.camera.zoom = clamp(Number(zcfg.initial || 1), state.camera.minZoom, state.camera.maxZoom)
+
+      const imageUrl = state.mapConfig.imageUrl || BASE_MAP_IMAGE_URL
+      state.baseMapImage = await loadBaseMapImage(imageUrl)
+      state.city = createStaticCity(state.mapConfig)
       cityNameEl.textContent = state.city.cityName
       buildLegend()
       regenerateEvents()

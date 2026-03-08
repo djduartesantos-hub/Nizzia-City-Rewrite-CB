@@ -10,6 +10,165 @@ async function ensureAdmin(req) {
   return admin
 }
 
+function sanitizeMapZoneEntry(zone, index = 0) {
+  if (!zone || typeof zone !== 'object') return null
+  const id = asString(zone.id, `zone_${index}`) || `zone_${index}`
+  const key = asString(zone.key, 'zona') || 'zona'
+  const label = asString(zone.label, key || `Zona ${index + 1}`) || key || `Zona ${index + 1}`
+  const color = asString(zone.color, '#8a946f') || '#8a946f'
+  const districtName = asString(zone.districtName, label) || label
+  const density = asNumber(zone.density, { min: 0, max: 1, defaultValue: 0.4 })
+  const reveal = asNumber(zone.reveal, { min: 0, max: 1, defaultValue: 0.8 })
+  const col = asNumber(zone.col, { min: 0, defaultValue: 0 })
+  const row = asNumber(zone.row, { min: 0, defaultValue: 0 })
+  const cw = asNumber(zone.cw, { min: 1, defaultValue: 1 })
+  const rh = asNumber(zone.rh, { min: 1, defaultValue: 1 })
+  return {
+    id,
+    key,
+    label,
+    color,
+    density,
+    col,
+    row,
+    cw,
+    rh,
+    reveal,
+    districtName,
+  }
+}
+
+async function listCityMapZones(req, res) {
+  try {
+    await ensureAdmin(req)
+    const configs = await getConfigs(['cityMap'])
+    const cityMap = configs.cityMap || {}
+    return res.json({
+      zones: Array.isArray(cityMap.zones) ? cityMap.zones : [],
+      cityMap,
+    })
+  } catch (err) {
+    const status = err.message === 'Unauthorized' ? 401 : err.message === 'Forbidden' ? 403 : 500
+    return res.status(status).json({ error: err.message || 'Falha ao listar zonas do mapa' })
+  }
+}
+
+async function createCityMapZone(req, res) {
+  try {
+    await ensureAdmin(req)
+    const zone = sanitizeMapZoneEntry(req.body || {}, Date.now())
+    if (!zone) return res.status(400).json({ error: 'Zona inválida' })
+
+    const configs = await getConfigs(['cityMap'])
+    const cityMap = configs.cityMap || {}
+    const zones = Array.isArray(cityMap.zones) ? [...cityMap.zones] : []
+    if (zones.some((entry) => asString(entry?.id) === zone.id)) {
+      return res.status(409).json({ error: 'Já existe uma zona com esse ID' })
+    }
+    zones.push(zone)
+    const config = await updateConfig('cityMap', { zones })
+    return res.status(201).json({ zone, config })
+  } catch (err) {
+    const status = err.message === 'Unauthorized' ? 401 : err.message === 'Forbidden' ? 403 : 500
+    return res.status(status).json({ error: err.message || 'Falha ao criar zona do mapa' })
+  }
+}
+
+async function updateCityMapZone(req, res) {
+  try {
+    await ensureAdmin(req)
+    const zoneId = asString(req.params?.zoneId)
+    if (!zoneId) return res.status(400).json({ error: 'zoneId inválido' })
+
+    const configs = await getConfigs(['cityMap'])
+    const cityMap = configs.cityMap || {}
+    const zones = Array.isArray(cityMap.zones) ? [...cityMap.zones] : []
+    const index = zones.findIndex((entry) => asString(entry?.id) === zoneId)
+    if (index < 0) return res.status(404).json({ error: 'Zona não encontrada' })
+
+    const merged = { ...zones[index], ...(req.body || {}), id: zoneId }
+    const zone = sanitizeMapZoneEntry(merged, index)
+    if (!zone) return res.status(400).json({ error: 'Zona inválida' })
+
+    zones[index] = zone
+    const config = await updateConfig('cityMap', { zones })
+    return res.json({ zone, config })
+  } catch (err) {
+    const status = err.message === 'Unauthorized' ? 401 : err.message === 'Forbidden' ? 403 : 500
+    return res.status(status).json({ error: err.message || 'Falha ao atualizar zona do mapa' })
+  }
+}
+
+async function deleteCityMapZone(req, res) {
+  try {
+    await ensureAdmin(req)
+    const zoneId = asString(req.params?.zoneId)
+    if (!zoneId) return res.status(400).json({ error: 'zoneId inválido' })
+
+    const configs = await getConfigs(['cityMap'])
+    const cityMap = configs.cityMap || {}
+    const zones = Array.isArray(cityMap.zones) ? [...cityMap.zones] : []
+    const filtered = zones.filter((entry) => asString(entry?.id) !== zoneId)
+    if (filtered.length === zones.length) return res.status(404).json({ error: 'Zona não encontrada' })
+
+    const config = await updateConfig('cityMap', { zones: filtered })
+    return res.json({ ok: true, config })
+  } catch (err) {
+    const status = err.message === 'Unauthorized' ? 401 : err.message === 'Forbidden' ? 403 : 500
+    return res.status(status).json({ error: err.message || 'Falha ao remover zona do mapa' })
+  }
+}
+
+function sanitizeMapLocationEntry(loc) {
+  if (!loc || typeof loc !== 'object') return null
+  const key = asString(loc.key)
+  const name = asString(loc.name)
+  if (!key || !name) return null
+  const col = asNumber(loc.col, { min: 0, defaultValue: 0 })
+  const row = asNumber(loc.row, { min: 0, defaultValue: 0 })
+  return { key, name, col, row }
+}
+
+function sanitizeCityMapPayload(input = {}) {
+  if (!input || typeof input !== 'object') return null
+  const out = {}
+  if (Object.prototype.hasOwnProperty.call(input, 'imageUrl')) {
+    out.imageUrl = asString(input.imageUrl, '/map-reference.png') || '/map-reference.png'
+  }
+  if (input.grid && typeof input.grid === 'object') {
+    out.grid = {
+      cols: asNumber(input.grid.cols, { min: 4, max: 200, defaultValue: 20 }),
+      rows: asNumber(input.grid.rows, { min: 4, max: 200, defaultValue: 14 }),
+      majorCols: asNumber(input.grid.majorCols, { min: 1, max: 50, defaultValue: 6 }),
+      majorRows: asNumber(input.grid.majorRows, { min: 1, max: 50, defaultValue: 4 }),
+      subDivisionFactor: asNumber(input.grid.subDivisionFactor, { min: 1, max: 8, defaultValue: 2 }),
+      maxSubDivisions: asNumber(input.grid.maxSubDivisions, { min: 1, max: 8, defaultValue: 3 }),
+    }
+  }
+  if (input.zoom && typeof input.zoom === 'object') {
+    out.zoom = {
+      min: asNumber(input.zoom.min, { min: 0.25, max: 10, defaultValue: 1 }),
+      max: asNumber(input.zoom.max, { min: 0.5, max: 12, defaultValue: 4 }),
+      step: asNumber(input.zoom.step, { min: 0.05, max: 2, defaultValue: 0.25 }),
+      initial: asNumber(input.zoom.initial, { min: 0.25, max: 10, defaultValue: 1 }),
+    }
+    if (out.zoom.max < out.zoom.min) out.zoom.max = out.zoom.min
+    out.zoom.initial = Math.min(out.zoom.max, Math.max(out.zoom.min, out.zoom.initial))
+  }
+  if (Array.isArray(input.zones)) {
+    out.zones = input.zones
+      .map((entry, idx) => sanitizeMapZoneEntry(entry, idx))
+      .filter(Boolean)
+  }
+  if (Array.isArray(input.locations)) {
+    out.locations = input.locations
+      .map((entry) => sanitizeMapLocationEntry(entry))
+      .filter(Boolean)
+  }
+  if (!Object.keys(out).length) return null
+  return out
+}
+
 function sanitizeWalkInConfig(payload = {}) {
   if (!payload || typeof payload !== 'object') return null
   const numericShape = {
@@ -146,7 +305,7 @@ function sanitizeCrimeEntry(crime) {
 async function getWorldConfigsController(req, res) {
   try {
     await ensureAdmin(req)
-    const configs = await getConfigs(['prison', 'hospital', 'crime', 'crimeCatalog'])
+    const configs = await getConfigs(['prison', 'hospital', 'crime', 'crimeCatalog', 'cityMap'])
     return res.json({ configs })
   } catch (err) {
     const status = err.message === 'Unauthorized' ? 401 : err.message === 'Forbidden' ? 403 : 500
@@ -273,10 +432,38 @@ async function updateCrimeCatalog(req, res) {
   }
 }
 
+async function updateCityMapConfig(req, res) {
+  try {
+    await ensureAdmin(req)
+    const payload = sanitizeCityMapPayload(req.body || {})
+    if (!payload) return res.status(400).json({ error: 'Nenhum campo válido enviado' })
+    const config = await updateConfig('cityMap', payload)
+    return res.json({ config })
+  } catch (err) {
+    const status = err.message === 'Unauthorized' ? 401 : err.message === 'Forbidden' ? 403 : 500
+    return res.status(status).json({ error: err.message || 'Falha ao guardar config do mapa' })
+  }
+}
+
+async function getPublicCityMapConfig(req, res) {
+  try {
+    const configs = await getConfigs(['cityMap'])
+    return res.json({ cityMap: configs.cityMap || {} })
+  } catch (err) {
+    return res.status(500).json({ error: 'Falha ao carregar config do mapa' })
+  }
+}
+
 module.exports = {
   getWorldConfigsController,
   updatePrisonConfig,
   updateHospitalConfig,
   updateCrimeConfig,
   updateCrimeCatalog,
+  updateCityMapConfig,
+  listCityMapZones,
+  createCityMapZone,
+  updateCityMapZone,
+  deleteCityMapZone,
+  getPublicCityMapConfig,
 }

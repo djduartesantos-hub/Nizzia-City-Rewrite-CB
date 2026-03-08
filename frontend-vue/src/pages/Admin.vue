@@ -313,6 +313,7 @@
           </div>
         </div>
       </section>
+
     </div>
 
     <div class="tab-panel" v-show="currentTab === 'Stats'">
@@ -353,6 +354,7 @@
           </div>
         </div>
       </section>
+
     </div>
 
     <div class="tab-panel" v-show="currentTab === 'Inventário & Itens'">
@@ -1169,6 +1171,103 @@
           </div>
         </div>
       </section>
+
+      <section class="section-block">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow mini">City Map</p>
+            <h3>Mapa da Cidade & Zonas</h3>
+            <p class="muted">Define grelha/zoom e gere zonas (criar, editar, apagar).</p>
+          </div>
+          <div class="actions">
+            <button class="secondary" @click="loadCityMapZones(true)" :disabled="mapZoneLoading">Recarregar zonas</button>
+          </div>
+        </div>
+        <div class="card-grid two-col">
+          <div class="card card-full">
+            <div class="card-header">
+              <h3>Configuração do mapa</h3>
+              <small>Controla imagem base, grelha macro e níveis de zoom.</small>
+            </div>
+            <div class="row">
+              <div><label>Imagem base (URL)</label><input v-model.trim="worldConfigs.cityMap.imageUrl" placeholder="/map-reference.png" /></div>
+            </div>
+            <div class="row">
+              <div><label>Cols</label><input v-model.number="worldConfigs.cityMap.grid.cols" type="number" min="4" /></div>
+              <div><label>Rows</label><input v-model.number="worldConfigs.cityMap.grid.rows" type="number" min="4" /></div>
+              <div><label>Macro Cols</label><input v-model.number="worldConfigs.cityMap.grid.majorCols" type="number" min="1" /></div>
+              <div><label>Macro Rows</label><input v-model.number="worldConfigs.cityMap.grid.majorRows" type="number" min="1" /></div>
+              <div><label>Sub divisão</label><input v-model.number="worldConfigs.cityMap.grid.subDivisionFactor" type="number" min="1" /></div>
+              <div><label>Max sub níveis</label><input v-model.number="worldConfigs.cityMap.grid.maxSubDivisions" type="number" min="1" /></div>
+            </div>
+            <div class="row">
+              <div><label>Zoom mínimo</label><input v-model.number="worldConfigs.cityMap.zoom.min" type="number" min="0.25" step="0.05" /></div>
+              <div><label>Zoom máximo</label><input v-model.number="worldConfigs.cityMap.zoom.max" type="number" min="0.5" step="0.05" /></div>
+              <div><label>Step zoom</label><input v-model.number="worldConfigs.cityMap.zoom.step" type="number" min="0.05" step="0.05" /></div>
+              <div><label>Zoom inicial</label><input v-model.number="worldConfigs.cityMap.zoom.initial" type="number" min="0.25" step="0.05" /></div>
+            </div>
+            <div class="actions">
+              <button :disabled="worldSaving.cityMap" @click="saveCityMapConfig">Guardar config do mapa</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h3>Zonas ({{ mapZones.length }})</h3>
+              <small>Seleciona uma zona para editar.</small>
+            </div>
+            <div class="actions">
+              <button class="secondary" @click="newMapZone">Nova zona</button>
+            </div>
+            <div class="list">
+              <div v-if="mapZoneLoading" class="muted">A carregar zonas…</div>
+              <div v-else-if="!mapZones.length" class="muted">Sem zonas configuradas</div>
+              <div
+                v-else
+                v-for="zone in mapZones"
+                :key="zone.id"
+                class="list-row crime-row"
+                :class="{ active: zone.id === selectedMapZoneId }"
+                @click="selectMapZone(zone)"
+              >
+                <div>
+                  <strong>{{ zone.label }}</strong>
+                  <div class="muted">{{ zone.key }} · ID {{ zone.id }}</div>
+                </div>
+                <span class="muted">{{ zone.col }},{{ zone.row }} · {{ zone.cw }}x{{ zone.rh }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h3>Editor de zona</h3>
+              <small>Cria nova zona ou guarda alterações.</small>
+            </div>
+            <div class="row">
+              <div><label>ID</label><input v-model.trim="mapZoneEditor.id" /></div>
+              <div><label>Key</label><input v-model.trim="mapZoneEditor.key" /></div>
+              <div><label>Nome</label><input v-model.trim="mapZoneEditor.label" /></div>
+              <div><label>Distrito</label><input v-model.trim="mapZoneEditor.districtName" /></div>
+            </div>
+            <div class="row">
+              <div><label>Cor</label><input v-model.trim="mapZoneEditor.color" placeholder="#8a946f" /></div>
+              <div><label>Densidade</label><input v-model.number="mapZoneEditor.density" type="number" min="0" max="1" step="0.01" /></div>
+              <div><label>Reveal</label><input v-model.number="mapZoneEditor.reveal" type="number" min="0" max="1" step="0.01" /></div>
+            </div>
+            <div class="row">
+              <div><label>Col</label><input v-model.number="mapZoneEditor.col" type="number" min="0" /></div>
+              <div><label>Row</label><input v-model.number="mapZoneEditor.row" type="number" min="0" /></div>
+              <div><label>Cell Width</label><input v-model.number="mapZoneEditor.cw" type="number" min="1" /></div>
+              <div><label>Cell Height</label><input v-model.number="mapZoneEditor.rh" type="number" min="1" /></div>
+            </div>
+            <div class="actions">
+              <button :disabled="mapZoneSaving" @click="saveMapZone">{{ mapZoneExists ? 'Guardar zona' : 'Criar zona' }}</button>
+              <button class="secondary" :disabled="mapZoneSaving || !mapZoneExists" @click="deleteMapZone">Apagar</button>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
 
     <div class="tab-panel" v-show="currentTab === 'NPC'">
@@ -1786,6 +1885,23 @@ const worldBase = {
   crimeCatalog: {
     crimes: [],
   },
+  cityMap: {
+    imageUrl: '/map-reference.png',
+    grid: {
+      cols: 20,
+      rows: 14,
+      majorCols: 6,
+      majorRows: 4,
+      subDivisionFactor: 2,
+      maxSubDivisions: 3,
+    },
+    zoom: {
+      min: 1,
+      max: 4,
+      step: 0.25,
+      initial: 1,
+    },
+  },
 }
 
 function cloneWorldBase() {
@@ -1795,10 +1911,33 @@ function cloneWorldBase() {
 const worldConfigs = reactive(cloneWorldBase())
 const worldLoading = ref(false)
 const worldLoaded = ref(false)
-const worldSaving = reactive({ prison: false, hospital: false, crime: false })
+const worldSaving = reactive({ prison: false, hospital: false, crime: false, cityMap: false })
 const crimeCatalog = ref([])
 const selectedCrimeId = ref('')
 const catalogSaving = ref(false)
+const mapZones = ref([])
+const mapZoneLoading = ref(false)
+const mapZoneSaving = ref(false)
+const selectedMapZoneId = ref('')
+
+function emptyMapZone() {
+  return {
+    id: '',
+    key: '',
+    label: '',
+    color: '#8a946f',
+    density: 0.4,
+    col: 0,
+    row: 0,
+    cw: 1,
+    rh: 1,
+    reveal: 0.8,
+    districtName: '',
+  }
+}
+
+const mapZoneEditor = reactive(emptyMapZone())
+const mapZoneExists = computed(() => mapZones.value.some((zone) => zone.id === mapZoneEditor.id))
 
 const prisonOverview = reactive({
   loading: false,
@@ -1883,6 +2022,23 @@ function mergeWorldSection(section, incoming = {}) {
     }
     return
   }
+  if (section === 'cityMap') {
+    const grid = incoming?.grid || {}
+    const zoom = incoming?.zoom || {}
+    const rest = { ...(incoming || {}) }
+    delete rest.grid
+    delete rest.zoom
+    Object.assign(worldConfigs.cityMap, rest)
+    worldConfigs.cityMap.grid = {
+      ...worldConfigs.cityMap.grid,
+      ...grid,
+    }
+    worldConfigs.cityMap.zoom = {
+      ...worldConfigs.cityMap.zoom,
+      ...zoom,
+    }
+    return
+  }
   Object.assign(worldConfigs[section], incoming || {})
 }
 
@@ -1896,6 +2052,7 @@ async function loadWorldConfigs(force = false) {
     mergeWorldSection('prison', configs.prison)
     mergeWorldSection('hospital', configs.hospital)
     mergeWorldSection('crime', configs.crime)
+    mergeWorldSection('cityMap', configs.cityMap)
     crimeCatalog.value = (configs.crimeCatalog?.crimes || []).map((entry) => cloneCrimeEntry(entry))
     if (!crimeCatalog.value.length) {
       crimeCatalog.value.push(cloneCrimeEntry())
@@ -1926,6 +2083,110 @@ async function saveWorldSection(section, endpoint, trackerKey) {
 const savePrisonConfig = () => saveWorldSection('prison', '/admin/world/config/prison', 'prison')
 const saveHospitalConfig = () => saveWorldSection('hospital', '/admin/world/config/hospital', 'hospital')
 const saveCrimeConfig = () => saveWorldSection('crime', '/admin/world/config/crime', 'crime')
+const saveCityMapConfig = () => saveWorldSection('cityMap', '/admin/world/config/city-map', 'cityMap')
+
+function normalizeMapZoneInput(entry = {}) {
+  return {
+    id: String(entry.id || '').trim(),
+    key: String(entry.key || '').trim(),
+    label: String(entry.label || '').trim(),
+    color: String(entry.color || '#8a946f').trim() || '#8a946f',
+    density: Number(entry.density ?? 0.4),
+    col: Number(entry.col ?? 0),
+    row: Number(entry.row ?? 0),
+    cw: Number(entry.cw ?? 1),
+    rh: Number(entry.rh ?? 1),
+    reveal: Number(entry.reveal ?? 0.8),
+    districtName: String(entry.districtName || '').trim(),
+  }
+}
+
+function writeMapZoneEditor(entry = {}) {
+  const zone = normalizeMapZoneInput(entry)
+  Object.assign(mapZoneEditor, zone)
+}
+
+function selectMapZone(zone) {
+  selectedMapZoneId.value = zone?.id || ''
+  writeMapZoneEditor(zone || emptyMapZone())
+}
+
+function newMapZone() {
+  selectedMapZoneId.value = ''
+  writeMapZoneEditor({
+    ...emptyMapZone(),
+    id: `zone_${Date.now()}`,
+  })
+}
+
+async function loadCityMapZones(force = false) {
+  if (mapZoneLoading.value && !force) return
+  try {
+    mapZoneLoading.value = true
+    const res = await api.get('/admin/world/city-map/zones')
+    const zones = Array.isArray(res.data?.zones) ? res.data.zones : []
+    mapZones.value = zones.map((entry) => normalizeMapZoneInput(entry))
+
+    const cityMap = res.data?.cityMap
+    if (cityMap && typeof cityMap === 'object') {
+      mergeWorldSection('cityMap', cityMap)
+    }
+
+    if (selectedMapZoneId.value) {
+      const selected = mapZones.value.find((zone) => zone.id === selectedMapZoneId.value)
+      if (selected) {
+        writeMapZoneEditor(selected)
+      }
+    } else if (mapZones.value.length) {
+      selectMapZone(mapZones.value[0])
+    }
+  } catch (e) {
+    toast.error(e?.response?.data?.error || 'Falha ao carregar zonas do mapa')
+  } finally {
+    mapZoneLoading.value = false
+  }
+}
+
+async function saveMapZone() {
+  if (mapZoneSaving.value) return
+  const payload = normalizeMapZoneInput(mapZoneEditor)
+  if (!payload.id || !payload.key || !payload.label) {
+    toast.error('Preenche ID, key e nome da zona')
+    return
+  }
+  try {
+    mapZoneSaving.value = true
+    if (mapZones.value.some((zone) => zone.id === payload.id)) {
+      await api.patch(`/admin/world/city-map/zones/${encodeURIComponent(payload.id)}`, payload)
+      toast.ok('Zona atualizada')
+    } else {
+      await api.post('/admin/world/city-map/zones', payload)
+      toast.ok('Zona criada')
+    }
+    selectedMapZoneId.value = payload.id
+    await loadCityMapZones(true)
+  } catch (e) {
+    toast.error(e?.response?.data?.error || 'Falha ao guardar zona do mapa')
+  } finally {
+    mapZoneSaving.value = false
+  }
+}
+
+async function deleteMapZone() {
+  if (mapZoneSaving.value || !mapZoneExists.value) return
+  try {
+    mapZoneSaving.value = true
+    await api.delete(`/admin/world/city-map/zones/${encodeURIComponent(mapZoneEditor.id)}`)
+    toast.ok('Zona removida')
+    selectedMapZoneId.value = ''
+    writeMapZoneEditor(emptyMapZone())
+    await loadCityMapZones(true)
+  } catch (e) {
+    toast.error(e?.response?.data?.error || 'Falha ao remover zona do mapa')
+  } finally {
+    mapZoneSaving.value = false
+  }
+}
 
 function humanDuration(seconds) {
   const total = Math.max(0, Number(seconds) || 0)
@@ -2113,6 +2374,7 @@ async function refreshHospitalOverview(force = false) {
 async function hydrateWorldTab(force = false) {
   await Promise.all([
     loadWorldConfigs(force),
+    loadCityMapZones(force),
     refreshPrisonOverview(force || !prisonOverview.lastFetched),
     refreshHospitalOverview(force || !hospitalOverview.lastFetched),
   ])
