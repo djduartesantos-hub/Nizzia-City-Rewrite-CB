@@ -108,7 +108,11 @@
 
     .subtitle { color: var(--muted); font-size: 0.8rem; letter-spacing: 0.05em; margin-top: 4px; }
 
-    .hud-grid { display: none; }
+    .hud-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(94px, 1fr));
+      gap: 8px;
+    }
 
     .stat {
       background: rgba(255, 255, 255, 0.04);
@@ -169,20 +173,21 @@
       position: absolute;
       z-index: 15;
       transform: translate(-50%, -100%);
-      color: #f4f1e5;
-      font-size: 0.62rem;
+      color: #e8eef8;
+      font-size: 0.64rem;
       text-align: center;
-      min-width: 44px;
-      padding: 3px 5px;
+      min-width: 92px;
+      padding: 5px 8px;
       border-radius: 14px 14px 14px 4px;
-      background: linear-gradient(#d9b06a, #8f6d3b);
-      border: 1px solid rgba(0, 0, 0, 0.42);
-      box-shadow: 0 2px 7px rgba(0,0,0,.38);
-      animation: pulse 1.8s infinite;
+      background: linear-gradient(180deg, rgba(23, 30, 46, 0.95), rgba(13, 18, 31, 0.95));
+      border: 1px solid rgba(146, 202, 255, 0.4);
+      box-shadow: 0 2px 10px rgba(0,0,0,.45), 0 0 0 1px rgba(73, 130, 186, 0.25) inset;
+      animation: pulse 1.6s infinite;
       cursor: pointer;
       user-select: none;
       pointer-events: auto;
       font-weight: 600;
+      line-height: 1.15;
     }
 
     .event-chip::after {
@@ -194,19 +199,52 @@
       height: 0;
       border-left: 6px solid transparent;
       border-right: 6px solid transparent;
-      border-top: 9px solid #cc8f1d;
+      border-top: 9px solid #1e2f4c;
     }
 
-    .event-chip.medium { background: linear-gradient(#88b7a5, #4f7d6c); }
-    .event-chip.medium::after { border-top-color: #4f7d6c; }
-    .event-chip.high { background: linear-gradient(#c7a37b, #8a6442); }
-    .event-chip.high::after { border-top-color: #8a6442; }
-    .event-chip.very-high { background: linear-gradient(#c88a86, #8f4f4c); }
-    .event-chip.very-high::after { border-top-color: #8f4f4c; }
+    .event-chip .chip-top {
+      display: block;
+      font-size: 0.72rem;
+      letter-spacing: 0.04em;
+    }
+
+    .event-chip .chip-zone {
+      display: block;
+      margin-top: 2px;
+      font-size: 0.56rem;
+      color: #9eb3cb;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .event-chip.medium { border-color: rgba(118, 219, 161, 0.56); box-shadow: 0 2px 10px rgba(0,0,0,.45), 0 0 16px rgba(66, 177, 116, 0.35); }
+    .event-chip.medium::after { border-top-color: #20573f; }
+    .event-chip.high { border-color: rgba(255, 188, 108, 0.55); box-shadow: 0 2px 10px rgba(0,0,0,.45), 0 0 16px rgba(217, 127, 54, 0.36); }
+    .event-chip.high::after { border-top-color: #7e4b25; }
+    .event-chip.very-high { border-color: rgba(255, 123, 123, 0.6); box-shadow: 0 2px 10px rgba(0,0,0,.45), 0 0 18px rgba(216, 79, 79, 0.38); }
+    .event-chip.very-high::after { border-top-color: #7a2c30; }
+
+    .event-chip.late {
+      animation: none;
+      background: linear-gradient(180deg, rgba(49, 49, 49, 0.92), rgba(28, 28, 28, 0.92));
+      border-color: rgba(168, 168, 168, 0.35);
+      color: #c6c6c6;
+      cursor: default;
+      box-shadow: 0 2px 8px rgba(0,0,0,.4);
+      filter: grayscale(0.35);
+    }
+
+    .event-chip.late::after {
+      border-top-color: #545454;
+    }
+
+    .event-chip.late .chip-zone {
+      color: #8f8f8f;
+    }
 
     @keyframes pulse {
       0% { transform: translate(-50%, -100%) scale(1); }
-      50% { transform: translate(-50%, -101%) scale(1.04); }
+      50% { transform: translate(-50%, -101%) scale(1.06); }
       100% { transform: translate(-50%, -100%) scale(1); }
     }
 
@@ -424,6 +462,9 @@
     const CITY_W = 2000
     const CITY_H = 1400
     const EVENT_SEED = 7
+    const params = new URLSearchParams(window.location.search)
+    const MAP_SEED = Number(params.get('seed') || EVENT_SEED) || EVENT_SEED
+    const EVENT_REFRESH_SECONDS = 20
     const BASE_MAP_IMAGE_URL = './map-reference.png'
 
     const EVENT_TYPES = {
@@ -432,54 +473,161 @@
         icon: '🔫',
         danger: 'Alto',
         riskClass: 'high',
-        duration: [15, 30],
+        duration: [180, 300],
+        participationDuration: 120,
+        mode: 'group',
         zones: ['gueto', 'industrial', 'abandonada'],
         desc: 'Facções rivais trocaram fogo numa artéria principal.',
+        rewards: { money: [1400, 4800], xp: [60, 190], rep: [2, 6], items: ['Colete balístico', 'Munição especial', 'Nenhum'] },
+        phases: [
+          'As ruas estão fechadas por barricadas improvisadas e tiros ecoam entre os prédios.',
+          'Tu e a tua crew avançam por coberturas, tentando flanquear sem perder HP.',
+          'No auge do confronto, um lado começa a ceder e o território muda de dono.',
+          'Hora de extração: levas o loot e tentas sair antes da polícia fechar o perímetro.',
+        ],
+        twists: [
+          { text: 'Snipers surgiram nos telhados!', effect: 'bad' },
+          { text: 'Uma gang aliada entrou a reforçar!', effect: 'good' },
+          { text: 'Granadas de fumo reduziram visibilidade.', effect: 'neutral' },
+        ],
       },
       bankHeist: {
         name: 'Assalto ao banco',
         icon: '🏦',
         danger: 'Muito alto',
         riskClass: 'very-high',
-        duration: [180, 300],
+        duration: [600, 1200],
+        participationDuration: 240,
+        mode: 'solo',
         zones: ['comercial', 'rico'],
         desc: 'Grupo armado tomou o banco central e exige rota de fuga.',
+        rewards: { money: [12000, 42000], xp: [220, 520], rep: [8, 16], items: ['Código de cofres', 'Diamante bruto', 'Nenhum'] },
+        phases: [
+          'Entraste no banco durante o caos e bloqueaste os acessos internos.',
+          'A equipa avança para o cofre principal enquanto a tensão sobe com cada segundo.',
+          'Os alarmes disparam e precisas decidir entre abrir o cofre extra ou fugir já.',
+          'Última janela de fuga: sair limpo ou ser encurralado pela SWAT.',
+        ],
+        twists: [
+          { text: 'A polícia chegou mais cedo!', effect: 'bad' },
+          { text: 'Um insider desligou os alarmes por 30 segundos.', effect: 'good' },
+          { text: 'Clientes começaram a filmar tudo ao vivo.', effect: 'neutral' },
+        ],
       },
       drugDeal: {
         name: 'Tráfico de droga',
         icon: '💊',
         danger: 'Médio',
         riskClass: 'medium',
-        duration: [45, 120],
+        duration: [120, 180],
+        participationDuration: 90,
+        mode: 'solo',
         zones: ['mercado-negro', 'porto', 'gueto'],
         desc: 'Movimento suspeito de carga e distribuição clandestina.',
+        rewards: { money: [900, 2800], xp: [40, 120], rep: [1, 4], items: ['Pacote selado', 'Comprimidos raros', 'Nenhum'] },
+        phases: [
+          'O ponto de troca está ativo e várias motos circulam em padrão de vigia.',
+          'Negocias com rapidez enquanto monitorizas possíveis infiltrados no beco.',
+          'Surge uma proposta de último minuto para aumentar a carga e o risco.',
+          'Fechas o negócio e precisas desaparecer antes da próxima ronda policial.',
+        ],
+        twists: [
+          { text: 'Fornecedor atrasou com a carga principal.', effect: 'bad' },
+          { text: 'Cliente VIP pagou prémio em dinheiro vivo.', effect: 'good' },
+          { text: 'Drone da polícia sobrevoou a zona.', effect: 'neutral' },
+        ],
       },
       policeChase: {
         name: 'Perseguição policial',
         icon: '🚓',
         danger: 'Alto',
         riskClass: 'high',
-        duration: [30, 60],
+        duration: [300, 600],
+        participationDuration: 150,
+        mode: 'group',
         zones: ['suburbio', 'residencial', 'comercial'],
         desc: 'Uma viatura em alta velocidade atravessa quarteirões lotados.',
+        rewards: { money: [1800, 6200], xp: [80, 220], rep: [2, 7], items: ['Placa falsa', 'GPS bloqueador', 'Nenhum'] },
+        phases: [
+          'As sirenes aproximam-se e o tráfego está caótico em vários cruzamentos.',
+          'A rota de fuga muda em tempo real, exigindo reflexos e decisões rápidas.',
+          'Há bloqueios policiais à frente e tens de improvisar um desvio extremo.',
+          'Se sobreviveres ao último corredor, escapas com ganho de reputação nas ruas.',
+        ],
+        twists: [
+          { text: 'Helicóptero entrou na perseguição.', effect: 'bad' },
+          { text: 'Atalho local abriu uma janela de fuga.', effect: 'good' },
+          { text: 'Um acidente bloqueou metade da via.', effect: 'neutral' },
+        ],
       },
       vehicleTheft: {
         name: 'Roubo de viatura',
         icon: '🚗',
         danger: 'Médio',
         riskClass: 'medium',
-        duration: [20, 40],
+        duration: [120, 240],
+        participationDuration: 90,
+        mode: 'solo',
         zones: ['residencial', 'suburbio', 'rico'],
         desc: 'Gangue especializada está a levar carros por encomenda.',
+        rewards: { money: [1100, 3600], xp: [45, 130], rep: [1, 4], items: ['Chave clonada', 'ECU adulterada', 'Nenhum'] },
+        phases: [
+          'Identificaste o alvo e estás a contornar alarmes e câmaras do bairro.',
+          'A ignição foi forçada, mas o dono pode aparecer a qualquer momento.',
+          'No meio da rota, um checkpoint surpresa testa o teu sangue-frio.',
+          'Entrega concluída se conseguires chegar à garagem sem levantar suspeitas.',
+        ],
+        twists: [
+          { text: 'Alarme premium ativou bloqueio remoto!', effect: 'bad' },
+          { text: 'Mecânico aliado abriu ignição instantânea.', effect: 'good' },
+          { text: 'Patrulha passou ao lado sem confirmar matrícula.', effect: 'neutral' },
+        ],
       },
       gangWar: {
         name: 'Gang war',
         icon: '⚔️',
         danger: 'Muito alto',
         riskClass: 'very-high',
-        duration: [120, 240],
+        duration: [1200, 2400],
+        participationDuration: 300,
+        mode: 'group',
         zones: ['gueto', 'industrial', 'abandonada'],
         desc: 'Território em disputa total entre duas crews pesadas.',
+        rewards: { money: [8500, 24000], xp: [260, 620], rep: [9, 20], items: ['Caixa de arsenal', 'Documento de território', 'Nenhum'] },
+        phases: [
+          'A disputa começou com dezenas de membros armados em vários quarteirões.',
+          'Tomaste posição em pontos críticos para garantir domínio territorial.',
+          'O confronto cresce e cada avanço custa recursos e HP da equipa.',
+          'Na fase final, a crew vencedora assume o controlo e recolhe os espólios.',
+        ],
+        twists: [
+          { text: 'Uma terceira facção entrou na guerra.', effect: 'bad' },
+          { text: 'Reforços aliados cercaram o flanco rival.', effect: 'good' },
+          { text: 'Blecaute geral deixou comunicações instáveis.', effect: 'neutral' },
+        ],
+      },
+      armoredTruck: {
+        name: 'Ataque ao carro-forte',
+        icon: '🚚',
+        danger: 'Alto',
+        riskClass: 'high',
+        duration: [420, 900],
+        participationDuration: 180,
+        mode: 'group',
+        zones: ['comercial', 'industrial', 'suburbio'],
+        desc: 'Uma rota de valores foi comprometida e o carro-forte está sob ataque.',
+        rewards: { money: [4000, 12000], xp: [120, 320], rep: [4, 10], items: ['Chip de segurança', 'Pacote de notas', 'Nenhum'] },
+        phases: [
+          'A escolta foi dispersa e o alvo está em movimento sob fogo cruzado.',
+          'Forças de intervenção aproximam-se e o tempo para abrir o compartimento é curto.',
+          'Com os explosivos armados, qualquer atraso pode inverter a operação.',
+          'Se extraíres o payload a tempo, a fuga rende alto retorno imediato.',
+        ],
+        twists: [
+          { text: 'Blindagem reforçada atrasou a abertura.', effect: 'bad' },
+          { text: 'Motorista desertou e abriu acesso traseiro.', effect: 'good' },
+          { text: 'Comunicação da polícia caiu por interferência.', effect: 'neutral' },
+        ],
       },
     }
 
@@ -656,6 +804,9 @@
         cy: CITY_H / 2,
       },
       events: [],
+      eventsSource: 'fallback',
+      lastEventFetchAt: 0,
+      eventsLoading: false,
       hover: { x: 0, y: 0 },
       selectedEventId: null,
       playerState: {
@@ -780,141 +931,7 @@
         ctx.restore()
       }
 
-      // Event-only visual mode: keep original map colors and remove old generator overlays.
       ctx.restore()
-      drawEventChips()
-      drawCursorHUD()
-      return
-
-      drawGridOverlay(ctx)
-
-      for (const patch of state.city.backdrop.forestPatches) {
-        ctx.fillStyle = `rgba(46, 84, 42, ${patch.a})`
-        ctx.beginPath()
-        ctx.arc(patch.x, patch.y, patch.r, 0, Math.PI * 2)
-        ctx.fill()
-      }
-
-      for (const farm of state.city.backdrop.farmPatches) {
-        ctx.save()
-        ctx.translate(farm.x, farm.y)
-        ctx.rotate(farm.rot)
-        ctx.fillStyle = farm.tone === 0
-          ? 'rgba(170, 168, 98, 0.30)'
-          : farm.tone === 1
-            ? 'rgba(149, 140, 87, 0.27)'
-            : farm.tone === 2
-              ? 'rgba(118, 143, 82, 0.26)'
-              : 'rgba(138, 156, 94, 0.24)'
-        ctx.fillRect(-farm.w / 2, -farm.h / 2, farm.w, farm.h)
-        ctx.strokeStyle = 'rgba(95, 104, 62, 0.25)'
-        ctx.lineWidth = 0.8
-        ctx.strokeRect(-farm.w / 2, -farm.h / 2, farm.w, farm.h)
-        ctx.restore()
-      }
-
-      const shore = state.city.backdrop.shoreline
-      if (shore.length) {
-        ctx.strokeStyle = 'rgba(196, 189, 144, 0.7)'
-        ctx.lineWidth = 10
-        ctx.beginPath()
-        ctx.moveTo(shore[0].x, shore[0].y)
-        for (let i = 1; i < shore.length; i += 1) ctx.lineTo(shore[i].x, shore[i].y)
-        ctx.stroke()
-
-        ctx.strokeStyle = 'rgba(83, 107, 151, 0.32)'
-        ctx.lineWidth = 4
-        ctx.beginPath()
-        ctx.moveTo(shore[0].x, shore[0].y + 6)
-        for (let i = 1; i < shore.length; i += 1) ctx.lineTo(shore[i].x, shore[i].y + 6)
-        ctx.stroke()
-      }
-
-      for (const lake of state.city.backdrop.lakes) {
-        ctx.save()
-        ctx.translate(lake.x, lake.y)
-        ctx.rotate(lake.rot)
-        ctx.fillStyle = 'rgba(219, 205, 150, 0.65)'
-        ctx.beginPath()
-        ctx.ellipse(0, 0, lake.rx + 18, lake.ry + 16, 0, 0, Math.PI * 2)
-        ctx.fill()
-        ctx.fillStyle = 'rgba(63, 182, 204, 0.88)'
-        ctx.beginPath()
-        ctx.ellipse(0, 0, lake.rx, lake.ry, 0, 0, Math.PI * 2)
-        ctx.fill()
-        ctx.restore()
-      }
-
-      ctx.fillStyle = 'rgba(185, 186, 192, 0.4)'
-      for (const island of state.city.backdrop.islands) {
-        ctx.beginPath()
-        ctx.ellipse(island.x, island.y, island.r * 1.3, island.r, 0.2, 0, Math.PI * 2)
-        ctx.fill()
-      }
-
-      for (const blob of state.city.backdrop.districtBlobs) {
-        ctx.globalAlpha = 0.24
-        ctx.fillStyle = blob.color
-        ctx.beginPath()
-        ctx.moveTo(blob.points[0].x, blob.points[0].y)
-        for (let i = 1; i < blob.points.length; i += 1) {
-          const p = blob.points[i]
-          ctx.lineTo(p.x, p.y)
-        }
-        ctx.closePath()
-        ctx.fill()
-      }
-
-      for (const parcel of state.city.backdrop.parcels) {
-        ctx.save()
-        ctx.translate(parcel.x, parcel.y)
-        ctx.rotate(parcel.rot)
-        ctx.fillStyle = 'rgba(185, 180, 170, 0.28)'
-        ctx.fillRect(-parcel.w * 0.5, -parcel.h * 0.5, parcel.w, parcel.h)
-        ctx.strokeStyle = 'rgba(85, 86, 78, 0.26)'
-        ctx.lineWidth = 0.7
-        ctx.strokeRect(-parcel.w * 0.5, -parcel.h * 0.5, parcel.w, parcel.h)
-        ctx.restore()
-      }
-
-      for (const block of state.city.backdrop.residentialBlocks) {
-        ctx.save()
-        ctx.translate(block.x, block.y)
-        ctx.rotate(block.rot)
-        ctx.fillStyle = block.t === 0
-          ? 'rgba(168, 164, 154, 0.34)'
-          : block.t === 1
-            ? 'rgba(152, 150, 141, 0.31)'
-            : 'rgba(134, 132, 125, 0.29)'
-        ctx.fillRect(-block.w * 0.5, -block.h * 0.5, block.w, block.h)
-        ctx.restore()
-      }
-
-      const ia = state.city.backdrop.industrialArea
-      if (ia) {
-        ctx.fillStyle = 'rgba(196, 194, 186, 0.78)'
-        roundRect(ctx, ia.x, ia.y, ia.w, ia.h, 8, true, false)
-        for (let gy = ia.y + 10; gy < ia.y + ia.h - 10; gy += 28) {
-          for (let gx = ia.x + 10; gx < ia.x + ia.w - 10; gx += 40) {
-            ctx.fillStyle = 'rgba(160, 162, 158, 0.92)'
-            ctx.fillRect(gx, gy, 28, 18)
-            ctx.strokeStyle = 'rgba(120, 122, 118, 0.7)'
-            ctx.strokeRect(gx, gy, 28, 18)
-          }
-        }
-      }
-
-      for (const z of state.city.zones) {
-        ctx.globalAlpha = 1
-        ctx.fillStyle = 'rgba(50,52,46,0.7)'
-        ctx.font = '10px "Share Tech Mono"'
-        ctx.fillText(z.districtName, z.x - z.w / 2 + 8, z.y - z.h / 2 + 18)
-      }
-
-      drawFogOfWar(ctx)
-
-      ctx.restore()
-
       drawEventChips()
       drawCursorHUD()
     }
@@ -938,15 +955,23 @@
     function drawEventChips() {
       eventLayer.innerHTML = ''
       if (state.playerState.status === 'em_evento') return
+      const nowMs = Date.now()
       for (const e of state.events) {
+        refreshEventRuntimeState(e, nowMs)
+        if (e.state === 'expired') continue
         const p = worldToScreen(e.x, e.y)
         const chip = document.createElement('button')
-        chip.className = `event-chip ${e.template.riskClass}`
+        chip.className = `event-chip ${e.template.riskClass}${e.joinable ? '' : ' late'}`
         chip.style.left = `${p.x}px`
         chip.style.top = `${p.y}px`
-        chip.textContent = fmtTime(e.remaining)
-        chip.title = `${e.template.name} · ${e.zone.label}`
-        chip.onclick = () => openEventModal(e.id)
+        chip.innerHTML = `<span class="chip-top">${e.template.icon} ${fmtTime(e.remaining)}</span><span class="chip-zone">${e.zone.label}</span>`
+        chip.title = `${e.template.name} · ${e.zone.label} · ${eventStateLabel(e)}`
+        if (e.joinable) {
+          chip.onclick = () => openEventModal(e.id)
+        } else {
+          chip.disabled = true
+          chip.setAttribute('aria-label', `${e.template.name} - ${eventStateLabel(e)}`)
+        }
         eventLayer.appendChild(chip)
       }
     }
@@ -1078,15 +1103,140 @@
       return scored[0][0]
     }
 
+    function randomInRange(range, rng) {
+      const [min, max] = Array.isArray(range) ? range : [0, 0]
+      return rng.int(Number(min || 0), Number(max || 0))
+    }
+
+    function normalizeDurationSec(value, fallback) {
+      const n = Number(value)
+      if (!Number.isFinite(n) || n <= 0) return fallback
+      return Math.round(n)
+    }
+
+    function resolveZoneForEvent(entry, rng) {
+      const zoneKey = String(entry?.zoneKey || entry?.zone || '').trim()
+      const byKey = zoneKey ? state.city.zones.find((z) => z.key === zoneKey || z.id === zoneKey) : null
+      if (byKey) return byKey
+
+      const x = Number(entry?.x)
+      const y = Number(entry?.y)
+      if (Number.isFinite(x) && Number.isFinite(y)) {
+        const picked = pickZoneForPoint(x, y)
+        if (picked) return picked
+      }
+
+      return rng.pick(state.city.zones)
+    }
+
+    function parseStartedAtMs(value) {
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        return value > 1e12 ? value : value * 1000
+      }
+      if (typeof value === 'string') {
+        const ms = Date.parse(value)
+        if (Number.isFinite(ms)) return ms
+      }
+      return Date.now()
+    }
+
+    function normalizeEventEntry(entry, rng) {
+      const typeKey = String(entry?.typeKey || entry?.type || '').trim()
+      const template = EVENT_TYPES[typeKey]
+      if (!template) return null
+
+      const zone = resolveZoneForEvent(entry, rng)
+      const duration = normalizeDurationSec(entry?.duration, randomInRange(template.duration, rng))
+      const participationDuration = normalizeDurationSec(entry?.participationDuration, template.participationDuration || Math.floor(duration * 0.45))
+      const startedAt = parseStartedAtMs(entry?.startedAt)
+      const x = Number.isFinite(Number(entry?.x)) ? clamp(Number(entry.x), 40, CITY_W - 40) : clamp(zone.x + rng.range(-zone.w * 0.35, zone.w * 0.35), 40, CITY_W - 40)
+      const y = Number.isFinite(Number(entry?.y)) ? clamp(Number(entry.y), 40, CITY_H - 40) : clamp(zone.y + rng.range(-zone.h * 0.35, zone.h * 0.35), 40, CITY_H - 40)
+
+      const rewardCfg = template.rewards || { money: [500, 1200], xp: [20, 80], rep: [1, 3], items: ['Nenhum'] }
+      const reward = {
+        money: normalizeDurationSec(entry?.reward?.money, randomInRange(rewardCfg.money, rng)),
+        xp: normalizeDurationSec(entry?.reward?.xp, randomInRange(rewardCfg.xp, rng)),
+        rep: normalizeDurationSec(entry?.reward?.rep, randomInRange(rewardCfg.rep, rng)),
+        item: typeof entry?.reward?.item === 'string' ? entry.reward.item : rng.pick(rewardCfg.items || ['Nenhum']),
+      }
+
+      return {
+        id: String(entry?.id || `ev_${Date.now()}_${rng.int(1000, 9999)}`),
+        typeKey,
+        template,
+        zone,
+        x,
+        y,
+        startedAt,
+        duration,
+        participationDuration,
+        mode: entry?.mode === 'group' ? 'group' : entry?.mode === 'solo' ? 'solo' : (template.mode || 'solo'),
+        locked: Boolean(entry?.locked),
+        completed: Boolean(entry?.completed),
+        reward,
+        remaining: duration,
+        joinable: false,
+        state: 'running',
+      }
+    }
+
+    function refreshEventRuntimeState(ev, nowMs = Date.now()) {
+      const elapsedSec = Math.max(0, (nowMs - ev.startedAt) / 1000)
+      ev.remaining = Math.max(0, ev.duration - elapsedSec)
+
+      if (ev.completed) {
+        ev.joinable = false
+        ev.state = 'completed'
+        return ev
+      }
+      if (ev.remaining <= 0) {
+        ev.joinable = false
+        ev.state = 'expired'
+        return ev
+      }
+
+      const participationGate = ev.participationDuration * 2
+      const windowOpen = ev.remaining >= participationGate
+      const modeOpen = ev.mode === 'group' || !ev.locked
+      ev.joinable = windowOpen && modeOpen && state.playerState.status === 'livre'
+      ev.state = ev.joinable ? 'running' : 'late'
+      return ev
+    }
+
+    function eventStateLabel(ev) {
+      if (ev.state === 'expired') return 'Expirado'
+      if (ev.state === 'completed') return 'Concluído'
+      if (ev.state === 'late') return 'Tarde demais'
+      return 'A decorrer'
+    }
+
+    async function fetchEventsFromApi() {
+      const res = await fetch(`/api/city/${MAP_SEED}/events`, { cache: 'no-store' })
+      if (!res.ok) throw new Error('events_fetch_failed')
+      const data = await res.json()
+      const list = Array.isArray(data?.events) ? data.events : []
+      const rng = new RNG(EVENT_SEED * 991 + Date.now())
+      const normalized = list
+        .map((entry) => normalizeEventEntry(entry, rng))
+        .filter(Boolean)
+      if (!normalized.length) throw new Error('events_empty')
+      state.eventsSource = 'api'
+      state.events = normalized
+      state.lastEventFetchAt = Date.now()
+    }
+
     function regenerateEvents() {
-      const rng = new RNG(EVENT_SEED * 73129 + Date.now())
-      const count = 9 + rng.int(0, 6)
+      const rng = new RNG(MAP_SEED * 73129 + Date.now())
+      const count = 8 + rng.int(0, 6)
       const events = []
       for (let i = 0; i < count; i += 1) {
         const zone = rng.pick(state.city.zones)
         const typeKey = weightedEventType(zone.key, rng)
         const tpl = EVENT_TYPES[typeKey]
-        const duration = rng.int(tpl.duration[0], tpl.duration[1])
+        const duration = randomInRange(tpl.duration, rng)
+        const participationDuration = Number(tpl.participationDuration || Math.floor(duration * 0.45))
+        const startedAt = Date.now() - rng.int(0, Math.floor(duration * 0.7)) * 1000
+        const rewards = tpl.rewards || { money: [500, 1000], xp: [20, 80], rep: [1, 3], items: ['Nenhum'] }
         const e = {
           id: `ev_${Date.now()}_${i}_${rng.int(1000, 9999)}`,
           typeKey,
@@ -1094,18 +1244,28 @@
           zone,
           x: clamp(zone.x + rng.range(-zone.w * 0.35, zone.w * 0.35), 40, CITY_W - 40),
           y: clamp(zone.y + rng.range(-zone.h * 0.35, zone.h * 0.35), 40, CITY_H - 40),
+          startedAt,
           duration,
+          participationDuration,
+          mode: tpl.mode || 'solo',
+          locked: false,
+          completed: false,
           remaining: duration,
+          joinable: false,
+          state: 'running',
           reward: {
-            money: rng.int(500, 12000),
-            xp: rng.int(20, 220),
-            rep: rng.int(1, 8),
-            item: rng.pick(['Munições raras', 'Colete tático', 'Chave mestra', 'Nada', 'Documento falso']),
+            money: randomInRange(rewards.money, rng),
+            xp: randomInRange(rewards.xp, rng),
+            rep: randomInRange(rewards.rep, rng),
+            item: rng.pick(rewards.items || ['Nenhum']),
           },
         }
+        refreshEventRuntimeState(e)
         events.push(e)
       }
+      state.eventsSource = 'fallback'
       state.events = events
+      state.lastEventFetchAt = Date.now()
     }
 
     let selectedEvent = null
@@ -1114,18 +1274,27 @@
       if (state.playerState.status !== 'livre') return
       selectedEvent = state.events.find((e) => e.id === eventId)
       if (!selectedEvent) return
+      refreshEventRuntimeState(selectedEvent)
+      if (!selectedEvent.joinable) return
       modalTitle.textContent = `${selectedEvent.template.icon} ${selectedEvent.template.name}`
       modalMeta.innerHTML = `
         <span>Zona: ${selectedEvent.zone.label}</span>
         <span>Perigo: ${selectedEvent.template.danger}</span>
-        <span>Duração: ${fmtTime(selectedEvent.remaining)}</span>
+        <span>Modo: ${selectedEvent.mode === 'group' ? 'Grupo' : 'Solo'}</span>
+        <span>Estado: ${eventStateLabel(selectedEvent)}</span>
+        <span>Janela: ${fmtTime(selectedEvent.remaining)} restantes</span>
+        <span>Participação: ${fmtTime(selectedEvent.participationDuration)}</span>
       `
       modalDesc.textContent = selectedEvent.template.desc
       modalRewards.innerHTML = `<strong>Recompensas possíveis:</strong> $${selectedEvent.reward.money} · XP ${selectedEvent.reward.xp} · REP ${selectedEvent.reward.rep} · Item: ${selectedEvent.reward.item}`
+      btnParticipate.disabled = !selectedEvent.joinable
+      btnParticipate.textContent = selectedEvent.joinable ? 'Participar' : 'Tarde demais'
       eventModalOverlay.classList.add('show')
     }
 
     function closeEventModal() {
+      btnParticipate.disabled = false
+      btnParticipate.textContent = 'Participar'
       eventModalOverlay.classList.remove('show')
     }
 
@@ -1141,12 +1310,16 @@
 
       const roll = rng.next()
       let status = 'success'
-      if (roll > chance) status = rng.next() < 0.35 ? 'captured' : 'failed'
+      if (roll > chance) {
+        if (rng.next() < 0.28) status = 'captured'
+        else if (rng.next() < 0.45) status = 'no_effect'
+        else status = 'failed'
+      }
 
-      const hpLoss = status === 'success' ? rng.int(0, 18) : rng.int(8, 36)
-      const moneyDelta = status === 'success' ? eventObj.reward.money : -rng.int(200, 3000)
-      const xpDelta = status === 'success' ? eventObj.reward.xp : rng.int(0, 28)
-      const repDelta = status === 'success' ? eventObj.reward.rep : -rng.int(0, 2)
+      const hpLoss = status === 'success' ? rng.int(0, 18) : status === 'captured' ? rng.int(15, 38) : rng.int(2, 20)
+      const moneyDelta = status === 'success' ? eventObj.reward.money : status === 'failed' ? -rng.int(200, 3000) : 0
+      const xpDelta = status === 'success' ? eventObj.reward.xp : status === 'failed' ? rng.int(0, 28) : 0
+      const repDelta = status === 'success' ? eventObj.reward.rep : status === 'failed' ? -rng.int(0, 2) : 0
 
       return {
         status,
@@ -1159,6 +1332,16 @@
     }
 
     function beginAction(eventObj) {
+      refreshEventRuntimeState(eventObj)
+      if (!eventObj.joinable) {
+        closeEventModal()
+        return
+      }
+
+      if (eventObj.mode === 'solo') {
+        eventObj.locked = true
+      }
+
       state.playerState.status = 'em_evento'
       updateHUD()
       closeEventModal()
@@ -1168,24 +1351,28 @@
       resultData.innerHTML = ''
 
       actionTitle.textContent = `${eventObj.template.icon} ${eventObj.template.name}`
-      actionMeta.innerHTML = `<span>Zona: ${eventObj.zone.label}</span><span>Perigo: ${eventObj.template.danger}</span>`
+      actionMeta.innerHTML = `<span>Zona: ${eventObj.zone.label}</span><span>Perigo: ${eventObj.template.danger}</span><span>Modo: ${eventObj.mode === 'group' ? 'Grupo' : 'Solo'}</span>`
       liveRisk.textContent = eventObj.template.danger
 
       const rng = new RNG(Date.now() + eventObj.duration)
-      const total = eventObj.remaining
+      const total = Math.max(30, Math.min(eventObj.participationDuration, eventObj.remaining))
       const twistAt = Math.floor(total * rng.range(0.45, 0.62))
-      const phases = [
-        `Entraste na zona ${eventObj.zone.label}. O ambiente está tenso e cada movimento conta.`,
-        'Aproximas-te do alvo com cautela. Há câmaras, vigias e ruído de sirenes ao longe.',
-        'Fase crítica: qualquer erro agora muda tudo. Decides avançar mesmo com a pressão máxima.',
-        'Último sprint. Estás a tentar sair limpo antes do cerco fechar.',
-      ]
-      const twists = [
-        { text: 'A polícia chegou mais cedo!', effect: 'bad' },
-        { text: 'Um aliado apareceu para cobrir a fuga!', effect: 'good' },
-        { text: 'Houve blackout no quarteirão, confusão total.', effect: 'neutral' },
-        { text: 'O líder rival entrou na cena inesperadamente.', effect: 'bad' },
-      ]
+      const phases = Array.isArray(eventObj.template.phases) && eventObj.template.phases.length
+        ? eventObj.template.phases
+        : [
+            `Entraste na zona ${eventObj.zone.label}. O ambiente está tenso e cada movimento conta.`,
+            'Aproximas-te do alvo com cautela. Há câmaras, vigias e ruído de sirenes ao longe.',
+            'Fase crítica: qualquer erro agora muda tudo. Decides avançar mesmo com a pressão máxima.',
+            'Último sprint. Estás a tentar sair limpo antes do cerco fechar.',
+          ]
+      const twists = Array.isArray(eventObj.template.twists) && eventObj.template.twists.length
+        ? eventObj.template.twists
+        : [
+            { text: 'A polícia chegou mais cedo!', effect: 'bad' },
+            { text: 'Um aliado apareceu para cobrir a fuga!', effect: 'good' },
+            { text: 'Houve blackout no quarteirão, confusão total.', effect: 'neutral' },
+            { text: 'O líder rival entrou na cena inesperadamente.', effect: 'bad' },
+          ]
 
       state.action = {
         eventId: eventObj.id,
@@ -1279,7 +1466,8 @@
     function renderResult(ev, outcome) {
       const success = outcome.status === 'success'
       const captured = outcome.status === 'captured'
-      const label = success ? '✅ Sucesso' : captured ? '⛓️ Capturado' : '❌ Falha'
+      const noEffect = outcome.status === 'no_effect'
+      const label = success ? '✅ Sucesso' : captured ? '⛓️ Capturado' : noEffect ? '😶 Sem consequências' : '❌ Falha'
 
       resultData.innerHTML = `
         <div><strong>Estado:</strong> ${label}</div>
@@ -1288,10 +1476,12 @@
         <div><strong>Reputação:</strong> ${outcome.repDelta >= 0 ? '+' : ''}${outcome.repDelta}</div>
         <div><strong>HP perdido:</strong> ${outcome.hpLoss}</div>
         <div><strong>Item:</strong> ${outcome.item || 'Nenhum'}</div>
-        <div><strong>Narrativa:</strong> ${captured ? 'A operação foi comprometida e foste redirecionado para a prisão.' : success ? 'Execução limpa. Conseguiste sair com ganhos.' : 'A operação falhou sem colapso total.'}</div>
+        <div><strong>Narrativa:</strong> ${captured ? 'A operação foi comprometida e foste redirecionado para a prisão.' : success ? 'Execução limpa. Conseguiste sair com ganhos.' : noEffect ? 'A operação caiu por terra, mas saíste sem perdas relevantes.' : 'A operação falhou sem colapso total.'}</div>
       `
       resultPanel.style.display = 'block'
 
+      ev.completed = true
+      ev.state = 'completed'
       state.events = state.events.filter((e) => e.id !== ev.id)
     }
 
@@ -1299,23 +1489,17 @@
       actionScreen.classList.remove('show')
       state.action = null
       if (state.playerState.status === 'preso') {
-        // preso sem mapa bloqueado total, mas sem entrar em eventos até soltar
-        setTimeout(() => {
-          if (state.playerState.prisonUntil && Date.now() >= state.playerState.prisonUntil) {
-            state.playerState.status = 'livre'
-            state.playerState.prisonUntil = null
-            updateHUD()
-          }
-        }, 100)
+        if (window.top) {
+          try { window.top.location.assign('/prison') } catch {}
+        }
       }
       updateHUD()
     }
 
     function tickGlobalTimers(deltaSec) {
-      for (const e of state.events) {
-        e.remaining = Math.max(0, e.remaining - deltaSec)
-      }
-      state.events = state.events.filter((e) => e.remaining > 0)
+      const nowMs = Date.now()
+      for (const e of state.events) refreshEventRuntimeState(e, nowMs)
+      state.events = state.events.filter((e) => e.state !== 'expired' && e.state !== 'completed')
 
       if (state.playerState.status === 'preso' && state.playerState.prisonUntil && Date.now() >= state.playerState.prisonUntil) {
         state.playerState.status = 'livre'
@@ -1323,9 +1507,28 @@
       }
     }
 
+    async function refreshEvents(force = false) {
+      if (state.eventsLoading) return
+      if (state.playerState.status === 'em_evento') return
+
+      const stale = force || (Date.now() - state.lastEventFetchAt) >= EVENT_REFRESH_SECONDS * 1000
+      if (!stale && state.events.length) return
+
+      state.eventsLoading = true
+      try {
+        await fetchEventsFromApi()
+      } catch (error) {
+        regenerateEvents()
+      } finally {
+        state.eventsLoading = false
+      }
+    }
+
     btnCloseModal.addEventListener('click', closeEventModal)
     btnParticipate.addEventListener('click', () => {
       if (!selectedEvent) return
+      refreshEventRuntimeState(selectedEvent)
+      if (!selectedEvent.joinable) return
       if (state.playerState.status === 'preso') {
         alert('Estás preso e não podes participar até seres libertado.')
         return
@@ -1375,7 +1578,7 @@
       const imageUrl = state.mapConfig.imageUrl || BASE_MAP_IMAGE_URL
       state.baseMapImage = await loadBaseMapImage(imageUrl)
       state.city = createStaticCity(state.mapConfig)
-      regenerateEvents()
+      await refreshEvents(true)
       updateHUD()
       resize()
       requestAnimationFrame(loop)
@@ -1397,8 +1600,8 @@
         tickAction(delta)
       }
 
-      if (state.events.length < 5 && state.playerState.status !== 'em_evento') {
-        regenerateEvents()
+      if (state.playerState.status !== 'em_evento' && (Date.now() - state.lastEventFetchAt >= EVENT_REFRESH_SECONDS * 1000 || state.events.length < 4)) {
+        refreshEvents(false)
       }
 
       drawMap()
