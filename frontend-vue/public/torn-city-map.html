@@ -447,7 +447,7 @@
         <div class="hud">
           <div class="panel">
             <h1 class="title" id="cityName">Cidade</h1>
-            <div class="subtitle" id="cityMeta">SEED #1 · COORD 0,0</div>
+            <div class="subtitle" id="cityMeta">COORD 0,0</div>
             <div class="hud-grid">
               <div class="stat"><b>HP</b><span id="hudHp">100</span></div>
               <div class="stat"><b>DINHEIRO</b><span id="hudMoney">$5000</span></div>
@@ -530,6 +530,8 @@
   <script>
     const CITY_W = 2000
     const CITY_H = 1400
+    const MAP_SEED = 7
+    const BASE_MAP_IMAGE_URL = './map-reference.png'
 
     const EVENT_TYPES = {
       shootout: {
@@ -904,8 +906,8 @@
     }
 
     const state = {
-      seed: clamp(new URLSearchParams(location.search).get('seed') || 1, 1, 10),
       city: null,
+      baseMapImage: null,
       events: [],
       hover: { x: 0, y: 0 },
       selectedEventId: null,
@@ -1008,6 +1010,13 @@
 
       ctx.fillStyle = '#7d9b63'
       ctx.fillRect(0, 0, CITY_W, CITY_H)
+
+      if (state.baseMapImage) {
+        ctx.save()
+        ctx.globalAlpha = 0.42
+        ctx.drawImage(state.baseMapImage, 0, 0, CITY_W, CITY_H)
+        ctx.restore()
+      }
 
       for (const patch of state.city.backdrop.forestPatches) {
         ctx.fillStyle = `rgba(46, 84, 42, ${patch.a})`
@@ -1201,7 +1210,7 @@
 
       for (let i = 0; i < 180; i += 1) {
         const px = ((i * 157) % CITY_W)
-        const py = ((i * 223 + state.seed * 31) % CITY_H)
+        const py = ((i * 223 + MAP_SEED * 31) % CITY_H)
         ctx.fillStyle = i % 3 ? 'rgba(198, 77, 77, 0.28)' : 'rgba(58, 130, 96, 0.26)'
         ctx.beginPath()
         ctx.arc(px, py, 1.1, 0, Math.PI * 2)
@@ -1277,7 +1286,16 @@
     function drawCursorHUD() {
       const { x, y } = state.hover
       const zone = pickZoneForPoint(x, y)
-      cityMetaEl.textContent = `SEED #${state.seed} · COORD ${Math.round(x)},${Math.round(y)}${zone ? ` · ${zone.label}` : ''}`
+      cityMetaEl.textContent = `COORD ${Math.round(x)},${Math.round(y)}${zone ? ` · ${zone.label}` : ''}`
+    }
+
+    function loadBaseMapImage(src) {
+      return new Promise((resolve) => {
+        const img = new Image()
+        img.onload = () => resolve(img)
+        img.onerror = () => resolve(null)
+        img.src = src
+      })
     }
 
     function roundRect(g, x, y, w, h, r, fill, stroke) {
@@ -1376,7 +1394,7 @@
     }
 
     function regenerateEvents() {
-      const rng = new RNG(state.seed * 73129 + Date.now())
+      const rng = new RNG(MAP_SEED * 73129 + Date.now())
       const count = 9 + rng.int(0, 6)
       const events = []
       for (let i = 0; i < count; i += 1) {
@@ -1427,7 +1445,7 @@
     }
 
     function computeOutcome(eventObj, actionState) {
-      const rng = new RNG(Date.now() + state.seed * 91)
+      const rng = new RNG(Date.now() + MAP_SEED * 91)
       const riskBase = actionState.riskFactor
       const hpFactor = state.playerState.hp / 100
       const stressFactor = clamp(1 - state.playerState.stress / 120, 0.2, 1)
@@ -1645,8 +1663,9 @@
 
     window.addEventListener('resize', resize)
 
-    function init() {
-      const generator = new CityGenerator(state.seed)
+    async function init() {
+      state.baseMapImage = await loadBaseMapImage(BASE_MAP_IMAGE_URL)
+      const generator = new CityGenerator(MAP_SEED)
       state.city = generator.generate()
       cityNameEl.textContent = state.city.cityName
       buildLegend()
@@ -1680,7 +1699,9 @@
       requestAnimationFrame(loop)
     }
 
-    init()
+    init().catch((error) => {
+      console.error('Falha ao inicializar mapa:', error)
+    })
     window.regenerateEvents = regenerateEvents
   </script>
 </body>
