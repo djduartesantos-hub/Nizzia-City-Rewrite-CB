@@ -1171,6 +1171,266 @@
       </section>
     </div>
 
+    <div class="tab-panel" v-show="currentTab === 'NPC'">
+      <section class="section-block">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow mini">NPC World</p>
+            <h3>Visão geral dos NPCs</h3>
+            <p class="muted">Resumo global, pesquisa e filtros para gestão rápida.</p>
+          </div>
+          <div class="actions">
+            <button class="secondary" @click="hydrateNpcTab(true)" :disabled="npcOverview.loading || npcList.loading">Recarregar</button>
+          </div>
+        </div>
+        <div class="metrics">
+          <div class="stat">
+            <label>Total NPCs</label>
+            <strong>{{ num(npcOverview.total || 0) }}</strong>
+          </div>
+          <div class="stat" v-for="entry in npcOverview.byTier" :key="`tier-${entry.tier}`">
+            <label>Tier {{ entry.tier }}</label>
+            <strong>{{ num(entry.count || 0) }}</strong>
+          </div>
+        </div>
+        <div class="card-grid two-col">
+          <div class="card">
+            <h3>Pesquisa & Filtros</h3>
+            <div class="row">
+              <div><label>Nome</label><input v-model.trim="npcFilters.q" placeholder="ex: Miguel" /></div>
+              <div>
+                <label>City ID</label>
+                <input v-model.trim="npcFilters.cityId" placeholder="ex: city_1" />
+              </div>
+              <div>
+                <label>Tier</label>
+                <select v-model="npcFilters.tier">
+                  <option value="">Todos</option>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                </select>
+              </div>
+              <div>
+                <label>Tipo</label>
+                <select v-model="npcFilters.type">
+                  <option value="">Todos</option>
+                  <option value="ambient">ambient</option>
+                  <option value="character">character</option>
+                  <option value="vendor">vendor</option>
+                  <option value="guard">guard</option>
+                  <option value="criminal">criminal</option>
+                  <option value="medic">medic</option>
+                  <option value="detective">detective</option>
+                </select>
+              </div>
+              <div>
+                <label>Condição</label>
+                <select v-model="npcFilters.condition">
+                  <option value="">Todas</option>
+                  <option value="healthy">healthy</option>
+                  <option value="injured">injured</option>
+                  <option value="recovering">recovering</option>
+                  <option value="arrested">arrested</option>
+                  <option value="dead">dead</option>
+                  <option value="wanted">wanted</option>
+                  <option value="hiding">hiding</option>
+                </select>
+              </div>
+              <div>
+                <label>Local</label>
+                <select v-model="npcFilters.location">
+                  <option value="">Todos</option>
+                  <option value="street">street</option>
+                  <option value="building">building</option>
+                  <option value="bar">bar</option>
+                  <option value="home">home</option>
+                  <option value="hospital">hospital</option>
+                  <option value="prison">prison</option>
+                  <option value="shelter">shelter</option>
+                  <option value="casino">casino</option>
+                  <option value="gym">gym</option>
+                  <option value="school">school</option>
+                  <option value="dead">dead</option>
+                </select>
+              </div>
+            </div>
+            <div class="actions">
+              <button @click="loadNpcList(true)" :disabled="npcList.loading">Pesquisar</button>
+              <button class="secondary" @click="clearNpcFilters">Limpar</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Distribuição por condição</h3>
+            <div class="list">
+              <div v-if="!npcOverview.byCondition.length" class="muted">Sem dados</div>
+              <div v-else v-for="entry in npcOverview.byCondition" :key="`cond-${entry.condition}`" class="list-row">
+                <span>{{ entry.condition }}</span>
+                <strong>{{ num(entry.count || 0) }}</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Operações de cidade (Developer)</h3>
+            <div class="row">
+              <div>
+                <label>City ID</label>
+                <input v-model.trim="npcOps.cityId" placeholder="ex: city_1" />
+              </div>
+              <div>
+                <label>Seed (opcional)</label>
+                <input v-model.number="npcOps.seed" type="number" />
+              </div>
+            </div>
+            <div class="actions">
+              <button @click="seedNpcCity" :disabled="npcOps.running">Seed city</button>
+            </div>
+
+            <div class="row">
+              <div class="toggle"><input type="checkbox" v-model="npcOps.reseedAfterReset" /> <span>Reseed após reset</span></div>
+              <div>
+                <label>Confirmação reset</label>
+                <input v-model.trim="npcOps.confirm" placeholder="escreve RESET" />
+              </div>
+            </div>
+            <div class="actions">
+              <button class="secondary" @click="resetNpcCity" :disabled="npcOps.running">Reset city</button>
+            </div>
+            <p class="muted">Estas ações são restritas a Developer no backend.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section-block">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow mini">Gestão</p>
+            <h3>Lista e edição de NPC</h3>
+            <p class="muted">Seleciona um NPC para alterar atributos principais e estado.</p>
+          </div>
+        </div>
+
+        <div class="card-grid two-col">
+          <div class="card">
+            <h3>NPCs ({{ num(npcList.total || 0) }})</h3>
+            <div class="actions">
+              <button class="secondary" @click="prevNpcPage" :disabled="npcList.loading || npcList.page <= 1">Anterior</button>
+              <button class="secondary" @click="nextNpcPage" :disabled="npcList.loading || npcList.page >= npcList.pages">Próxima</button>
+              <span class="muted">Página {{ npcList.page }}/{{ npcList.pages }}</span>
+            </div>
+            <div class="list">
+              <div v-if="npcList.loading" class="muted">Carregando NPCs…</div>
+              <div v-else-if="!npcList.items.length" class="muted">Nenhum NPC encontrado</div>
+              <div
+                v-else
+                v-for="npc in npcList.items"
+                :key="npc._id"
+                class="list-row"
+              >
+                <div>
+                  <strong>{{ npc.name }}</strong>
+                  <div class="muted">{{ npc.type }} · tier {{ npc.tier }} · {{ npc.status?.condition }} · {{ npc.meta?.cityId || npc.status?.cityId }}</div>
+                </div>
+                <button class="secondary" @click="selectNpc(npc)">Editar</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Editor de NPC</h3>
+            <div v-if="!npcEditor.id" class="empty-state">Seleciona um NPC para editar.</div>
+            <template v-else>
+              <div class="row">
+                <div><label>Nome</label><input v-model.trim="npcEditor.name" /></div>
+                <div>
+                  <label>Tipo</label>
+                  <select v-model="npcEditor.type">
+                    <option value="ambient">ambient</option>
+                    <option value="character">character</option>
+                    <option value="vendor">vendor</option>
+                    <option value="guard">guard</option>
+                    <option value="criminal">criminal</option>
+                    <option value="medic">medic</option>
+                    <option value="detective">detective</option>
+                  </select>
+                </div>
+                <div>
+                  <label>Tier</label>
+                  <select v-model="npcEditor.tier">
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                  </select>
+                </div>
+                <div>
+                  <label>Género</label>
+                  <select v-model="npcEditor.gender">
+                    <option value="male">male</option>
+                    <option value="female">female</option>
+                  </select>
+                </div>
+                <div><label>Idade</label><input v-model.number="npcEditor.age" type="number" min="0" max="120" /></div>
+                <div><label>Cidade</label><input v-model.trim="npcEditor.cityId" /></div>
+              </div>
+
+              <div class="row">
+                <div>
+                  <label>Local</label>
+                  <select v-model="npcEditor.location">
+                    <option value="street">street</option>
+                    <option value="building">building</option>
+                    <option value="bar">bar</option>
+                    <option value="home">home</option>
+                    <option value="hospital">hospital</option>
+                    <option value="prison">prison</option>
+                    <option value="shelter">shelter</option>
+                    <option value="casino">casino</option>
+                    <option value="gym">gym</option>
+                    <option value="school">school</option>
+                    <option value="dead">dead</option>
+                  </select>
+                </div>
+                <div><label>Location ID</label><input v-model.trim="npcEditor.locationId" /></div>
+                <div>
+                  <label>Condição</label>
+                  <select v-model="npcEditor.condition">
+                    <option value="healthy">healthy</option>
+                    <option value="injured">injured</option>
+                    <option value="recovering">recovering</option>
+                    <option value="arrested">arrested</option>
+                    <option value="dead">dead</option>
+                    <option value="wanted">wanted</option>
+                    <option value="hiding">hiding</option>
+                  </select>
+                </div>
+                <div><label>Health</label><input v-model.number="npcEditor.health" type="number" min="0" max="100" /></div>
+                <div><label>Max Health</label><input v-model.number="npcEditor.maxHealth" type="number" min="80" max="120" /></div>
+                <div><label>Mental</label><input v-model.number="npcEditor.mentalHealth" type="number" min="0" max="100" /></div>
+              </div>
+
+              <div class="row">
+                <div class="toggle"><input type="checkbox" v-model="npcEditor.alive" /> <span>Vivo</span></div>
+                <div class="toggle"><input type="checkbox" v-model="npcEditor.routineEnabled" /> <span>Routine enabled</span></div>
+                <div class="toggle"><input type="checkbox" v-model="npcEditor.routineSuspended" /> <span>Routine suspended</span></div>
+                <div class="toggle"><input type="checkbox" v-model="npcEditor.isPublic" /> <span>Público</span></div>
+              </div>
+              <div>
+                <label>Razão suspensão rotina</label>
+                <input v-model.trim="npcEditor.routineSuspendReason" placeholder="ex: event_blackout" />
+              </div>
+
+              <div class="actions">
+                <button @click="saveNpc" :disabled="npcSaving">Guardar NPC</button>
+                <span class="muted" v-if="npcEditor.updatedAt">Atualizado {{ fmt(npcEditor.updatedAt) }}</span>
+              </div>
+            </template>
+          </div>
+        </div>
+      </section>
+    </div>
+
     <div class="tab-panel" v-show="currentTab === 'Logs & Cooldowns'">
       <section class="section-block">
         <div class="section-heading">
@@ -1287,7 +1547,7 @@ const profile = ref(null)
 const profileLoading = ref(false)
 const profileError = ref('')
 const newName = ref('')
-const tabs = ['Jogador', 'Economia', 'Stats', 'Inventário & Itens', 'Mundo', 'Logs & Cooldowns']
+const tabs = ['Jogador', 'Economia', 'Stats', 'Inventário & Itens', 'Mundo', 'NPC', 'Logs & Cooldowns']
 const currentTab = ref('Jogador')
 const isLogsTab = computed(() => currentTab.value === 'Logs & Cooldowns')
 
@@ -1556,6 +1816,61 @@ const hospitalOverview = reactive({
   lastFetched: null,
 })
 
+const npcOverview = reactive({
+  loading: false,
+  total: 0,
+  byTier: [],
+  byCondition: [],
+})
+
+const npcFilters = reactive({
+  q: '',
+  cityId: '',
+  tier: '',
+  type: '',
+  condition: '',
+  location: '',
+})
+
+const npcList = reactive({
+  loading: false,
+  page: 1,
+  limit: 25,
+  pages: 1,
+  total: 0,
+  items: [],
+})
+
+const npcEditor = reactive({
+  id: '',
+  name: '',
+  type: 'ambient',
+  tier: '1',
+  gender: 'male',
+  age: 30,
+  cityId: '',
+  location: 'street',
+  locationId: '',
+  condition: 'healthy',
+  alive: true,
+  health: 100,
+  maxHealth: 100,
+  mentalHealth: 100,
+  routineEnabled: false,
+  routineSuspended: false,
+  routineSuspendReason: '',
+  isPublic: false,
+  updatedAt: null,
+})
+const npcSaving = ref(false)
+const npcOps = reactive({
+  cityId: '',
+  seed: null,
+  confirm: '',
+  reseedAfterReset: true,
+  running: false,
+})
+
 function mergeWorldSection(section, incoming = {}) {
   if (section === 'crime') {
     const severity = incoming.severityMultipliers || {}
@@ -1803,6 +2118,193 @@ async function hydrateWorldTab(force = false) {
   ])
 }
 
+async function loadNpcOverview(force = false) {
+  if (npcOverview.loading && !force) return
+  try {
+    npcOverview.loading = true
+    const res = await api.get('/admin/npcs/overview')
+    npcOverview.total = Number(res.data?.total || 0)
+    npcOverview.byTier = Array.isArray(res.data?.byTier) ? res.data.byTier : []
+    npcOverview.byCondition = Array.isArray(res.data?.byCondition) ? res.data.byCondition : []
+  } catch (e) {
+    toast.error(e?.response?.data?.error || 'Falha ao carregar overview de NPCs')
+  } finally {
+    npcOverview.loading = false
+  }
+}
+
+function buildNpcQuery() {
+  const params = new URLSearchParams({
+    page: String(npcList.page),
+    limit: String(npcList.limit),
+  })
+  if (npcFilters.q.trim()) params.set('q', npcFilters.q.trim())
+  if (npcFilters.cityId.trim()) params.set('cityId', npcFilters.cityId.trim())
+  if (npcFilters.tier) params.set('tier', npcFilters.tier)
+  if (npcFilters.type) params.set('type', npcFilters.type)
+  if (npcFilters.condition) params.set('condition', npcFilters.condition)
+  if (npcFilters.location) params.set('location', npcFilters.location)
+  return params.toString()
+}
+
+async function loadNpcList(force = false) {
+  if (npcList.loading && !force) return
+  try {
+    npcList.loading = true
+    const query = buildNpcQuery()
+    const res = await api.get(`/admin/npcs?${query}`)
+    npcList.items = Array.isArray(res.data?.npcs) ? res.data.npcs : []
+    npcList.total = Number(res.data?.total || 0)
+    npcList.page = Number(res.data?.page || npcList.page)
+    npcList.pages = Number(res.data?.pages || 1)
+  } catch (e) {
+    toast.error(e?.response?.data?.error || 'Falha ao listar NPCs')
+  } finally {
+    npcList.loading = false
+  }
+}
+
+function clearNpcFilters() {
+  npcFilters.q = ''
+  npcFilters.cityId = ''
+  npcFilters.tier = ''
+  npcFilters.type = ''
+  npcFilters.condition = ''
+  npcFilters.location = ''
+  npcList.page = 1
+  loadNpcList(true)
+}
+
+function selectNpc(npc) {
+  npcEditor.id = npc?._id || ''
+  npcEditor.name = npc?.name || ''
+  npcEditor.type = npc?.type || 'ambient'
+  npcEditor.tier = String(npc?.tier || '1')
+  npcEditor.gender = npc?.gender || 'male'
+  npcEditor.age = Number(npc?.age || 30)
+  npcEditor.cityId = npc?.meta?.cityId || npc?.status?.cityId || ''
+  npcEditor.location = npc?.status?.location || 'street'
+  npcEditor.locationId = npc?.status?.locationId || ''
+  npcEditor.condition = npc?.status?.condition || 'healthy'
+  npcEditor.alive = npc?.status?.alive !== false
+  npcEditor.health = Number(npc?.stats?.health || 0)
+  npcEditor.maxHealth = Number(npc?.stats?.maxHealth || 100)
+  npcEditor.mentalHealth = Number(npc?.stats?.mentalHealth || 100)
+  npcEditor.routineEnabled = !!npc?.routine?.enabled
+  npcEditor.routineSuspended = !!npc?.routine?.suspended
+  npcEditor.routineSuspendReason = npc?.routine?.suspendReason || ''
+  npcEditor.isPublic = !!npc?.meta?.isPublic
+  npcEditor.updatedAt = npc?.meta?.updatedAt || null
+}
+
+async function saveNpc() {
+  if (!npcEditor.id || npcSaving.value) return
+  try {
+    npcSaving.value = true
+    const payload = {
+      name: npcEditor.name,
+      type: npcEditor.type,
+      tier: npcEditor.tier,
+      gender: npcEditor.gender,
+      age: Number(npcEditor.age),
+      cityId: npcEditor.cityId,
+      location: npcEditor.location,
+      locationId: npcEditor.locationId,
+      condition: npcEditor.condition,
+      alive: !!npcEditor.alive,
+      health: Number(npcEditor.health),
+      maxHealth: Number(npcEditor.maxHealth),
+      mentalHealth: Number(npcEditor.mentalHealth),
+      routineEnabled: !!npcEditor.routineEnabled,
+      routineSuspended: !!npcEditor.routineSuspended,
+      routineSuspendReason: npcEditor.routineSuspendReason || null,
+      isPublic: !!npcEditor.isPublic,
+    }
+    const res = await api.patch(`/admin/npcs/${encodeURIComponent(npcEditor.id)}`, payload)
+    selectNpc(res.data?.npc || null)
+    await Promise.all([loadNpcOverview(true), loadNpcList(true)])
+    toast.ok('NPC atualizado')
+  } catch (e) {
+    toast.error(e?.response?.data?.error || 'Falha ao atualizar NPC')
+  } finally {
+    npcSaving.value = false
+  }
+}
+
+function prevNpcPage() {
+  if (npcList.page <= 1) return
+  npcList.page -= 1
+  loadNpcList(true)
+}
+
+function nextNpcPage() {
+  if (npcList.page >= npcList.pages) return
+  npcList.page += 1
+  loadNpcList(true)
+}
+
+async function hydrateNpcTab(force = false) {
+  await Promise.all([
+    loadNpcOverview(force),
+    loadNpcList(force),
+  ])
+}
+
+async function seedNpcCity() {
+  if (npcOps.running) return
+  try {
+    const cityId = npcOps.cityId.trim()
+    if (!cityId) throw new Error('City ID é obrigatório')
+
+    npcOps.running = true
+    const body = { cityId }
+    if (npcOps.seed !== null && npcOps.seed !== '' && Number.isFinite(Number(npcOps.seed))) {
+      body.seed = Number(npcOps.seed)
+    }
+
+    const res = await api.post('/admin/npcs/seed', body)
+    const created = Number(res.data?.created || 0)
+    const skipped = !!res.data?.skipped
+    toast.ok(skipped ? 'Cidade já estava seeded' : `Seed concluído (${created} NPCs)`)
+    await hydrateNpcTab(true)
+  } catch (e) {
+    toast.error(e?.response?.data?.error || e?.message || 'Falha ao seed de NPCs')
+  } finally {
+    npcOps.running = false
+  }
+}
+
+async function resetNpcCity() {
+  if (npcOps.running) return
+  try {
+    const cityId = npcOps.cityId.trim()
+    if (!cityId) throw new Error('City ID é obrigatório')
+    if (npcOps.confirm.trim().toUpperCase() !== 'RESET') {
+      throw new Error('Confirmação inválida: escreve RESET')
+    }
+
+    npcOps.running = true
+    const body = {
+      cityId,
+      confirm: 'RESET',
+      reseed: !!npcOps.reseedAfterReset,
+    }
+    if (npcOps.seed !== null && npcOps.seed !== '' && Number.isFinite(Number(npcOps.seed))) {
+      body.seed = Number(npcOps.seed)
+    }
+
+    const res = await api.post('/admin/npcs/reset-city', body)
+    const deleted = Number(res.data?.deletedNPCs || 0)
+    toast.ok(`Reset concluído (${deleted} NPCs removidos)`)
+    npcOps.confirm = ''
+    await hydrateNpcTab(true)
+  } catch (e) {
+    toast.error(e?.response?.data?.error || e?.message || 'Falha ao reset de NPCs')
+  } finally {
+    npcOps.running = false
+  }
+}
+
 async function forceJail(secondsOverride) {
   try {
     const target = ensureTarget()
@@ -1847,11 +2349,17 @@ watch(currentTab, (tab) => {
   if (tab === 'Mundo') {
     hydrateWorldTab()
   }
+  if (tab === 'NPC') {
+    hydrateNpcTab()
+  }
 })
 
 onMounted(() => {
   if (currentTab.value === 'Mundo') {
     hydrateWorldTab()
+  }
+  if (currentTab.value === 'NPC') {
+    hydrateNpcTab()
   }
 })
 

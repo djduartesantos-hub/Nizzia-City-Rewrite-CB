@@ -40,6 +40,11 @@ const {
   addPlayerBoost,
   removePlayerBoost,
   getPlayerLogs,
+  getNPCOverview,
+  listNPCsAdmin,
+  updateNPCAdmin,
+  seedNPCsAdmin,
+  resetNPCsByCityAdmin,
   // cooldowns
   getPlayerCooldowns,
   setPlayerCooldown,
@@ -103,6 +108,12 @@ router.get('/player/boosts/:userId', getPlayerBoosts);
 router.post('/player/boosts/add', addPlayerBoost);
 router.post('/player/boosts/remove', removePlayerBoost);
 router.get('/player/logs/:userId', getPlayerLogs);
+// NPC admin
+router.get('/npcs/overview', getNPCOverview);
+router.get('/npcs', listNPCsAdmin);
+router.patch('/npcs/:npcId', updateNPCAdmin);
+router.post('/npcs/seed', seedNPCsAdmin);
+router.post('/npcs/reset-city', resetNPCsByCityAdmin);
 // Item presets
 router.get('/item-presets', listItemPresets);
 router.post('/item-presets', createItemPreset);

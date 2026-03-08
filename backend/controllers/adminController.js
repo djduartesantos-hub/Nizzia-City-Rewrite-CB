@@ -15,6 +15,9 @@ const PlayerAdminNote = require('../models/PlayerAdminNote');
 const ItemPreset = require('../models/ItemPreset');
 const PlayerSnapshot = require('../models/PlayerSnapshot');
 const Transaction = require('../models/Transaction');
+const NPC = require('../models/NPC');
+const NPCEvent = require('../models/NPCEvent');
+const { seedCityNPCs } = require('../services/npcWorldService');
 
 const PUNISHMENT_PRESETS = {
   warn_watch: {
@@ -53,6 +56,231 @@ async function getAdminPlayerFromReq(req) {
   if (!adminPlayer) throw new Error('Admin player not found');
   if (!['Admin', 'Developer'].includes(adminPlayer.playerRole)) throw new Error('Forbidden');
   return adminPlayer;
+}
+
+async function getDeveloperFromReq(req) {
+  const admin = await getAdminPlayerFromReq(req);
+  if (admin.playerRole !== 'Developer') throw new Error('Forbidden');
+  return admin;
+}
+
+// GET /api/admin/npcs/overview
+async function getNPCOverview(req, res) {
+  try {
+    await getAdminPlayerFromReq(req);
+
+    const [total, tierAgg, conditionAgg, cityAgg] = await Promise.all([
+      NPC.countDocuments({}),
+      NPC.aggregate([
+        { $group: { _id: '$tier', count: { $sum: 1 } } },
+        { $sort: { _id: 1 } },
+      ]),
+      NPC.aggregate([
+        { $group: { _id: '$status.condition', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+      ]),
+      NPC.aggregate([
+        { $group: { _id: '$meta.cityId', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 20 },
+      ]),
+    ]);
+
+    return res.json({
+      total,
+      byTier: tierAgg.map((r) => ({ tier: r._id || 'unknown', count: r.count })),
+      byCondition: conditionAgg.map((r) => ({ condition: r._id || 'unknown', count: r.count })),
+      byCity: cityAgg.map((r) => ({ cityId: r._id || 'unknown', count: r.count })),
+    });
+  } catch (err) {
+    if (err.message === 'Unauthorized') return res.status(401).json({ error: 'Unauthorized' });
+    if (err.message === 'Forbidden') return res.status(403).json({ error: 'Not authorized' });
+    console.error('ADMIN getNPCOverview error:', err);
+    return res.status(500).json({ error: 'Failed to load NPC overview' });
+  }
+}
+
+// GET /api/admin/npcs?cityId=&tier=&type=&condition=&location=&q=&page=&limit=
+async function listNPCsAdmin(req, res) {
+  try {
+    await getAdminPlayerFromReq(req);
+
+    const q = String(req.query.q || '').trim();
+    const page = Math.max(1, Number(req.query.page || 1));
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit || 25)));
+
+    const query = {};
+    if (req.query.cityId) {
+      query.$or = [
+        { 'meta.cityId': String(req.query.cityId) },
+        { 'status.cityId': String(req.query.cityId) },
+      ];
+    }
+    if (req.query.tier) query.tier = String(req.query.tier);
+    if (req.query.type) query.type = String(req.query.type);
+    if (req.query.condition) query['status.condition'] = String(req.query.condition);
+    if (req.query.location) query['status.location'] = String(req.query.location);
+    if (q) query.name = { $regex: q, $options: 'i' };
+
+    const [total, npcs] = await Promise.all([
+      NPC.countDocuments(query),
+      NPC.find(query)
+        .select('name type tier gender age status stats routine meta activity')
+        .sort({ 'meta.updatedAt': -1, updatedAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean(),
+    ]);
+
+    return res.json({
+      total,
+      page,
+      limit,
+      pages: Math.max(1, Math.ceil(total / limit)),
+      npcs,
+    });
+  } catch (err) {
+    if (err.message === 'Unauthorized') return res.status(401).json({ error: 'Unauthorized' });
+    if (err.message === 'Forbidden') return res.status(403).json({ error: 'Not authorized' });
+    console.error('ADMIN listNPCsAdmin error:', err);
+    return res.status(500).json({ error: 'Failed to list NPCs' });
+  }
+}
+
+// PATCH /api/admin/npcs/:npcId
+async function updateNPCAdmin(req, res) {
+  try {
+    await getAdminPlayerFromReq(req);
+    const npcId = String(req.params.npcId || '');
+    if (!mongoose.Types.ObjectId.isValid(npcId)) return res.status(400).json({ error: 'Invalid NPC id' });
+
+    const body = req.body || {};
+    const set = {};
+
+    if (body.name !== undefined) set.name = String(body.name || '').trim();
+    if (body.type !== undefined) set.type = String(body.type || '').trim();
+    if (body.tier !== undefined) set.tier = String(body.tier || '').trim();
+    if (body.gender !== undefined) set.gender = String(body.gender || '').trim();
+    if (body.age !== undefined) set.age = Number(body.age);
+
+    if (body.cityId !== undefined) {
+      const cityId = String(body.cityId || '').trim();
+      set['status.cityId'] = cityId;
+      set['meta.cityId'] = cityId;
+    }
+    if (body.location !== undefined) set['status.location'] = String(body.location || '').trim();
+    if (body.locationId !== undefined) set['status.locationId'] = String(body.locationId || '').trim();
+    if (body.condition !== undefined) set['status.condition'] = String(body.condition || '').trim();
+    if (body.alive !== undefined) set['status.alive'] = !!body.alive;
+
+    if (body.health !== undefined) set['stats.health'] = Number(body.health);
+    if (body.maxHealth !== undefined) set['stats.maxHealth'] = Number(body.maxHealth);
+    if (body.mentalHealth !== undefined) set['stats.mentalHealth'] = Number(body.mentalHealth);
+
+    if (body.routineEnabled !== undefined) set['routine.enabled'] = !!body.routineEnabled;
+    if (body.routineSuspended !== undefined) set['routine.suspended'] = !!body.routineSuspended;
+    if (body.routineSuspendReason !== undefined) {
+      set['routine.suspendReason'] = body.routineSuspendReason ? String(body.routineSuspendReason) : null;
+    }
+
+    if (body.isPublic !== undefined) set['meta.isPublic'] = !!body.isPublic;
+
+    if (!Object.keys(set).length) return res.status(400).json({ error: 'No editable fields provided' });
+    set['meta.updatedAt'] = new Date();
+
+    const npc = await NPC.findByIdAndUpdate(
+      npcId,
+      { $set: set },
+      {
+        new: true,
+        runValidators: true,
+      }
+    )
+      .select('name type tier gender age status stats routine meta activity')
+      .lean();
+
+    if (!npc) return res.status(404).json({ error: 'NPC not found' });
+    return res.json({ npc });
+  } catch (err) {
+    if (err.message === 'Unauthorized') return res.status(401).json({ error: 'Unauthorized' });
+    if (err.message === 'Forbidden') return res.status(403).json({ error: 'Not authorized' });
+    console.error('ADMIN updateNPCAdmin error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to update NPC' });
+  }
+}
+
+// POST /api/admin/npcs/seed { cityId, seed? }
+async function seedNPCsAdmin(req, res) {
+  try {
+    await getDeveloperFromReq(req);
+
+    const cityId = String(req.body?.cityId || '').trim();
+    if (!cityId) return res.status(400).json({ error: 'cityId is required' });
+
+    const rawSeed = req.body?.seed;
+    const seed = rawSeed === undefined || rawSeed === null || rawSeed === ''
+      ? Math.floor(Date.now() % 1000000000)
+      : Number(rawSeed);
+    if (!Number.isFinite(seed)) return res.status(400).json({ error: 'seed must be a number' });
+
+    const result = await seedCityNPCs(cityId, seed);
+    return res.json({ cityId, seed, ...result });
+  } catch (err) {
+    if (err.message === 'Unauthorized') return res.status(401).json({ error: 'Unauthorized' });
+    if (err.message === 'Forbidden') return res.status(403).json({ error: 'Not authorized' });
+    console.error('ADMIN seedNPCsAdmin error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to seed NPCs' });
+  }
+}
+
+// POST /api/admin/npcs/reset-city { cityId, confirm, reseed?, seed? }
+async function resetNPCsByCityAdmin(req, res) {
+  try {
+    await getDeveloperFromReq(req);
+
+    const cityId = String(req.body?.cityId || '').trim();
+    if (!cityId) return res.status(400).json({ error: 'cityId is required' });
+    if (String(req.body?.confirm || '').trim().toUpperCase() !== 'RESET') {
+      return res.status(400).json({ error: 'confirm must be RESET' });
+    }
+
+    const npcQuery = {
+      $or: [
+        { 'meta.cityId': cityId },
+        { 'status.cityId': cityId },
+      ],
+    };
+
+    const [npcDelete, eventDelete] = await Promise.all([
+      NPC.deleteMany(npcQuery),
+      NPCEvent.deleteMany({ cityId }),
+    ]);
+
+    let reseedResult = null;
+    const reseed = req.body?.reseed === true;
+    if (reseed) {
+      const rawSeed = req.body?.seed;
+      const seed = rawSeed === undefined || rawSeed === null || rawSeed === ''
+        ? Math.floor(Date.now() % 1000000000)
+        : Number(rawSeed);
+      if (!Number.isFinite(seed)) return res.status(400).json({ error: 'seed must be a number when reseed is true' });
+      reseedResult = await seedCityNPCs(cityId, seed);
+      reseedResult.seed = seed;
+    }
+
+    return res.json({
+      cityId,
+      deletedNPCs: npcDelete.deletedCount || 0,
+      deletedEvents: eventDelete.deletedCount || 0,
+      reseed,
+      reseedResult,
+    });
+  } catch (err) {
+    if (err.message === 'Unauthorized') return res.status(401).json({ error: 'Unauthorized' });
+    if (err.message === 'Forbidden') return res.status(403).json({ error: 'Not authorized' });
+    console.error('ADMIN resetNPCsByCityAdmin error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to reset city NPCs' });
+  }
 }
 
 async function getAdminPlayerProfile(req, res) {
@@ -933,6 +1161,12 @@ module.exports = {
   addPlayerBoost,
   removePlayerBoost,
   getPlayerLogs,
+  // npc admin
+  getNPCOverview,
+  listNPCsAdmin,
+  updateNPCAdmin,
+  seedNPCsAdmin,
+  resetNPCsByCityAdmin,
   // cartel
   setCartelRep,
   // database
