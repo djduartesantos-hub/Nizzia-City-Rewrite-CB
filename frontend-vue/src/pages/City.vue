@@ -41,6 +41,8 @@ const pois = [
   { id: 'real-estate', name: 'Real Estate', icon: '🏠', x: 72, y: 82, route: '/real-estate' },
   { id: 'pets', name: 'Pet Store', icon: '🐾', x: 14, y: 64, route: '/pets' },
   { id: 'market', name: 'Market', icon: '🛒', x: 8, y: 42, route: '/market' },
+  { id: 'prison', name: 'Prison', icon: '🚔', x: 44, y: 54, route: '/prison' },
+  { id: 'hospital', name: 'Hospital', icon: '🏥', x: 66, y: 62, route: '/hospital' },
 
   // Shops scroll to sections below
   { id: 'shop-candy', name: 'Candy Shop', icon: '🍬', x: 24, y: 44, sectionId: '#shop-candy' },
@@ -60,6 +62,8 @@ const descriptions = {
   bank: 'Manage deposits and interest payouts.',
   stocks: 'Buy low, sell high; watch the ticker.',
   job: 'Find a job, gain points, and rank up.',
+  prison: 'Coordinate busts, fianças e fugas.',
+  hospital: 'Gestão de triagem e revives cirúrgicos.',
   hof: 'See top players and recent milestones.',
   'real-estate': 'Upgrade your home to boost stats.',
   market: 'Player-to-player marketplace for items.',

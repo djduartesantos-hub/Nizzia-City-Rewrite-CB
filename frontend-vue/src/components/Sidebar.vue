@@ -321,6 +321,8 @@ const navItems = computed(() => {
     { to: '/', label: 'HQ', desc: 'Painel geral', icon: '🏠' },
     { to: '/inventory', label: 'Inventário', desc: 'Gear & drops', icon: '🎒' },
     { to: '/city', label: 'Cidade', desc: 'Distritos e eventos', icon: '🌆' },
+    { to: '/prison', label: 'Prisão', desc: 'Controle carcerário', icon: '🚔' },
+    { to: '/hospital', label: 'Hospital', desc: 'Triagem & revives', icon: '🏥' },
     { to: '/job', label: 'Emprego', desc: 'Contratos oficiais', icon: '💼' },
     { to: '/education', label: 'Educação', desc: 'Cursos & perks', icon: '📚' },
     { to: '/gym', label: 'Ginásio', desc: 'Stats & treino', icon: '💪' },
