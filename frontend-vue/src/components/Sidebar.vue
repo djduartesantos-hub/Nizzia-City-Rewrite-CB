@@ -10,12 +10,11 @@
       <div class="hero-bars">
         <div class="hero-bar" v-for="bar in heroBars" :key="bar.label">
           <div class="hero-bar__label">
-            <span>{{ bar.label }} · {{ bar.value }}</span>
-            <span v-if="bar.regen" class="regen-chip">
-              +{{ bar.regen.amount }} em {{ bar.regen.timeLabel }}
-            </span>
+            <span class="hero-label-text">{{ bar.label }}: {{ bar.value }}</span>
+            <span class="hero-timer">{{ bar.timerLabel }}</span>
           </div>
           <div class="progress-bar hero-track">
+            <div class="tick-grid"></div>
             <div class="progress-fill" :class="bar.class" :style="{ width: bar.fill + '%' }"></div>
             <div v-if="bar.regen?.ghostWidth" class="progress-ghost" :class="bar.class" :style="{ left: bar.fill + '%', width: bar.regen.ghostWidth + '%' }"></div>
             <div v-if="bar.regen" class="progress-tick" :style="{ width: bar.regen.tickProgress + '%' }"></div>
@@ -139,7 +138,7 @@ const heroBars = computed(() => [
   buildBar('Energy', eNow.value, eMax.value, 'energy', regenConfig.energy),
   buildBar('Nerve', nNow.value, nMax.value, 'nerve', regenConfig.nerve),
   buildBar('Happy', hNow.value, hMax.value, 'happy', regenConfig.happy),
-  buildBar('HP', hpNow.value, hpMax, 'life', null)
+  buildBar('Life', hpNow.value, hpMax, 'life', null)
 ])
 
 function pct(cur, max){ return max > 0 ? Math.min(100, Math.round((cur/max)*100)) : 0 }
@@ -147,7 +146,7 @@ function pct(cur, max){ return max > 0 ? Math.min(100, Math.round((cur/max)*100)
 function buildBar(label, current, max, cls, regen) {
   const fill = pct(current, max)
   if (!regen || max <= 0) {
-    return { label, value: `${current}/${max}`, fill, class: cls }
+    return { label, value: `${current}/${max}`, fill, class: cls, timerLabel: 'FULL' }
   }
   const secondsLeft = secondsUntilTick(regen.interval)
   const ghostWidth = Math.min(100 - fill, regen.amount && max ? (regen.amount / max) * 100 : 0)
@@ -157,6 +156,7 @@ function buildBar(label, current, max, cls, regen) {
     value: `${current}/${max}`,
     fill,
     class: cls,
+    timerLabel: current >= max ? 'FULL' : fmtHms(secondsLeft),
     regen: {
       amount: regen.amount,
       timeLabel: fmtHms(secondsLeft),
