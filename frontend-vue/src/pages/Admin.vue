@@ -518,6 +518,8 @@ const targetPlayerId = ref('')
 const targetUserId = ref('')
 const profile = ref(null)
 const newName = ref('')
+const tabs = ['Jogador', 'Economia', 'Stats', 'Inventário & Itens', 'Mundo', 'Logs & Cooldowns']
+const currentTab = ref('Jogador')
 
 const searchQuery = ref('')
 const searchResults = ref([])
@@ -569,6 +571,7 @@ const stockShares = ref(1)
 const stockAvgPrice = ref(null)
 
 const bankAccounts = ref([])
+const bankAccountId = ref('')
 
 const cdDrug = ref(0)
 const cdMedical = ref(0)
