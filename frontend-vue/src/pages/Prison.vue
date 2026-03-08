@@ -31,7 +31,7 @@
         <label>Gang</label>
         <select v-model="filters.gang">
           <option value="all">Todas</option>
-          <option v-for="tag in gangTags" :key="tag" :value="tag">{{ tag }}</option>
+          <option v-for="tag in gangOptions" :key="tag" :value="tag">{{ tag }}</option>
         </select>
       </div>
       <div class="field">
@@ -126,6 +126,7 @@
             <button class="secondary" @click="payBail" :disabled="actionState.bail || !selectedPrisoner.bailCost">
               {{ actionState.bail ? 'Processando…' : 'Pagar fiança' }}
             </button>
+            <button class="ghost" @click="openInAdmin" :disabled="!selectedPrisoner?.userId">Abrir no Admin</button>
           </div>
           <section class="history">
             <div class="history-row" v-for="entry in selectedPrisoner.history || []" :key="entry.id || entry.ts">
@@ -157,11 +158,13 @@
 
 <script setup>
 import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue'
+import { useRouter } from 'vue-router'
 import api from '../api/client'
 import { useToast } from '../composables/useToast'
 import { fmtDate as fmt } from '../utils/format'
 
 const toast = useToast()
+const router = useRouter()
 const prisoners = ref([])
 const stats = ref({ total: 0, avgSeconds: 0, lastBreakout: null })
 const events = ref([])
@@ -171,7 +174,13 @@ const errorMessage = ref('')
 const selectedPrisoner = ref(null)
 const filters = ref({ search: '', gang: 'all', sort: 'time_desc' })
 const pagination = ref({ page: 1, limit: 20, hasMore: false })
-const gangTags = ref(['Cartel Azul', 'Red Faction', 'Sombra'])
+const gangOptions = computed(() => {
+  const tags = new Set()
+  for (const p of prisoners.value) {
+    if (p.gang) tags.add(p.gang)
+  }
+  return Array.from(tags).sort()
+})
 const actionState = ref({ breakout: false, bail: false })
 const autoRefreshSeconds = ref(60)
 let autoRefreshTimer = null
@@ -237,6 +246,19 @@ function selectPrisoner(inmate){
 function changePage(delta){
   pagination.value.page = Math.max(1, pagination.value.page + delta)
   loadPrisoners()
+}
+
+function openInAdmin(){
+  if (!selectedPrisoner.value) return
+  try {
+    if (selectedPrisoner.value.userId) {
+      localStorage.setItem('nc_target_uid', selectedPrisoner.value.userId)
+    }
+    if (selectedPrisoner.value.id) {
+      localStorage.setItem('nc_target_pid', String(selectedPrisoner.value.id))
+    }
+  } catch {}
+  router.push({ name: 'admin' })
 }
 
 async function attemptBreakout(){
