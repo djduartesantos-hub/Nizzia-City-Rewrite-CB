@@ -16,7 +16,13 @@ export const usePlayerStore = defineStore('player', {
     mergePartial(data) {
       if (!this.player || !data) return
       for (const key of Object.keys(data)) {
-        this.player[key] = data[key]
+        const value = data[key]
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+          const current = this.player[key]
+          this.player[key] = { ...(current || {}), ...value }
+        } else {
+          this.player[key] = value
+        }
       }
       try { localStorage.setItem('nc_player', JSON.stringify(this.player)) } catch {}
     },
