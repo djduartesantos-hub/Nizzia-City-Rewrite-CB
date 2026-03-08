@@ -1,0 +1,1198 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Torn - City Event Map</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #080b12;
+      --panel: rgba(10, 16, 28, 0.84);
+      --panel-border: rgba(112, 190, 240, 0.28);
+      --text: #d6f1ff;
+      --muted: #84a4b9;
+      --danger: #ff5b74;
+      --ok: #2ee5a5;
+      --warn: #ffc459;
+      --neon-cyan: #4bd1ff;
+      --neon-pink: #ff4fa5;
+      --shadow: 0 14px 32px rgba(0, 0, 0, 0.48);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(1400px 900px at 12% 8%, #1a2440 0%, rgba(26, 36, 64, 0) 60%),
+        radial-gradient(1200px 800px at 100% 100%, #10273b 0%, rgba(16, 39, 59, 0) 52%),
+        linear-gradient(180deg, #05070d 0%, #0b1020 100%);
+      color: var(--text);
+      font-family: 'Share Tech Mono', monospace;
+      overflow: hidden;
+    }
+
+    #app {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    #cityCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: crosshair;
+    }
+
+    .hud {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      display: grid;
+      gap: 10px;
+      z-index: 20;
+      pointer-events: none;
+    }
+
+    .panel {
+      pointer-events: auto;
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(8px);
+      padding: 10px 12px;
+    }
+
+    .title {
+      margin: 0;
+      line-height: 1;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.95rem;
+      letter-spacing: 0.12em;
+      color: #e8fbff;
+      text-shadow: 0 0 10px rgba(75, 209, 255, 0.42);
+    }
+
+    .subtitle { color: var(--muted); font-size: 0.78rem; letter-spacing: 0.08em; }
+
+    .hud-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(92px, 1fr));
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .stat {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 8px;
+      min-width: 92px;
+    }
+
+    .stat b {
+      display: block;
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-bottom: 2px;
+    }
+
+    .stat span { font-size: 1rem; }
+
+    .legend {
+      max-width: 350px;
+      max-height: 220px;
+      overflow: auto;
+    }
+
+    .legend h3 {
+      margin: 0 0 8px;
+      font-size: 0.84rem;
+      color: var(--muted);
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+    }
+
+    .legend ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+    .legend li { display: flex; align-items: center; gap: 8px; font-size: 0.77rem; }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      border: 1px solid rgba(255,255,255,.28);
+      display: inline-block;
+      flex: 0 0 auto;
+    }
+
+    .mini-wrap {
+      position: absolute;
+      right: 16px;
+      bottom: 16px;
+      width: 240px;
+      z-index: 20;
+    }
+
+    #miniMap {
+      width: 100%;
+      height: 160px;
+      border-radius: 12px;
+      border: 1px solid var(--panel-border);
+      background: rgba(0, 0, 0, 0.45);
+      box-shadow: var(--shadow);
+    }
+
+    .event-chip {
+      position: absolute;
+      z-index: 15;
+      transform: translate(-50%, -50%);
+      color: #fff;
+      font-size: 0.72rem;
+      text-align: center;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: rgba(10, 18, 30, 0.88);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      box-shadow: 0 0 0 0 rgba(255, 79, 165, 0.55);
+      animation: pulse 1.4s infinite;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .event-chip.high { border-color: rgba(255, 91, 116, 0.68); box-shadow: 0 0 0 0 rgba(255, 91, 116, 0.58); }
+    .event-chip.medium { border-color: rgba(255, 196, 89, 0.68); box-shadow: 0 0 0 0 rgba(255, 196, 89, 0.58); }
+    .event-chip.very-high { border-color: rgba(255, 65, 65, 0.8); box-shadow: 0 0 0 0 rgba(255, 65, 65, 0.62); }
+
+    @keyframes pulse {
+      0% { transform: translate(-50%, -50%) scale(1); }
+      50% { transform: translate(-50%, -50%) scale(1.1); }
+      100% { transform: translate(-50%, -50%) scale(1); }
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: none;
+      z-index: 40;
+      background: rgba(3, 7, 14, 0.72);
+      backdrop-filter: blur(6px);
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .overlay.show { display: flex; }
+
+    .modal {
+      width: min(700px, 100%);
+      background: linear-gradient(160deg, rgba(12, 19, 35, 0.95), rgba(9, 15, 28, 0.96));
+      border: 1px solid rgba(89, 199, 255, 0.36);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 16px;
+    }
+
+    .modal h2 {
+      margin: 0;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 2rem;
+      letter-spacing: .08em;
+    }
+
+    .modal .meta {
+      margin-top: 6px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    .actions { margin-top: 14px; display: flex; gap: 10px; justify-content: flex-end; }
+
+    button {
+      font: inherit;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 14px;
+      cursor: pointer;
+      font-weight: 700;
+      letter-spacing: .03em;
+    }
+
+    .btn-primary { background: linear-gradient(120deg, #2188ff, #2de3af); color: #061017; }
+    .btn-ghost { background: rgba(255,255,255,.08); color: var(--text); border: 1px solid rgba(255,255,255,.15); }
+
+    .action-screen {
+      position: absolute;
+      inset: 0;
+      z-index: 50;
+      display: none;
+      background:
+        radial-gradient(70% 50% at 40% 20%, rgba(37, 102, 165, 0.38), rgba(0, 0, 0, 0)),
+        radial-gradient(80% 60% at 80% 90%, rgba(165, 34, 96, 0.3), rgba(0, 0, 0, 0)),
+        linear-gradient(180deg, #03060d, #0a1020);
+      overflow: hidden;
+    }
+
+    .action-screen.show { display: block; }
+
+    .particle {
+      position: absolute;
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: rgba(112, 210, 255, .82);
+      animation: drift linear infinite;
+    }
+
+    @keyframes drift {
+      from { transform: translateY(0); opacity: .8; }
+      to { transform: translateY(-120vh); opacity: 0; }
+    }
+
+    .action-ui {
+      position: relative;
+      z-index: 3;
+      max-width: 920px;
+      margin: 40px auto;
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .phase-text {
+      min-height: 90px;
+      font-size: 1.06rem;
+      line-height: 1.5;
+      border-left: 4px solid var(--neon-cyan);
+      padding-left: 12px;
+      background: rgba(5, 11, 20, 0.45);
+    }
+
+    .progress {
+      height: 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.09);
+      border: 1px solid rgba(255,255,255,.15);
+      overflow: hidden;
+    }
+
+    .progress > i {
+      display: block;
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #42d9ff, #ff4fa5);
+      box-shadow: 0 0 22px rgba(66, 217, 255, 0.55);
+      transition: width .18s linear;
+    }
+
+    .result {
+      display: grid;
+      gap: 8px;
+      font-size: 0.95rem;
+      background: rgba(5, 11, 20, 0.45);
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: 12px;
+      padding: 12px;
+    }
+
+    .status-lock {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      z-index: 30;
+      background: rgba(255, 79, 165, 0.16);
+      border: 1px solid rgba(255, 79, 165, 0.42);
+      color: #ffd3e8;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: .76rem;
+      letter-spacing: .06em;
+      display: none;
+    }
+
+    .status-lock.show { display: block; }
+
+    @media (max-width: 900px) {
+      .hud-grid { grid-template-columns: repeat(2, minmax(100px, 1fr)); }
+      .mini-wrap { width: 180px; }
+      #miniMap { height: 120px; }
+      .title { font-size: 1.5rem; }
+      .event-chip { font-size: .62rem; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <canvas id="cityCanvas"></canvas>
+    <div id="eventLayer"></div>
+
+    <div class="hud">
+      <div class="panel">
+        <h1 class="title" id="cityName">Cidade</h1>
+        <div class="subtitle" id="cityMeta">SEED #1 · COORD 0,0</div>
+        <div class="hud-grid">
+          <div class="stat"><b>HP</b><span id="hudHp">100</span></div>
+          <div class="stat"><b>DINHEIRO</b><span id="hudMoney">$5000</span></div>
+          <div class="stat"><b>XP</b><span id="hudXp">0</span></div>
+          <div class="stat"><b>STATUS</b><span id="hudStatus">LIVRE</span></div>
+        </div>
+      </div>
+
+      <div class="panel legend">
+        <h3>Legenda de zonas</h3>
+        <ul id="legendList"></ul>
+      </div>
+    </div>
+
+    <div class="mini-wrap panel">
+      <canvas id="miniMap"></canvas>
+    </div>
+
+    <div class="status-lock" id="statusLock">EM OPERAÇÃO · MAPA BLOQUEADO</div>
+
+    <div class="overlay" id="eventModalOverlay">
+      <div class="modal">
+        <h2 id="modalTitle">Evento</h2>
+        <div class="meta" id="modalMeta"></div>
+        <p id="modalDesc"></p>
+        <div id="modalRewards"></div>
+        <div class="actions">
+          <button class="btn-ghost" id="btnCloseModal">Fechar</button>
+          <button class="btn-primary" id="btnParticipate">Participar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="action-screen" id="actionScreen">
+      <div id="particleField"></div>
+      <div class="action-ui">
+        <div class="panel">
+          <h2 style="margin:0;font-family:'Bebas Neue';font-size:2rem;letter-spacing:.08em" id="actionTitle">Ação</h2>
+          <div class="meta" id="actionMeta"></div>
+          <div class="phase-text" id="phaseText">A preparar operação...</div>
+          <div style="display:grid;gap:8px;margin-top:10px">
+            <div class="progress"><i id="progressFill"></i></div>
+            <div style="display:flex;justify-content:space-between;font-size:.86rem;color:var(--muted)">
+              <span id="progressTime">00:00</span>
+              <span id="twistInfo">Twist: por revelar...</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="hud-grid">
+            <div class="stat"><b>HP</b><span id="liveHp">100</span></div>
+            <div class="stat"><b>TENSÃO</b><span id="liveStress">0</span></div>
+            <div class="stat"><b>RISCO</b><span id="liveRisk">-</span></div>
+            <div class="stat"><b>TEMPO RESTANTE</b><span id="liveTimer">--</span></div>
+          </div>
+        </div>
+
+        <div class="panel" id="resultPanel" style="display:none">
+          <h2 style="margin:0 0 8px;font-family:'Bebas Neue';letter-spacing:.08em">Resultado Final</h2>
+          <div class="result" id="resultData"></div>
+          <div class="actions" style="justify-content:flex-start">
+            <button class="btn-primary" id="btnBackMap">Voltar ao Mapa</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const CITY_W = 2000
+    const CITY_H = 1400
+
+    const EVENT_TYPES = {
+      shootout: {
+        name: 'Tiroteio em rua',
+        icon: '🔫',
+        danger: 'Alto',
+        riskClass: 'high',
+        duration: [15, 30],
+        zones: ['gueto', 'industrial', 'abandonada'],
+        desc: 'Facções rivais trocaram fogo numa artéria principal.',
+      },
+      bankHeist: {
+        name: 'Assalto ao banco',
+        icon: '🏦',
+        danger: 'Muito alto',
+        riskClass: 'very-high',
+        duration: [180, 300],
+        zones: ['comercial', 'rico'],
+        desc: 'Grupo armado tomou o banco central e exige rota de fuga.',
+      },
+      drugDeal: {
+        name: 'Tráfico de droga',
+        icon: '💊',
+        danger: 'Médio',
+        riskClass: 'medium',
+        duration: [45, 120],
+        zones: ['mercado-negro', 'porto', 'gueto'],
+        desc: 'Movimento suspeito de carga e distribuição clandestina.',
+      },
+      policeChase: {
+        name: 'Perseguição policial',
+        icon: '🚓',
+        danger: 'Alto',
+        riskClass: 'high',
+        duration: [30, 60],
+        zones: ['suburbio', 'residencial', 'comercial'],
+        desc: 'Uma viatura em alta velocidade atravessa quarteirões lotados.',
+      },
+      vehicleTheft: {
+        name: 'Roubo de viatura',
+        icon: '🚗',
+        danger: 'Médio',
+        riskClass: 'medium',
+        duration: [20, 40],
+        zones: ['residencial', 'suburbio', 'rico'],
+        desc: 'Gangue especializada está a levar carros por encomenda.',
+      },
+      gangWar: {
+        name: 'Gang war',
+        icon: '⚔️',
+        danger: 'Muito alto',
+        riskClass: 'very-high',
+        duration: [120, 240],
+        zones: ['gueto', 'industrial', 'abandonada'],
+        desc: 'Território em disputa total entre duas crews pesadas.',
+      },
+    }
+
+    const ZONE_ARCHETYPES = [
+      { key: 'residencial', label: 'Residencial', color: '#2e556a', density: 0.45 },
+      { key: 'comercial', label: 'Comercial', color: '#1f6d5d', density: 0.62 },
+      { key: 'industrial', label: 'Industrial', color: '#62503e', density: 0.56 },
+      { key: 'porto', label: 'Porto/Docas', color: '#2f4f74', density: 0.5 },
+      { key: 'suburbio', label: 'Subúrbio', color: '#446861', density: 0.36 },
+      { key: 'gueto', label: 'Gueto', color: '#5b3650', density: 0.67 },
+      { key: 'rico', label: 'Bairro Rico', color: '#4a5b2e', density: 0.48 },
+      { key: 'abandonada', label: 'Zona Abandonada', color: '#3e3e44', density: 0.2 },
+      { key: 'parque', label: 'Parque', color: '#27613f', density: 0.15 },
+      { key: 'mercado-negro', label: 'Mercado Negro', color: '#6a3a26', density: 0.58 },
+    ]
+
+    const STREET_PART_A = ['Avenida', 'Rua', 'Travessa', 'Boulevard', 'Alameda', 'Viela', 'Via']
+    const STREET_PART_B = ['Sombra', 'Ferro', 'Aurora', 'Néon', 'Orquídea', 'Ponte', 'Mercúrio', 'Fênix', 'Vulcão', 'Bruma']
+    const CITY_PREFIX = ['Nova', 'Santa', 'Porto', 'Vila', 'Neo', 'Alta', 'Baixa', 'Fort']
+    const CITY_CORE = ['Mirage', 'Vesper', 'Crown', 'Argos', 'Haven', 'Riven', 'Solace', 'Hexa', 'Nizzia', 'Veridian']
+
+    function clamp(v, min, max) { return Math.max(min, Math.min(max, v)) }
+    function fmtTime(seconds) {
+      const s = Math.max(0, Math.floor(seconds))
+      const m = Math.floor(s / 60)
+      const r = s % 60
+      return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`
+    }
+
+    class RNG {
+      constructor(seed) { this.seed = seed >>> 0 }
+      next() {
+        this.seed = (1664525 * this.seed + 1013904223) >>> 0
+        return this.seed / 0x100000000
+      }
+      range(min, max) { return min + (max - min) * this.next() }
+      int(min, max) { return Math.floor(this.range(min, max + 1)) }
+      pick(arr) { return arr[this.int(0, arr.length - 1)] }
+    }
+
+    class CityGenerator {
+      constructor(seed) {
+        this.seed = clamp(Number(seed) || 1, 1, 10)
+        this.rng = new RNG(this.seed * 987654321)
+      }
+
+      generate() {
+        const cityName = this.generateCityName()
+        const zones = this.generateZones()
+        const roads = this.generateRoads()
+        const streets = this.generateStreetNames(roads.length)
+        const locations = this.generateLocations(zones)
+
+        return { cityName, zones, roads, streets, locations }
+      }
+
+      generateCityName() {
+        const prefix = CITY_PREFIX[(this.seed - 1) % CITY_PREFIX.length]
+        const core = CITY_CORE[(this.seed * 2 - 1) % CITY_CORE.length]
+        const suffix = this.rng.pick(['City', 'Heights', 'Bay', 'District', 'Point'])
+        return `${prefix} ${core} ${suffix}`
+      }
+
+      generateZones() {
+        const zones = []
+        const cx = CITY_W / 2
+        const cy = CITY_H / 2
+        const baseR = Math.min(CITY_W, CITY_H) * 0.34
+        for (let i = 0; i < ZONE_ARCHETYPES.length; i += 1) {
+          const z = ZONE_ARCHETYPES[i]
+          const angle = (Math.PI * 2 * i) / ZONE_ARCHETYPES.length + this.rng.range(-0.22, 0.22)
+          const radius = baseR + this.rng.range(-130, 140)
+          const x = clamp(cx + Math.cos(angle) * radius + this.rng.range(-70, 70), 160, CITY_W - 160)
+          const y = clamp(cy + Math.sin(angle) * radius + this.rng.range(-70, 70), 130, CITY_H - 130)
+          const w = clamp(310 + this.rng.range(-75, 95), 250, 440)
+          const h = clamp(230 + this.rng.range(-65, 85), 180, 360)
+          zones.push({
+            id: `zone_${i}`,
+            key: z.key,
+            label: z.label,
+            color: z.color,
+            density: z.density,
+            x,
+            y,
+            w,
+            h,
+            reveal: this.rng.range(0.15, 1),
+            districtName: `${this.rng.pick(['North', 'South', 'East', 'West', 'Old', 'Neo'])} ${z.label}`,
+          })
+        }
+        return zones
+      }
+
+      generateRoads() {
+        const roads = []
+        const xCount = 9 + this.rng.int(0, 3)
+        const yCount = 7 + this.rng.int(0, 3)
+        for (let i = 1; i <= xCount; i += 1) {
+          const t = i / (xCount + 1)
+          const jitter = this.rng.range(-70, 70)
+          const x = clamp(CITY_W * t + jitter, 60, CITY_W - 60)
+          roads.push({ x1: x, y1: 0, x2: x + this.rng.range(-40, 40), y2: CITY_H, width: this.rng.range(8, 16) })
+        }
+        for (let i = 1; i <= yCount; i += 1) {
+          const t = i / (yCount + 1)
+          const jitter = this.rng.range(-70, 70)
+          const y = clamp(CITY_H * t + jitter, 60, CITY_H - 60)
+          roads.push({ x1: 0, y1: y, x2: CITY_W, y2: y + this.rng.range(-30, 30), width: this.rng.range(8, 16) })
+        }
+        return roads
+      }
+
+      generateStreetNames(count) {
+        const names = []
+        for (let i = 0; i < count; i += 1) {
+          names.push(`${this.rng.pick(STREET_PART_A)} ${this.rng.pick(STREET_PART_B)} ${this.rng.int(1, 99)}`)
+        }
+        return names
+      }
+
+      generateLocations(zones) {
+        const fixed = [
+          ['bank', '🏦 Banco'], ['hospital', '🏥 Hospital'], ['prison', '⛓️ Prisão'], ['gym', '💪 Gym'], ['school', '🏫 Escola'], ['shop', '🛒 Loja'],
+        ]
+        const unique = [
+          ['casino', '🎰 Casino'], ['warehouse', '📦 Armazém'], ['harbor', '🚢 Porto Seco'], ['club', '🎵 Clube Nocturno'], ['factory', '🏭 Fábrica'],
+        ]
+        const all = [...fixed, ...unique]
+        const locations = all.map(([key, name], idx) => {
+          const zone = zones[(idx * 3 + this.seed) % zones.length]
+          return {
+            key,
+            name,
+            x: clamp(zone.x + this.rng.range(-zone.w * 0.28, zone.w * 0.28), 80, CITY_W - 80),
+            y: clamp(zone.y + this.rng.range(-zone.h * 0.28, zone.h * 0.28), 80, CITY_H - 80),
+          }
+        })
+        return locations
+      }
+    }
+
+    const state = {
+      seed: clamp(new URLSearchParams(location.search).get('seed') || 1, 1, 10),
+      city: null,
+      events: [],
+      hover: { x: 0, y: 0 },
+      selectedEventId: null,
+      playerState: {
+        hp: 100,
+        money: 5000,
+        xp: 0,
+        stress: 0,
+        status: 'livre',
+        prisonUntil: null,
+      },
+      action: null,
+      view: { x: 0, y: 0, w: CITY_W, h: CITY_H },
+    }
+
+    const canvas = document.getElementById('cityCanvas')
+    const ctx = canvas.getContext('2d')
+    const mini = document.getElementById('miniMap')
+    const mctx = mini.getContext('2d')
+    const eventLayer = document.getElementById('eventLayer')
+
+    const cityNameEl = document.getElementById('cityName')
+    const cityMetaEl = document.getElementById('cityMeta')
+    const legendListEl = document.getElementById('legendList')
+    const hudHp = document.getElementById('hudHp')
+    const hudMoney = document.getElementById('hudMoney')
+    const hudXp = document.getElementById('hudXp')
+    const hudStatus = document.getElementById('hudStatus')
+
+    const eventModalOverlay = document.getElementById('eventModalOverlay')
+    const modalTitle = document.getElementById('modalTitle')
+    const modalMeta = document.getElementById('modalMeta')
+    const modalDesc = document.getElementById('modalDesc')
+    const modalRewards = document.getElementById('modalRewards')
+    const btnCloseModal = document.getElementById('btnCloseModal')
+    const btnParticipate = document.getElementById('btnParticipate')
+
+    const statusLock = document.getElementById('statusLock')
+    const actionScreen = document.getElementById('actionScreen')
+    const actionTitle = document.getElementById('actionTitle')
+    const actionMeta = document.getElementById('actionMeta')
+    const phaseText = document.getElementById('phaseText')
+    const progressFill = document.getElementById('progressFill')
+    const progressTime = document.getElementById('progressTime')
+    const twistInfo = document.getElementById('twistInfo')
+    const liveHp = document.getElementById('liveHp')
+    const liveStress = document.getElementById('liveStress')
+    const liveRisk = document.getElementById('liveRisk')
+    const liveTimer = document.getElementById('liveTimer')
+    const resultPanel = document.getElementById('resultPanel')
+    const resultData = document.getElementById('resultData')
+    const btnBackMap = document.getElementById('btnBackMap')
+
+    function resize() {
+      const dpr = window.devicePixelRatio || 1
+      canvas.width = Math.floor(window.innerWidth * dpr)
+      canvas.height = Math.floor(window.innerHeight * dpr)
+      canvas.style.width = `${window.innerWidth}px`
+      canvas.style.height = `${window.innerHeight}px`
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+
+      const miniDpr = dpr
+      mini.width = Math.floor(mini.clientWidth * miniDpr)
+      mini.height = Math.floor(mini.clientHeight * miniDpr)
+      mctx.setTransform(miniDpr, 0, 0, miniDpr, 0, 0)
+    }
+
+    function viewTransform() {
+      const sx = window.innerWidth / CITY_W
+      const sy = window.innerHeight / CITY_H
+      const scale = Math.min(sx, sy)
+      const offsetX = (window.innerWidth - CITY_W * scale) / 2
+      const offsetY = (window.innerHeight - CITY_H * scale) / 2
+      return { scale, offsetX, offsetY }
+    }
+
+    function worldToScreen(x, y) {
+      const { scale, offsetX, offsetY } = viewTransform()
+      return { x: offsetX + x * scale, y: offsetY + y * scale, scale }
+    }
+
+    function screenToWorld(x, y) {
+      const { scale, offsetX, offsetY } = viewTransform()
+      return { x: (x - offsetX) / scale, y: (y - offsetY) / scale }
+    }
+
+    function pickZoneForPoint(x, y) {
+      return state.city.zones.find((z) => Math.abs(x - z.x) <= z.w * 0.5 && Math.abs(y - z.y) <= z.h * 0.5)
+    }
+
+    function drawMap() {
+      ctx.clearRect(0, 0, window.innerWidth, window.innerHeight)
+      const { scale, offsetX, offsetY } = viewTransform()
+
+      ctx.save()
+      ctx.translate(offsetX, offsetY)
+      ctx.scale(scale, scale)
+
+      ctx.fillStyle = '#0b121f'
+      ctx.fillRect(0, 0, CITY_W, CITY_H)
+
+      for (const z of state.city.zones) {
+        ctx.fillStyle = z.color
+        ctx.globalAlpha = 0.85
+        roundRect(ctx, z.x - z.w / 2, z.y - z.h / 2, z.w, z.h, 18, true, false)
+
+        for (let i = 0; i < 120 * z.density; i += 1) {
+          const bx = z.x + (Math.random() - 0.5) * z.w * 0.86
+          const by = z.y + (Math.random() - 0.5) * z.h * 0.86
+          const bw = 5 + Math.random() * 16
+          const bh = 5 + Math.random() * 16
+          ctx.fillStyle = 'rgba(0,0,0,0.18)'
+          ctx.fillRect(bx, by, bw, bh)
+        }
+
+        ctx.globalAlpha = 1
+        ctx.fillStyle = 'rgba(220,240,255,0.65)'
+        ctx.font = '14px "Share Tech Mono"'
+        ctx.fillText(z.districtName, z.x - z.w / 2 + 8, z.y - z.h / 2 + 18)
+      }
+
+      for (let i = 0; i < state.city.roads.length; i += 1) {
+        const r = state.city.roads[i]
+        ctx.strokeStyle = 'rgba(215,230,255,0.18)'
+        ctx.lineWidth = r.width
+        ctx.beginPath()
+        ctx.moveTo(r.x1, r.y1)
+        ctx.lineTo(r.x2, r.y2)
+        ctx.stroke()
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.08)'
+        ctx.lineWidth = 1
+        ctx.setLineDash([8, 10])
+        ctx.beginPath()
+        ctx.moveTo(r.x1, r.y1)
+        ctx.lineTo(r.x2, r.y2)
+        ctx.stroke()
+        ctx.setLineDash([])
+      }
+
+      for (const loc of state.city.locations) {
+        ctx.fillStyle = 'rgba(0,0,0,.4)'
+        ctx.beginPath()
+        ctx.arc(loc.x, loc.y, 14, 0, Math.PI * 2)
+        ctx.fill()
+
+        ctx.strokeStyle = 'rgba(75,209,255,.88)'
+        ctx.lineWidth = 2
+        ctx.beginPath()
+        ctx.arc(loc.x, loc.y, 11, 0, Math.PI * 2)
+        ctx.stroke()
+
+        ctx.fillStyle = '#d5f4ff'
+        ctx.font = '11px "Share Tech Mono"'
+        ctx.fillText(loc.name, loc.x + 16, loc.y + 4)
+      }
+
+      drawFogOfWar(ctx)
+
+      ctx.restore()
+
+      drawMinimap()
+      drawEventChips()
+      drawCursorHUD()
+    }
+
+    function drawFogOfWar(g) {
+      for (const z of state.city.zones) {
+        const areaX = z.x - z.w / 2
+        const areaY = z.y - z.h / 2
+        const reveal = z.reveal
+        if (reveal > 0.72) continue
+
+        const alpha = reveal > 0.35 ? 0.36 : 0.66
+        const grad = g.createRadialGradient(z.x, z.y, 20, z.x, z.y, Math.max(z.w, z.h) * 0.6)
+        grad.addColorStop(0, `rgba(5,8,15,${alpha * 0.4})`)
+        grad.addColorStop(1, `rgba(3,5,11,${alpha})`)
+        g.fillStyle = grad
+        roundRect(g, areaX, areaY, z.w, z.h, 18, true, false)
+      }
+    }
+
+    function drawMinimap() {
+      const w = mini.clientWidth
+      const h = mini.clientHeight
+      mctx.clearRect(0, 0, w, h)
+      mctx.fillStyle = '#07101b'
+      mctx.fillRect(0, 0, w, h)
+      const sx = w / CITY_W
+      const sy = h / CITY_H
+      for (const z of state.city.zones) {
+        mctx.fillStyle = z.color
+        mctx.globalAlpha = 0.84
+        mctx.fillRect((z.x - z.w / 2) * sx, (z.y - z.h / 2) * sy, z.w * sx, z.h * sy)
+      }
+      mctx.globalAlpha = 1
+      for (const e of state.events) {
+        mctx.fillStyle = '#ff5b74'
+        mctx.beginPath()
+        mctx.arc(e.x * sx, e.y * sy, 3, 0, Math.PI * 2)
+        mctx.fill()
+      }
+
+      mctx.strokeStyle = 'rgba(75,209,255,.88)'
+      mctx.strokeRect(1, 1, w - 2, h - 2)
+    }
+
+    function drawEventChips() {
+      eventLayer.innerHTML = ''
+      if (state.playerState.status === 'em_evento') return
+      for (const e of state.events) {
+        const p = worldToScreen(e.x, e.y)
+        const chip = document.createElement('button')
+        chip.className = `event-chip ${e.template.riskClass}`
+        chip.style.left = `${p.x}px`
+        chip.style.top = `${p.y}px`
+        chip.innerHTML = `${e.template.icon} ${fmtTime(e.remaining)}`
+        chip.title = `${e.template.name} · ${e.zone.label}`
+        chip.onclick = () => openEventModal(e.id)
+        eventLayer.appendChild(chip)
+      }
+    }
+
+    function drawCursorHUD() {
+      const { x, y } = state.hover
+      const zone = pickZoneForPoint(x, y)
+      cityMetaEl.textContent = `SEED #${state.seed} · COORD ${Math.round(x)},${Math.round(y)}${zone ? ` · ${zone.label}` : ''}`
+    }
+
+    function roundRect(g, x, y, w, h, r, fill, stroke) {
+      g.beginPath()
+      g.moveTo(x + r, y)
+      g.lineTo(x + w - r, y)
+      g.quadraticCurveTo(x + w, y, x + w, y + r)
+      g.lineTo(x + w, y + h - r)
+      g.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
+      g.lineTo(x + r, y + h)
+      g.quadraticCurveTo(x, y + h, x, y + h - r)
+      g.lineTo(x, y + r)
+      g.quadraticCurveTo(x, y, x + r, y)
+      if (fill) g.fill()
+      if (stroke) g.stroke()
+    }
+
+    function buildLegend() {
+      legendListEl.innerHTML = ''
+      for (const z of state.city.zones) {
+        const li = document.createElement('li')
+        li.innerHTML = `<span class="dot" style="background:${z.color}"></span><span>${z.label}</span><small style="margin-left:auto;color:#84a4b9">${z.districtName}</small>`
+        legendListEl.appendChild(li)
+      }
+    }
+
+    function updateHUD() {
+      hudHp.textContent = Math.round(state.playerState.hp)
+      hudMoney.textContent = `$${Math.round(state.playerState.money)}`
+      hudXp.textContent = Math.round(state.playerState.xp)
+      hudStatus.textContent = state.playerState.status.toUpperCase()
+      statusLock.classList.toggle('show', state.playerState.status === 'em_evento')
+    }
+
+    function weightedEventType(zoneKey, rng) {
+      const entries = Object.entries(EVENT_TYPES)
+      const scored = entries.map(([k, v]) => {
+        let score = 1
+        if (v.zones.includes(zoneKey)) score += 3
+        return [k, score]
+      })
+      const total = scored.reduce((a, [, s]) => a + s, 0)
+      let pick = rng.range(0, total)
+      for (const [k, s] of scored) {
+        pick -= s
+        if (pick <= 0) return k
+      }
+      return scored[0][0]
+    }
+
+    function regenerateEvents() {
+      const rng = new RNG(state.seed * 73129 + Date.now())
+      const count = 9 + rng.int(0, 6)
+      const events = []
+      for (let i = 0; i < count; i += 1) {
+        const zone = rng.pick(state.city.zones)
+        const typeKey = weightedEventType(zone.key, rng)
+        const tpl = EVENT_TYPES[typeKey]
+        const duration = rng.int(tpl.duration[0], tpl.duration[1])
+        const e = {
+          id: `ev_${Date.now()}_${i}_${rng.int(1000, 9999)}`,
+          typeKey,
+          template: tpl,
+          zone,
+          x: clamp(zone.x + rng.range(-zone.w * 0.35, zone.w * 0.35), 40, CITY_W - 40),
+          y: clamp(zone.y + rng.range(-zone.h * 0.35, zone.h * 0.35), 40, CITY_H - 40),
+          duration,
+          remaining: duration,
+          reward: {
+            money: rng.int(500, 12000),
+            xp: rng.int(20, 220),
+            rep: rng.int(1, 8),
+            item: rng.pick(['Munições raras', 'Colete tático', 'Chave mestra', 'Nada', 'Documento falso']),
+          },
+        }
+        events.push(e)
+      }
+      state.events = events
+    }
+
+    let selectedEvent = null
+
+    function openEventModal(eventId) {
+      if (state.playerState.status !== 'livre') return
+      selectedEvent = state.events.find((e) => e.id === eventId)
+      if (!selectedEvent) return
+      modalTitle.textContent = `${selectedEvent.template.icon} ${selectedEvent.template.name}`
+      modalMeta.innerHTML = `
+        <span>Zona: ${selectedEvent.zone.label}</span>
+        <span>Perigo: ${selectedEvent.template.danger}</span>
+        <span>Duração: ${fmtTime(selectedEvent.remaining)}</span>
+      `
+      modalDesc.textContent = selectedEvent.template.desc
+      modalRewards.innerHTML = `<strong>Recompensas possíveis:</strong> $${selectedEvent.reward.money} · XP ${selectedEvent.reward.xp} · REP ${selectedEvent.reward.rep} · Item: ${selectedEvent.reward.item}`
+      eventModalOverlay.classList.add('show')
+    }
+
+    function closeEventModal() {
+      eventModalOverlay.classList.remove('show')
+    }
+
+    function computeOutcome(eventObj, actionState) {
+      const rng = new RNG(Date.now() + state.seed * 91)
+      const riskBase = actionState.riskFactor
+      const hpFactor = state.playerState.hp / 100
+      const stressFactor = clamp(1 - state.playerState.stress / 120, 0.2, 1)
+      let chance = 0.68 * hpFactor * stressFactor - riskBase
+      if (actionState.twist && actionState.twist.effect === 'good') chance += 0.16
+      if (actionState.twist && actionState.twist.effect === 'bad') chance -= 0.2
+      chance = clamp(chance, 0.08, 0.93)
+
+      const roll = rng.next()
+      let status = 'success'
+      if (roll > chance) status = rng.next() < 0.35 ? 'captured' : 'failed'
+
+      const hpLoss = status === 'success' ? rng.int(0, 18) : rng.int(8, 36)
+      const moneyDelta = status === 'success' ? eventObj.reward.money : -rng.int(200, 3000)
+      const xpDelta = status === 'success' ? eventObj.reward.xp : rng.int(0, 28)
+      const repDelta = status === 'success' ? eventObj.reward.rep : -rng.int(0, 2)
+
+      return {
+        status,
+        hpLoss,
+        moneyDelta,
+        xpDelta,
+        repDelta,
+        item: status === 'success' ? eventObj.reward.item : null,
+      }
+    }
+
+    function beginAction(eventObj) {
+      state.playerState.status = 'em_evento'
+      updateHUD()
+      closeEventModal()
+
+      actionScreen.classList.add('show')
+      resultPanel.style.display = 'none'
+      resultData.innerHTML = ''
+
+      actionTitle.textContent = `${eventObj.template.icon} ${eventObj.template.name}`
+      actionMeta.innerHTML = `<span>Zona: ${eventObj.zone.label}</span><span>Perigo: ${eventObj.template.danger}</span>`
+      liveRisk.textContent = eventObj.template.danger
+
+      const rng = new RNG(Date.now() + eventObj.duration)
+      const total = eventObj.remaining
+      const twistAt = Math.floor(total * rng.range(0.45, 0.62))
+      const phases = [
+        `Entraste na zona ${eventObj.zone.label}. O ambiente está tenso e cada movimento conta.`,
+        'Aproximas-te do alvo com cautela. Há câmaras, vigias e ruído de sirenes ao longe.',
+        'Fase crítica: qualquer erro agora muda tudo. Decides avançar mesmo com a pressão máxima.',
+        'Último sprint. Estás a tentar sair limpo antes do cerco fechar.',
+      ]
+      const twists = [
+        { text: 'A polícia chegou mais cedo!', effect: 'bad' },
+        { text: 'Um aliado apareceu para cobrir a fuga!', effect: 'good' },
+        { text: 'Houve blackout no quarteirão, confusão total.', effect: 'neutral' },
+        { text: 'O líder rival entrou na cena inesperadamente.', effect: 'bad' },
+      ]
+
+      state.action = {
+        eventId: eventObj.id,
+        startedAt: performance.now(),
+        total,
+        remaining: total,
+        twistAt,
+        twist: null,
+        phaseIndex: 0,
+        phases,
+        twistPool: twists,
+        riskFactor: eventObj.template.danger === 'Muito alto' ? 0.25 : eventObj.template.danger === 'Alto' ? 0.15 : 0.08,
+        finished: false,
+      }
+      phaseText.textContent = phases[0]
+      twistInfo.textContent = 'Twist: por revelar...'
+      spawnParticles()
+    }
+
+    function spawnParticles() {
+      const field = document.getElementById('particleField')
+      field.innerHTML = ''
+      for (let i = 0; i < 70; i += 1) {
+        const p = document.createElement('i')
+        p.className = 'particle'
+        p.style.left = `${Math.random() * 100}%`
+        p.style.bottom = `${-10 - Math.random() * 60}px`
+        p.style.animationDuration = `${4 + Math.random() * 8}s`
+        p.style.animationDelay = `${Math.random() * 4}s`
+        p.style.opacity = `${0.2 + Math.random() * 0.6}`
+        p.style.background = Math.random() > 0.6 ? 'rgba(255,79,165,.8)' : 'rgba(75,209,255,.8)'
+        field.appendChild(p)
+      }
+    }
+
+    function tickAction(deltaSec) {
+      if (!state.action || state.action.finished) return
+      const a = state.action
+      a.remaining = clamp(a.remaining - deltaSec, 0, a.total)
+      const elapsed = a.total - a.remaining
+
+      if (!a.twist && elapsed >= a.twistAt) {
+        const rng = new RNG(Date.now() + elapsed)
+        a.twist = rng.pick(a.twistPool)
+        twistInfo.textContent = `Twist: ${a.twist.text}`
+        phaseText.textContent = `${phaseText.textContent}\n\n⚡ ${a.twist.text}`
+        state.playerState.stress = clamp(state.playerState.stress + (a.twist.effect === 'bad' ? 20 : a.twist.effect === 'good' ? -8 : 6), 0, 130)
+      }
+
+      const phaseStep = Math.floor((elapsed / a.total) * a.phases.length)
+      if (phaseStep !== a.phaseIndex && phaseStep < a.phases.length) {
+        a.phaseIndex = phaseStep
+        phaseText.textContent = a.phases[phaseStep]
+      }
+
+      if (Math.random() > 0.55) {
+        state.playerState.stress = clamp(state.playerState.stress + (a.riskFactor * 4), 0, 130)
+      }
+
+      const progress = ((a.total - a.remaining) / a.total) * 100
+      progressFill.style.width = `${progress.toFixed(2)}%`
+      progressTime.textContent = `Restante: ${fmtTime(a.remaining)}`
+      liveTimer.textContent = fmtTime(a.remaining)
+      liveStress.textContent = Math.round(state.playerState.stress)
+      liveHp.textContent = Math.round(state.playerState.hp)
+
+      if (a.remaining <= 0) {
+        a.finished = true
+        const ev = state.events.find((e) => e.id === a.eventId)
+        const outcome = computeOutcome(ev, a)
+        applyOutcome(outcome)
+        renderResult(ev, outcome)
+      }
+    }
+
+    function applyOutcome(outcome) {
+      state.playerState.hp = clamp(state.playerState.hp - outcome.hpLoss, 0, 100)
+      state.playerState.money = Math.max(0, state.playerState.money + outcome.moneyDelta)
+      state.playerState.xp = Math.max(0, state.playerState.xp + outcome.xpDelta)
+
+      if (outcome.status === 'captured') {
+        state.playerState.status = 'preso'
+        state.playerState.prisonUntil = Date.now() + 45_000
+      } else {
+        state.playerState.status = 'livre'
+      }
+
+      updateHUD()
+    }
+
+    function renderResult(ev, outcome) {
+      const success = outcome.status === 'success'
+      const captured = outcome.status === 'captured'
+      const label = success ? '✅ Sucesso' : captured ? '⛓️ Capturado' : '❌ Falha'
+
+      resultData.innerHTML = `
+        <div><strong>Estado:</strong> ${label}</div>
+        <div><strong>Dinheiro:</strong> ${outcome.moneyDelta >= 0 ? '+' : ''}$${outcome.moneyDelta}</div>
+        <div><strong>XP:</strong> ${outcome.xpDelta >= 0 ? '+' : ''}${outcome.xpDelta}</div>
+        <div><strong>Reputação:</strong> ${outcome.repDelta >= 0 ? '+' : ''}${outcome.repDelta}</div>
+        <div><strong>HP perdido:</strong> ${outcome.hpLoss}</div>
+        <div><strong>Item:</strong> ${outcome.item || 'Nenhum'}</div>
+        <div><strong>Narrativa:</strong> ${captured ? 'A operação foi comprometida e foste redirecionado para a prisão.' : success ? 'Execução limpa. Conseguiste sair com ganhos.' : 'A operação falhou sem colapso total.'}</div>
+      `
+      resultPanel.style.display = 'block'
+
+      state.events = state.events.filter((e) => e.id !== ev.id)
+    }
+
+    function leaveActionScreen() {
+      actionScreen.classList.remove('show')
+      state.action = null
+      if (state.playerState.status === 'preso') {
+        // preso sem mapa bloqueado total, mas sem entrar em eventos até soltar
+        setTimeout(() => {
+          if (state.playerState.prisonUntil && Date.now() >= state.playerState.prisonUntil) {
+            state.playerState.status = 'livre'
+            state.playerState.prisonUntil = null
+            updateHUD()
+          }
+        }, 100)
+      }
+      updateHUD()
+    }
+
+    function tickGlobalTimers(deltaSec) {
+      for (const e of state.events) {
+        e.remaining = Math.max(0, e.remaining - deltaSec)
+      }
+      state.events = state.events.filter((e) => e.remaining > 0)
+
+      if (state.playerState.status === 'preso' && state.playerState.prisonUntil && Date.now() >= state.playerState.prisonUntil) {
+        state.playerState.status = 'livre'
+        state.playerState.prisonUntil = null
+      }
+    }
+
+    btnCloseModal.addEventListener('click', closeEventModal)
+    btnParticipate.addEventListener('click', () => {
+      if (!selectedEvent) return
+      if (state.playerState.status === 'preso') {
+        alert('Estás preso e não podes participar até seres libertado.')
+        return
+      }
+      beginAction(selectedEvent)
+    })
+    btnBackMap.addEventListener('click', leaveActionScreen)
+
+    canvas.addEventListener('mousemove', (ev) => {
+      const rect = canvas.getBoundingClientRect()
+      const world = screenToWorld(ev.clientX - rect.left, ev.clientY - rect.top)
+      state.hover.x = clamp(world.x, 0, CITY_W)
+      state.hover.y = clamp(world.y, 0, CITY_H)
+    })
+
+    canvas.addEventListener('click', () => {
+      if (state.playerState.status === 'em_evento') return
+      closeEventModal()
+    })
+
+    window.addEventListener('resize', resize)
+
+    function init() {
+      const generator = new CityGenerator(state.seed)
+      state.city = generator.generate()
+      cityNameEl.textContent = state.city.cityName
+      buildLegend()
+      regenerateEvents()
+      updateHUD()
+      resize()
+      requestAnimationFrame(loop)
+    }
+
+    let last = performance.now()
+    let refreshAccumulator = 0
+    function loop(now) {
+      const delta = Math.min((now - last) / 1000, 0.1)
+      last = now
+
+      refreshAccumulator += delta
+      if (refreshAccumulator > 1) {
+        tickGlobalTimers(refreshAccumulator)
+        refreshAccumulator = 0
+      }
+
+      if (state.playerState.status === 'em_evento') {
+        tickAction(delta)
+      }
+
+      if (state.events.length < 5 && state.playerState.status !== 'em_evento') {
+        regenerateEvents()
+      }
+
+      drawMap()
+      requestAnimationFrame(loop)
+    }
+
+    init()
+    window.regenerateEvents = regenerateEvents
+  </script>
+</body>
+</html>
