@@ -1,279 +1,108 @@
 <template>
   <section class="admin-container">
-    <h2 class="page-title">Admin Console</h2>
+    <header class="admin-header">
+      <div>
+        <p class="eyebrow">Painel Operacional</p>
+        <h2>Admin Console</h2>
+        <p class="subtitle">Ferramentas rápidas para suporte, economia e mundo.</p>
+      </div>
+      <div class="tabs">
+        <button
+          v-for="tab in tabs"
+          :key="tab"
+          class="tab-btn"
+          :class="{ active: currentTab === tab }"
+          @click="currentTab = tab"
+        >
+          {{ tab }}
+        </button>
+      </div>
+    </header>
 
-    <!-- Target selection, search, and profile summary -->
-    <div class="card">
-      <h3>Target</h3>
-      <div class="row">
-        <div>
-          <label>Target player id (numeric)</label>
-          <input v-model.trim="targetPlayerId" placeholder="e.g. 748" />
+    <div class="target-grid">
+      <div class="card target-card">
+        <div class="card-header">
+          <h3>Target</h3>
+          <small v-if="profile">Atual: {{ profile.name }}</small>
         </div>
-      </div>
-      <div class="actions">
-        <button @click="onLoadPlayer">Load Player</button>
-        <button class="secondary" @click="onSaveIds">Save IDs</button>
-        <span class="muted">We resolve target userId from numeric Player.id or from search results.</span>
-      </div>
-      <div class="row">
-        <div>
-          <label>Target userId (auto)</label>
-          <input v-model="targetUserId" readonly />
-        </div>
-      </div>
-      <div class="row">
-        <div style="grid-column: 1 / -1">
-          <label>Search by name, numeric ID, or user ObjectId</label>
-          <div class="inline">
-            <input v-model.trim="searchQuery" @keyup.enter="onSearch" @input="onSearchDebounced" placeholder="e.g. Oscar, 123, or 64f09..." />
-            <button @click="onSearch">Search</button>
-          </div>
-          <div class="list">
-            <div v-if="searchResults.length === 0" class="muted">No results</div>
-            <div v-for="p in searchResults" :key="p.userId" class="list-row">
-              <div>userId={{ p.userId }} | id={{ p.id }} | name={{ p.name }} | role={{ p.role || 'Player' }}<span v-if="p.npc"> | NPC</span></div>
-              <button @click="useSearchPlayer(p)">Use</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Boosts -->
-    <div class="card" v-if="isLogsTab">
-      <h3>Boosts & Effects</h3>
-      <div class="muted">Use this block to review and revoke buggy boosts or grant manual buffs.</div>
-      <div class="actions">
-        <button @click="fetchBoosts" :disabled="boostsLoading">Refresh Boosts</button>
-      </div>
-      <div class="list">
-        <div v-if="boostsLoading" class="muted">Loading boosts…</div>
-        <div v-else-if="!boosts.length" class="muted">No active boosts</div>
-        <div v-else>
-          <div class="list-row" v-for="boost in boosts" :key="boost._id">
-            <div>
-              <strong>{{ boost.label }}</strong>
-              <div class="muted">
-                Fonte: {{ boost.source || 'desconhecida' }} · Aplicado {{ fmt(boost.appliedAt) }}
-                <span v-if="boost.expiresAt"> · Expira {{ fmt(boost.expiresAt) }} ({{ boost.remainingSeconds }}s)</span>
-              </div>
-              <div class="muted" v-if="Object.keys(boost.meta||{}).length">Meta: {{ JSON.stringify(boost.meta) }}</div>
-            </div>
-            <button class="secondary" @click="removeBoost(boost._id)">Remover</button>
-          </div>
-        </div>
-      </div>
-      <div class="list">
-        <h4>Adicionar Boost Manual</h4>
         <div class="row">
-          <div><label>Nome</label><input v-model.trim="boostForm.label" placeholder="ex: Evento Carnaval" /></div>
-          <div><label>Duração (seg)</label><input v-model.number="boostForm.durationSeconds" type="number" min="0" /></div>
-          <div><label>Fonte (opcional)</label><input v-model.trim="boostForm.source" placeholder="admin:Nome" /></div>
-        </div>
-        <div>
-          <label>Meta (JSON opcional)</label>
-          <textarea v-model.trim="boostForm.metaJson" rows="2" placeholder='{"bonus":"+20% exp"}'></textarea>
+          <div>
+            <label>Player ID (numeric)</label>
+            <input v-model.trim="targetPlayerId" placeholder="e.g. 748" />
+          </div>
+          <div>
+            <label>Target userId (auto)</label>
+            <input v-model="targetUserId" readonly />
+          </div>
         </div>
         <div class="actions">
-          <button @click="addBoost" :disabled="boostsLoading || !boostForm.label">Adicionar</button>
+          <button @click="onLoadPlayer">Load Player</button>
+          <button class="secondary" @click="onSaveIds">Save IDs</button>
+          <span class="muted" v-if="profile">Status: {{ profile.playerStatus }} · Role: {{ profile.playerRole }}</span>
+        </div>
+      </div>
+
+      <div class="card search-card">
+        <div class="card-header">
+          <h3>Pesquisar Jogador</h3>
+          <small>Nome, ID numérico ou ObjectId</small>
+        </div>
+        <div class="inline">
+          <input v-model.trim="searchQuery" @keyup.enter="onSearch" @input="onSearchDebounced" placeholder="ex: Oscar, 123, 64f09..." />
+          <button @click="onSearch">Search</button>
+        </div>
+        <div class="list">
+          <div v-if="searchResults.length === 0" class="muted">No results</div>
+          <div v-for="p in searchResults" :key="p.userId" class="list-row">
+            <div>userId={{ p.userId }} | id={{ p.id }} | name={{ p.name }} | role={{ p.role || 'Player' }}<span v-if="p.npc"> · NPC</span></div>
+            <button class="secondary" @click="useSearchPlayer(p)">Use</button>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Logs -->
-    <div class="card" v-if="isLogsTab">
-      <h3>Logs do Jogador</h3>
-      <div class="inline">
-        <div><label>Tx limite</label><input v-model.number="logsFilters.txLimit" type="number" min="5" max="100" /></div>
-        <div><label>Snapshots limite</label><input v-model.number="logsFilters.snapshotLimit" type="number" min="10" max="200" /></div>
-        <button @click="fetchLogs" :disabled="logsLoading">Atualizar</button>
-        <span class="muted" v-if="logsLastFetched">Última atualização: {{ fmt(logsLastFetched) }}</span>
-      </div>
-      <div class="list">
-        <h4>Snapshots ({{ logs.snapshots.length }})</h4>
-        <div v-if="logsLoading" class="muted">Carregando snapshots…</div>
-        <div v-else-if="!logs.snapshots.length" class="muted">Sem snapshots recentes</div>
-        <div v-else>
-          <div class="list-row" v-for="snap in logs.snapshots" :key="snap._id || snap.ts">
-            <div>
-              <strong>{{ fmt(snap.ts) }}</strong>
-              <div class="muted">Net worth ${{ num(snap.netWorth || 0) }} · Money ${{ num(snap.money || 0) }} · Bank ${{ num(snap.bankLocked || 0) }} · Portfolio ${{ num(snap.portfolioValue || 0) }}</div>
-              <div class="muted">Battle total {{ num(snap.battleTotals?.total || 0) }} · Work {{ num(snap.workTotal || 0) }} · Energy {{ snap.vitals?.energy }}/{{ snap.vitals?.energyMax }}</div>
-              <div class="muted">Cooldowns: D {{ snap.cooldowns?.drug || 0 }}s | M {{ snap.cooldowns?.medical || 0 }}s | B {{ snap.cooldowns?.booster || 0 }}s | A {{ snap.cooldowns?.alcohol || 0 }}s</div>
+    <div class="tab-panel" v-show="currentTab === 'Jogador'">
+      <div class="card-grid">
+        <div class="card" v-if="profile">
+          <h3>Player Profile</h3>
+          <div class="list">
+            <div><strong>{{ profile.name }}</strong> (id={{ profile.id }}) <span v-if="profile.npc" class="pill">NPC</span></div>
+            <div class="muted" style="margin-top:4px">Status: <strong>{{ profile.playerStatus }}</strong> · Role: <strong>{{ profile.playerRole }}</strong> · Title: <strong>{{ profile.playerTitle }}</strong></div>
+            <div class="row" style="margin-top:8px">
+              <div>
+                <label>Money</label>
+                <div>${{ num(profile.finances?.money || 0) }}</div>
+              </div>
+              <div>
+                <label>Bank locked</label>
+                <div>${{ num(profile.finances?.bankLocked || 0) }} ({{ profile.finances?.bankActiveAccounts || 0 }} active)</div>
+              </div>
+              <div>
+                <label>Portfolio</label>
+                <div>${{ num(profile.finances?.portfolioValue || 0) }}</div>
+              </div>
+              <div>
+                <label>Net worth</label>
+                <div><strong>${{ num(profile.finances?.netWorth || 0) }}</strong></div>
+              </div>
+              <div>
+                <label>Energy</label>
+                <div>{{ profile.vitals?.energy || 0 }}/{{ profile.vitals?.energyMax || 0 }}</div>
+              </div>
+              <div>
+                <label>Nerve</label>
+                <div>{{ profile.vitals?.nerve || 0 }}/{{ profile.vitals?.nerveMax || 0 }}</div>
+              </div>
+              <div>
+                <label>Happy</label>
+                <div>{{ profile.vitals?.happy || 0 }}/{{ profile.vitals?.happyMax || 0 }}</div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-      <div class="list">
-        <h4>Transações recentes ({{ logs.transactions.length }})</h4>
-        <div v-if="logsLoading" class="muted">Carregando transações…</div>
-        <div v-else-if="!logs.transactions.length" class="muted">Sem transações no intervalo</div>
-        <div v-else>
-          <div class="list-row" v-for="tx in logs.transactions" :key="tx._id">
-            <div>
-              <strong>{{ tx.type }}</strong> — {{ fmt(tx.createdAt) }}<br />
-              <span class="muted">${{ num(tx.amount || 0) }} (saldo {{ num(tx.balanceAfter || 0) }}) · {{ tx.description }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
 
-    <div class="card" v-if="profile">
-      <h3>Player Profile</h3>
-      <div class="list">
-        <div><strong>{{ profile.name }}</strong> (id={{ profile.id }}) <span v-if="profile.npc" class="pill">NPC</span></div>
-        <div class="muted" style="margin-top:4px">Status: <strong>{{ profile.playerStatus }}</strong> · Role: <strong>{{ profile.playerRole }}</strong> · Title: <strong>{{ profile.playerTitle }}</strong></div>
-        <div class="row" style="margin-top:8px">
-          <div>
-            <label>Money</label>
-            <div>${{ num(profile.finances?.money || 0) }}</div>
-          </div>
-          <div>
-            <label>Bank locked</label>
-            <div>${{ num(profile.finances?.bankLocked || 0) }} ({{ profile.finances?.bankActiveAccounts || 0 }} active)</div>
-          </div>
-          <div>
-            <label>Portfolio</label>
-            <div>${{ num(profile.finances?.portfolioValue || 0) }}</div>
-          </div>
-          <div>
-            <label>Net worth</label>
-            <div><strong>${{ num(profile.finances?.netWorth || 0) }}</strong></div>
-          </div>
-          <div>
-            <label>Energy</label>
-            <div>{{ profile.vitals?.energy || 0 }}/{{ profile.vitals?.energyMax || 0 }}</div>
-          </div>
-          <div>
-            <label>Nerve</label>
-            <div>{{ profile.vitals?.nerve || 0 }}/{{ profile.vitals?.nerveMax || 0 }}</div>
-          </div>
-          <div>
-            <label>Happy</label>
-            <div>{{ profile.vitals?.happy || 0 }}/{{ profile.vitals?.happyMax || 0 }}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Identity -->
-    <div class="card" v-if="profile">
-      <h3>Identity</h3>
-      <div class="row">
-        <div>
-          <label>New Name</label>
-          <input v-model.trim="newName" placeholder="3-32 chars" />
-        </div>
-      </div>
-      <div class="actions">
-        <button @click="applyName">Set Name</button>
-        <span class="muted">Changing name does not affect numeric ID.</span>
-      </div>
-    </div>
-
-    <!-- Moderation -->
-    <div class="card">
-      <h3>Moderation</h3>
-      <div class="row">
-        <div>
-          <label>Status</label>
-          <select v-model="modStatus">
-            <option value="Active">Active</option>
-            <option value="Suspended">Suspended</option>
-            <option value="Banned">Banned</option>
-            <option value="Abandoned">Abandoned</option>
-          </select>
-        </div>
-        <div>
-          <label>Role</label>
-          <select v-model="modRole">
-            <option value="Player">Player</option>
-            <option value="Moderator">Moderator</option>
-            <option value="Admin">Admin</option>
-            <option value="Developer">Developer</option>
-          </select>
-        </div>
-        <div>
-          <label>Title</label>
-          <select v-model="modTitle">
-            <option v-for="t in titles" :key="t" :value="t">{{ t }}</option>
-          </select>
-        </div>
-      </div>
-      <div class="actions">
-        <button @click="applyStatus">Set Status</button>
-        <button @click="applyRole">Set Role</button>
-        <button @click="applyTitle">Set Title</button>
-        <span class="muted">Developer required to assign Developer role.</span>
-      </div>
-    </div>
-
-    <div class="card">
-      <h3>Punishment Presets</h3>
-      <p class="muted">Apply quick disciplinary bundles (status, jail, cooldown wipes, notes).</p>
-      <div class="row">
-        <div>
-          <label>Preset</label>
-          <select v-model="selectedPunishmentPreset">
-            <option value="">— select preset —</option>
-            <option v-for="preset in punishmentPresets" :key="preset.value" :value="preset.value">{{ preset.label }}</option>
-          </select>
-        </div>
-      </div>
-      <div class="actions">
-        <button :disabled="!selectedPunishmentPreset" @click="applyPunishment">Apply Preset</button>
-        <span class="muted">Adds an admin note automatically.</span>
-      </div>
-    </div>
-
-    <div class="card" v-if="profile">
-      <h3>Support Flag</h3>
-      <p class="muted">Highlight players that need extra attention across dashboards.</p>
-      <div class="row">
-        <div>
-          <label>Active</label>
-          <div class="toggle">
-            <input type="checkbox" v-model="supportFlagForm.enabled" />
-            <span>{{ supportFlagForm.enabled ? 'Flagged' : 'Off' }}</span>
-          </div>
-        </div>
-        <div>
-          <label>Duration (hours)</label>
-          <input v-model.number="supportFlagForm.durationHours" type="number" min="1" />
-        </div>
-        <div>
-          <label>Reason</label>
-          <input v-model.trim="supportFlagForm.reason" maxlength="200" placeholder="ex: Chargeback investigation" />
-        </div>
-      </div>
-      <div class="actions">
-        <button @click="saveSupportFlag">Save Flag</button>
-        <span class="muted">Current: <strong>{{ profile.supportFlagUntil ? `Active until ${fmt(profile.supportFlagUntil)}` : 'No flag' }}</strong></span>
-      </div>
-    </div>
-
-    <!-- Currencies -->
-    <div class="card">
-      <h3>Currencies</h3>
-      <div class="row">
-        <div><label>Money Δ</label><input v-model.number="currency.moneyDelta" type="number" /></div>
-        <div><label>Points Δ</label><input v-model.number="currency.pointsDelta" type="number" /></div>
-        <div><label>Merits Δ</label><input v-model.number="currency.meritsDelta" type="number" /></div>
-        <div><label>Xmas Δ</label><input v-model.number="currency.xmasCoinsDelta" type="number" /></div>
-        <div><label>Halloween Δ</label><input v-model.number="currency.halloweenCoinsDelta" type="number" /></div>
-        <div><label>Easter Δ</label><input v-model.number="currency.easterCoinsDelta" type="number" /></div>
-      </div>
-      <div class="actions"><button @click="applyCurrency">Apply</button></div>
-    </div>
-
-    <!-- XP & Level -->
-    <div class="card">
-      <h3>XP & Level</h3>
-      <div class="inline">
-        <div><label>Exp Δ</label><input v-model.number="expDelta" type="number" /></div>
-        <button @click="applyExp">Apply Exp</button>
+        <div class="card" v-if="profile">
+          <h3>Identity</h3>
         <div><label>Level</label><input v-model.number="levelSet" type="number" min="1" /></div>
         <button @click="applyLevel">Set Level</button>
       </div>
@@ -309,39 +138,6 @@
         <span class="muted">Current total: {{ num((profile?.battleStats?.strength||0) + (profile?.battleStats?.speed||0) + (profile?.battleStats?.dexterity||0) + (profile?.battleStats?.defense||0)) }}</span>
       </div>
     </div>
-
-    <!-- Work stats -->
-    <div class="card" v-if="profile">
-      <h3>Work Stats</h3>
-      <div class="row">
-        <div><label>Manual Labor</label><input v-model.number="work.manuallabor" type="number" min="0" /></div>
-        <div><label>Intelligence</label><input v-model.number="work.intelligence" type="number" min="0" /></div>
-        <div><label>Endurance</label><input v-model.number="work.endurance" type="number" min="0" /></div>
-        <div><label>Employee Efficiency</label><input v-model.number="work.employeEfficiency" type="number" min="0" /></div>
-      </div>
-      <div class="actions">
-        <button @click="applyWorkStats">Set Work Stats</button>
-      </div>
-    </div>
-
-    <!-- General (bulk) -->
-    <div class="card">
-      <h3>General (bulk)</h3>
-      <div class="muted">Danger zone: applies to many players. Excludes NPCs by default.</div>
-      <div class="inline">
-        <div>
-          <label>Include NPCs</label>
-          <select v-model="generalIncludeNPC"><option value="false">false</option><option value="true">true</option></select>
-        </div>
-        <button @click="generalEnergyMax">Set energy = max for all</button>
-      </div>
-      <div class="inline">
-        <div><label>Money amount (Δ)</label><input v-model.number="generalMoneyAmount" type="number" /></div>
-        <button @click="generalGiveMoney">Give money to all</button>
-      </div>
-    </div>
-
-    <!-- Inventory -->
     <div class="card">
       <h3>Inventory</h3>
       <div class="inline">
@@ -349,7 +145,7 @@
         <div><label>Qty</label><input v-model.number="invQty" type="number" min="1" /></div>
         <button @click="invAdd">Add</button>
         <button class="secondary" @click="invRemove">Remove</button>
-    </div>
+      </div>
 
     <!-- Create Item (advanced) -->
     <div class="card">
