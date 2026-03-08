@@ -11,6 +11,7 @@ const StockEvent = require('../models/StockEvent');
 const Cartel = require('../models/Cartel');
 const { REP_LEVELS } = require('../config/cartel');
 const { getRepLevel, getRepInfo } = require('../services/cartel/cartelService');
+const PlayerAdminNote = require('../models/PlayerAdminNote');
 
 async function getAdminPlayerFromReq(req) {
   const userId = req.authUserId;
@@ -19,6 +20,74 @@ async function getAdminPlayerFromReq(req) {
   if (!adminPlayer) throw new Error('Admin player not found');
   if (!['Admin', 'Developer'].includes(adminPlayer.playerRole)) throw new Error('Forbidden');
   return adminPlayer;
+}
+
+// ------------------------------
+// Player admin notes
+// ------------------------------
+
+// GET /api/admin/player/notes/:userId
+async function listPlayerNotes(req, res) {
+  try {
+    await getAdminPlayerFromReq(req);
+    const playerUserId = req.params.userId;
+    if (!playerUserId) return res.status(400).json({ error: 'userId is required' });
+    const notes = await PlayerAdminNote.find({ playerUserId })
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .lean();
+    return res.json({ notes });
+  } catch (err) {
+    if (err.message === 'Unauthorized') return res.status(401).json({ error: 'Unauthorized' });
+    if (err.message === 'Forbidden') return res.status(403).json({ error: 'Not authorized' });
+    console.error('ADMIN listPlayerNotes error:', err);
+    return res.status(500).json({ error: 'Failed to list notes' });
+  }
+}
+
+// POST /api/admin/player/notes { targetUserId, text, tags? }
+async function createPlayerNote(req, res) {
+  try {
+    const admin = await getAdminPlayerFromReq(req);
+    const { targetUserId, text, tags } = req.body;
+    if (!targetUserId || !text) return res.status(400).json({ error: 'targetUserId and text are required' });
+    const trimmed = String(text).trim();
+    if (!trimmed) return res.status(400).json({ error: 'text cannot be empty' });
+    const note = await PlayerAdminNote.create({
+      playerUserId: targetUserId,
+      authorUserId: String(admin.user),
+      authorName: admin.name,
+      text: trimmed,
+      tags: Array.isArray(tags) ? tags.filter(Boolean).map(String) : [],
+    });
+    return res.status(201).json({ note });
+  } catch (err) {
+    if (err.message === 'Unauthorized') return res.status(401).json({ error: 'Unauthorized' });
+    if (err.message === 'Forbidden') return res.status(403).json({ error: 'Not authorized' });
+    console.error('ADMIN createPlayerNote error:', err);
+    return res.status(500).json({ error: 'Failed to create note' });
+  }
+}
+
+// DELETE /api/admin/player/notes/:noteId
+async function deletePlayerNote(req, res) {
+  try {
+    const admin = await getAdminPlayerFromReq(req);
+    const noteId = req.params.noteId;
+    if (!noteId) return res.status(400).json({ error: 'noteId is required' });
+    const note = await PlayerAdminNote.findById(noteId);
+    if (!note) return res.status(404).json({ error: 'Note not found' });
+    const isAuthor = String(note.authorUserId) === String(admin.user);
+    const canDelete = admin.playerRole === 'Developer' || (admin.playerRole === 'Admin' && isAuthor);
+    if (!canDelete) return res.status(403).json({ error: 'Not allowed to delete this note' });
+    await note.deleteOne();
+    return res.json({ ok: true });
+  } catch (err) {
+    if (err.message === 'Unauthorized') return res.status(401).json({ error: 'Unauthorized' });
+    if (err.message === 'Forbidden') return res.status(403).json({ error: 'Not authorized' });
+    console.error('ADMIN deletePlayerNote error:', err);
+    return res.status(500).json({ error: 'Failed to delete note' });
+  }
 }
 
 // PATCH /api/admin/currency { adminUserId, targetUserId, moneyDelta, pointsDelta, meritsDelta, xmasCoinsDelta, halloweenCoinsDelta, easterCoinsDelta }
@@ -429,6 +498,8 @@ module.exports = {
   setBattleStats,
   setWorkStats,
   setPlayerName,
+  updatePlayerState,
+  updatePlayerHealth,
   inventoryAdd,
   inventoryRemove,
   stocksAdd,
@@ -445,6 +516,10 @@ module.exports = {
   setPlayerRole,
   listPlayerTitles,
   setAddiction,
+  // player admin notes
+  listPlayerNotes,
+  createPlayerNote,
+  deletePlayerNote,
   // cooldowns
   getPlayerCooldowns,
   setPlayerCooldown,
@@ -455,6 +530,84 @@ module.exports = {
   // database
   purgeDatabase,
 };
+
+// ------------------------------
+// Player state & vitals
+// ------------------------------
+
+// PATCH /api/admin/player/state { targetUserId, hospitalized?, hospitalTime?, jailed?, jailTime? }
+async function updatePlayerState(req, res) {
+  try {
+    const { targetUserId } = req.body;
+    if (!targetUserId) return res.status(400).json({ error: 'targetUserId is required' });
+    await getAdminPlayerFromReq(req);
+    const player = await Player.findOne({ user: targetUserId });
+    if (!player) return res.status(404).json({ error: 'Target player not found' });
+
+    if (typeof req.body.hospitalized !== 'undefined') player.hospitalized = !!req.body.hospitalized;
+    if (typeof req.body.hospitalTime !== 'undefined') player.hospitalTime = Math.max(0, Number(req.body.hospitalTime) || 0);
+    if (!player.hospitalized && player.hospitalTime > 0) player.hospitalTime = 0;
+
+    if (typeof req.body.jailed !== 'undefined') player.jailed = !!req.body.jailed;
+    if (typeof req.body.jailTime !== 'undefined') player.jailTime = Math.max(0, Number(req.body.jailTime) || 0);
+    if (!player.jailed && player.jailTime > 0) player.jailTime = 0;
+
+    await player.save();
+    return res.json({
+      hospitalized: player.hospitalized,
+      hospitalTime: player.hospitalTime,
+      jailed: player.jailed,
+      jailTime: player.jailTime,
+    });
+  } catch (err) {
+    if (err.message === 'Unauthorized') return res.status(401).json({ error: 'Unauthorized' });
+    if (err.message === 'Forbidden') return res.status(403).json({ error: 'Not authorized' });
+    console.error('ADMIN updatePlayerState error:', err);
+    return res.status(500).json({ error: 'Failed to update player state' });
+  }
+}
+
+// PATCH /api/admin/player/health { targetUserId, health?, fullHeal?, setOneHp? }
+async function updatePlayerHealth(req, res) {
+  try {
+    const { targetUserId } = req.body;
+    if (!targetUserId) return res.status(400).json({ error: 'targetUserId is required' });
+    await getAdminPlayerFromReq(req);
+    const player = await Player.findOne({ user: targetUserId });
+    if (!player) return res.status(404).json({ error: 'Target player not found' });
+
+    const fullHeal = req.body.fullHeal === true;
+    const setOneHp = req.body.setOneHp === true;
+
+    if (fullHeal) {
+      player.health = 9999;
+      player.hospitalized = false;
+      player.hospitalTime = 0;
+    } else if (setOneHp) {
+      player.health = 1;
+    } else if (typeof req.body.health !== 'undefined') {
+      const val = Math.max(0, Math.min(9999, Number(req.body.health)));
+      player.health = Number.isFinite(val) ? val : player.health;
+    }
+
+    if (player.health <= 0) {
+      player.hospitalized = true;
+      if (!player.hospitalTime) player.hospitalTime = 60;
+    }
+
+    await player.save();
+    return res.json({
+      health: player.health,
+      hospitalized: player.hospitalized,
+      hospitalTime: player.hospitalTime,
+    });
+  } catch (err) {
+    if (err.message === 'Unauthorized') return res.status(401).json({ error: 'Unauthorized' });
+    if (err.message === 'Forbidden') return res.status(403).json({ error: 'Not authorized' });
+    console.error('ADMIN updatePlayerHealth error:', err);
+    return res.status(500).json({ error: 'Failed to update health' });
+  }
+}
 
 // ------------------------------
 // Moderation & metadata

@@ -25,6 +25,11 @@ const {
   setPlayerName,
   listPlayerTitles,
   setAddiction,
+  updatePlayerState,
+  updatePlayerHealth,
+  listPlayerNotes,
+  createPlayerNote,
+  deletePlayerNote,
   // cooldowns
   getPlayerCooldowns,
   setPlayerCooldown,
@@ -70,6 +75,11 @@ router.patch('/player/title', setPlayerTitle);
 router.patch('/player/role', setPlayerRole);
 router.patch('/player/name', setPlayerName);
 router.patch('/player/addiction', setAddiction);
+router.patch('/player/state', updatePlayerState);
+router.patch('/player/health', updatePlayerHealth);
+router.get('/player/notes/:userId', listPlayerNotes);
+router.post('/player/notes', createPlayerNote);
+router.delete('/player/notes/:noteId', deletePlayerNote);
 // Player cooldowns
 router.get('/player/cooldowns/:userId', getPlayerCooldowns);
 router.post('/player/cooldowns/set', setPlayerCooldown);
