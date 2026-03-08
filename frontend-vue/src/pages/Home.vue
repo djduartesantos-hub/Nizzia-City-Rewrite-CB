@@ -654,4 +654,3 @@ function etaLabel(dateString) {
   }
 }
 </style>
-</style>
