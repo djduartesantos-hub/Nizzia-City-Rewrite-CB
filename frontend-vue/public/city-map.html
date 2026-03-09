@@ -1489,6 +1489,16 @@
       closeEventModal()
     }
 
+    function handleEventLayerClick(ev) {
+      const target = ev.target
+      if (!(target instanceof Element)) return
+      const chip = target.closest('.event-chip')
+      if (!chip?.dataset?.eventId) return
+      ev.preventDefault()
+      ev.stopPropagation()
+      openEventModal(chip.dataset.eventId)
+    }
+
     function showEventHoverCard(ev, point) {
       if (!eventHoverCard || !ev || !point) return
       state.hoveredEventId = ev.id || null
@@ -2324,6 +2334,8 @@
     })
 
     eventLayer.addEventListener('mouseleave', hideEventHoverCard)
+    eventLayer.addEventListener('click', handleEventLayerClick)
+    eventLayer.addEventListener('pointerdown', handleEventLayerClick)
     window.addEventListener('mousemove', (ev) => {
       const target = ev.target
       if (!(target instanceof Element) || !target.closest('.event-chip')) {
