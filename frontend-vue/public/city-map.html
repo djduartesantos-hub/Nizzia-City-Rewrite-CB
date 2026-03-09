@@ -297,6 +297,16 @@
       100% { transform: translate(-50%, -100%) scale(1); }
     }
 
+    @keyframes scenePulse {
+      0% { transform: scale(1); filter: brightness(1); }
+      50% { transform: scale(1.012); filter: brightness(1.08); }
+      100% { transform: scale(1); filter: brightness(1); }
+    }
+
+    @keyframes sceneKenBurns {
+      from { transform: scale(1); filter: saturate(1); }
+      to { transform: scale(1.03); filter: saturate(1.08); }
+    }
 
     .overlay {
       position: absolute;
@@ -456,19 +466,54 @@
 
     .action-ui {
       position: relative;
-      z-index: 3;
-      max-width: 1180px;
-      margin: 24px auto;
-      padding: 14px;
+      z-index: 2;
+      height: 100%;
+      padding: 20px;
       display: grid;
-      gap: 12px;
-      grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.9fr);
-      align-items: start;
+      grid-template-columns: 1fr 300px;
+      grid-template-rows: auto auto;
+      gap: 14px;
     }
 
-    .action-main-panel { grid-column: 1; }
-    .action-stats-panel,
-    .result-panel { grid-column: 2; }
+    .action-main-panel {
+      grid-column: 1;
+      grid-row: 1 / span 2;
+    }
+
+    .action-stats-panel {
+      grid-column: 2;
+      grid-row: 2;
+    }
+
+    .result-panel {
+      grid-column: 2;
+      grid-row: 1;
+      align-self: start;
+    }
+
+    .action-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .sound-btn {
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      background: rgba(255, 255, 255, 0.08);
+      color: #e9f0ff;
+      border-radius: 8px;
+      padding: 5px 10px;
+      font-family: inherit;
+      cursor: pointer;
+      font-size: 0.75rem;
+      letter-spacing: 0.04em;
+    }
+
+    .sound-btn:hover {
+      background: rgba(122, 187, 255, 0.16);
+      border-color: rgba(122, 187, 255, 0.36);
+    }
 
     .action-ui .meta {
       margin-top: 8px;
@@ -520,6 +565,17 @@
       grid-template-columns: 42px 1fr;
       gap: 9px;
       align-items: center;
+    }
+
+    .scene-illustration {
+      margin-top: 10px;
+      height: 122px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,.14);
+      box-shadow: inset 0 0 24px rgba(0,0,0,.28);
+      background-size: cover;
+      background-position: center;
+      animation: sceneKenBurns 5.8s ease-in-out infinite alternate;
     }
 
     .scene-banner.pulse {
@@ -705,7 +761,7 @@
       .action-ui { grid-template-columns: 1fr; }
       .action-main-panel,
       .action-stats-panel,
-      .result-panel { grid-column: 1; }
+      .result-panel { grid-column: 1; grid-row: auto; }
       .result-grid { grid-template-columns: 1fr; }
       .result-head { grid-template-columns: 1fr; }
       .result-poster { width: 100%; height: 120px; }
@@ -762,7 +818,10 @@
       <div id="particleField"></div>
       <div class="action-ui">
         <div class="panel action-main-panel">
-          <h2 style="margin:0;font-family:'Bebas Neue';font-size:2rem;letter-spacing:.08em" id="actionTitle">Ação</h2>
+          <div class="action-header">
+            <h2 style="margin:0;font-family:'Bebas Neue';font-size:2rem;letter-spacing:.08em" id="actionTitle">Ação</h2>
+            <button class="sound-btn" id="btnSoundToggle" type="button" aria-pressed="true">🔊 Som ON</button>
+          </div>
           <div class="meta" id="actionMeta"></div>
           <div class="phase-text" id="phaseText">A preparar operação...</div>
           <div class="scene-banner" id="sceneBanner">
@@ -772,6 +831,7 @@
               <p class="scene-sub" id="sceneSub">A recolher dados táticos da zona...</p>
             </div>
           </div>
+          <div class="scene-illustration" id="sceneIllustration" aria-hidden="true"></div>
           <div class="narrative-feed" id="narrativeFeed"></div>
           <div style="display:grid;gap:8px;margin-top:10px">
             <div class="progress"><i id="progressFill"></i></div>
@@ -810,6 +870,8 @@
     const MAP_SEED = Number(params.get('seed') || EVENT_SEED) || EVENT_SEED
     const EVENT_REFRESH_SECONDS = 20
     const BASE_MAP_IMAGE_URL = './map-reference.png'
+    const ACTION_LOCK_KEY = 'city-map-active-action-v1'
+    const AUDIO_PREF_KEY = 'city-map-audio-enabled-v1'
 
     const EVENT_TYPES = {
       shootout: {
@@ -1267,6 +1329,7 @@
     const sceneIcon = document.getElementById('sceneIcon')
     const sceneTitle = document.getElementById('sceneTitle')
     const sceneSub = document.getElementById('sceneSub')
+    const sceneIllustration = document.getElementById('sceneIllustration')
     const liveHp = document.getElementById('liveHp')
     const liveStress = document.getElementById('liveStress')
     const liveRisk = document.getElementById('liveRisk')
@@ -1274,9 +1337,63 @@
     const resultPanel = document.getElementById('resultPanel')
     const resultData = document.getElementById('resultData')
     const btnBackMap = document.getElementById('btnBackMap')
+    const btnSoundToggle = document.getElementById('btnSoundToggle')
     const btnZoomIn = document.getElementById('btnZoomIn')
     const btnZoomOut = document.getElementById('btnZoomOut')
     let actionAudioContext = null
+
+    let audioEnabled = true
+    try {
+      const stored = localStorage.getItem(AUDIO_PREF_KEY)
+      if (stored === '0') audioEnabled = false
+    } catch {}
+
+    function syncSoundToggle() {
+      if (!btnSoundToggle) return
+      btnSoundToggle.textContent = audioEnabled ? '🔊 Som ON' : '🔇 Som OFF'
+      btnSoundToggle.setAttribute('aria-pressed', audioEnabled ? 'true' : 'false')
+    }
+
+    function setAudioEnabled(nextValue) {
+      audioEnabled = Boolean(nextValue)
+      syncSoundToggle()
+      try { localStorage.setItem(AUDIO_PREF_KEY, audioEnabled ? '1' : '0') } catch {}
+    }
+
+    function readPersistedAction() {
+      try {
+        const raw = localStorage.getItem(ACTION_LOCK_KEY)
+        if (!raw) return null
+        const parsed = JSON.parse(raw)
+        if (!parsed || Number(parsed.endsAt || 0) <= Date.now()) {
+          localStorage.removeItem(ACTION_LOCK_KEY)
+          return null
+        }
+        return parsed
+      } catch {
+        try { localStorage.removeItem(ACTION_LOCK_KEY) } catch {}
+        return null
+      }
+    }
+
+    function persistActionLock() {
+      if (!state.action || state.action.finished) return
+      const payload = {
+        eventId: state.action.eventId,
+        total: state.action.total,
+        twistAt: state.action.twistAt,
+        twist: state.action.twist,
+        phaseIndex: state.action.phaseIndex,
+        riskClass: state.action.riskClass,
+        riskFactor: state.action.riskFactor,
+        endsAt: state.action.endsAt,
+      }
+      try { localStorage.setItem(ACTION_LOCK_KEY, JSON.stringify(payload)) } catch {}
+    }
+
+    function clearPersistedAction() {
+      try { localStorage.removeItem(ACTION_LOCK_KEY) } catch {}
+    }
 
     function resize() {
       const dpr = window.devicePixelRatio || 1
@@ -1588,6 +1705,102 @@
         img.onerror = () => resolve(null)
         img.src = src
       })
+    }
+
+    function buildSceneImage(eventObj, twistEffect = null) {
+      const icon = eventObj?.template?.icon || '⚡'
+      const zoneName = (eventObj?.zone?.label || 'Zona').replace(/['<>&]/g, '')
+      const title = (eventObj?.template?.name || 'Operação').replace(/['<>&]/g, '').slice(0, 26)
+      const palette = twistEffect === 'bad'
+        ? { a: '#5b1a1a', b: '#201018', c: '#ff7a7a' }
+        : twistEffect === 'good'
+          ? { a: '#164933', b: '#0d2320', c: '#89f1bb' }
+          : eventObj?.template?.riskClass === 'very-high'
+            ? { a: '#472123', b: '#1e1317', c: '#ffc0b0' }
+            : eventObj?.template?.riskClass === 'high'
+              ? { a: '#4a311a', b: '#1f1a14', c: '#ffd5a1' }
+              : { a: '#193c39', b: '#111b24', c: '#b8ecff' }
+
+      const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='1200' height='420'>
+        <defs>
+          <linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>
+            <stop offset='0%' stop-color='${palette.a}'/>
+            <stop offset='100%' stop-color='${palette.b}'/>
+          </linearGradient>
+        </defs>
+        <rect width='100%' height='100%' fill='url(#g)'/>
+        <circle cx='180' cy='210' r='120' fill='rgba(255,255,255,0.08)'/>
+        <circle cx='1020' cy='100' r='90' fill='rgba(255,255,255,0.06)'/>
+        <rect x='290' y='110' width='780' height='200' rx='18' fill='rgba(0,0,0,0.24)'/>
+        <text x='70' y='245' font-size='120' font-family='monospace' fill='${palette.c}'>${icon}</text>
+        <text x='330' y='188' font-size='46' font-family='monospace' fill='#f3f8ff'>${zoneName}</text>
+        <text x='330' y='240' font-size='36' font-family='monospace' fill='${palette.c}'>${title}</text>
+      </svg>`
+      return `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}")`
+    }
+
+    function applySceneImage(eventObj, twistEffect = null) {
+      if (!sceneIllustration || !eventObj) return
+      sceneIllustration.style.backgroundImage = buildSceneImage(eventObj, twistEffect)
+    }
+
+    function restorePersistedActionIfNeeded() {
+      if (state.action || state.playerState.status === 'em_evento') return
+      const lock = readPersistedAction()
+      if (!lock) return
+      const eventObj = state.events.find((e) => e.id === lock.eventId)
+      if (!eventObj) {
+        clearPersistedAction()
+        return
+      }
+
+      if (eventObj.mode === 'solo') eventObj.locked = true
+      state.playerState.status = 'em_evento'
+      updateHUD()
+      closeEventModal()
+
+      actionScreen.classList.add('show')
+      setActionVisualTone(lock.riskClass || eventObj.template.riskClass, lock.twist?.effect || null)
+      resultPanel.style.display = 'none'
+      resultPanel.classList.remove('show')
+      resultData.innerHTML = ''
+      narrativeFeed.innerHTML = ''
+
+      const phases = Array.isArray(eventObj.template.phases) && eventObj.template.phases.length
+        ? eventObj.template.phases
+        : [`Entraste na zona ${eventObj.zone.label}. O ambiente está tenso e cada movimento conta.`]
+      const twists = Array.isArray(eventObj.template.twists) && eventObj.template.twists.length
+        ? eventObj.template.twists
+        : [{ text: 'Situação em evolução.', effect: 'neutral' }]
+
+      const phaseIndex = clamp(Number(lock.phaseIndex || 0), 0, Math.max(0, phases.length - 1))
+      state.action = {
+        eventId: eventObj.id,
+        total: Math.max(1, Number(lock.total || eventObj.participationDuration || 60)),
+        remaining: 0,
+        endsAt: Math.max(Date.now() + 1000, Number(lock.endsAt || Date.now() + 1000)),
+        twistAt: Math.max(1, Number(lock.twistAt || 10)),
+        twist: lock.twist || null,
+        phaseIndex,
+        phases,
+        twistPool: twists,
+        riskClass: lock.riskClass || eventObj.template.riskClass || 'medium',
+        riskFactor: Number(lock.riskFactor || (eventObj.template.danger === 'Muito alto' ? 0.25 : eventObj.template.danger === 'Alto' ? 0.15 : 0.08)),
+        finished: false,
+      }
+
+      actionTitle.textContent = `${eventObj.template.icon} ${eventObj.template.name}`
+      actionMeta.innerHTML = `<span>Zona: ${eventObj.zone.label}</span><span>Perigo: ${eventObj.template.danger}</span><span>Modo: ${eventObj.mode === 'group' ? 'Grupo' : 'Solo'}</span>`
+      liveRisk.textContent = eventObj.template.danger
+      sceneIcon.textContent = eventObj.template.icon || '⚡'
+      sceneTitle.textContent = `Cenário: ${eventObj.zone.label}`
+      sceneSub.textContent = state.action.twist?.text || 'Operação retomada após regressar ao mapa.'
+      phaseText.textContent = phases[phaseIndex] || phases[0] || 'Operação em curso...'
+      twistInfo.textContent = state.action.twist ? `Twist: ${state.action.twist.text}` : 'Twist: por revelar...'
+      appendNarrativeLine('Retomaste uma operação em curso.', 'neutral')
+      spawnParticles(state.action.riskClass, state.action.twist?.effect || null)
+      applySceneImage(eventObj, state.action.twist?.effect || null)
+      tickAction(0)
     }
 
     async function loadCityMapConfig() {
@@ -1994,6 +2207,7 @@
     }
 
     function playActionSfx(kind) {
+      if (!audioEnabled) return
       const ctx = ensureActionAudio()
       if (!ctx) return
       if (ctx.state === 'suspended') {
@@ -2079,6 +2293,7 @@
       sceneIcon.textContent = eventObj.template.icon || '⚡'
       sceneTitle.textContent = `Cenário: ${eventObj.zone.label}`
       sceneSub.textContent = 'Equipa posicionada. A operação começou e a resposta policial está em monitorização.'
+      applySceneImage(eventObj)
 
       const rng = new RNG(Date.now() + eventObj.duration)
       const total = Math.max(30, Math.min(eventObj.participationDuration, eventObj.remaining))
@@ -2102,9 +2317,9 @@
 
       state.action = {
         eventId: eventObj.id,
-        startedAt: performance.now(),
         total,
         remaining: total,
+        endsAt: Date.now() + total * 1000,
         twistAt,
         twist: null,
         phaseIndex: 0,
@@ -2120,6 +2335,7 @@
       appendNarrativeLine(phases[0], 'neutral')
       pulseScene()
       spawnParticles(eventObj.template.riskClass || 'medium')
+      persistActionLock()
       playActionSfx('start')
     }
 
@@ -2155,7 +2371,7 @@
     function tickAction(deltaSec) {
       if (!state.action || state.action.finished) return
       const a = state.action
-      a.remaining = clamp(a.remaining - deltaSec, 0, a.total)
+      a.remaining = clamp((a.endsAt - Date.now()) / 1000, 0, a.total)
       const elapsed = a.total - a.remaining
 
       if (!a.twist && elapsed >= a.twistAt) {
@@ -2168,9 +2384,11 @@
         sceneSub.textContent = a.twist.text
         appendNarrativeLine(`TWIST: ${a.twist.text}`, a.twist.effect)
         spawnParticles(a.riskClass, a.twist.effect)
+        applySceneImage(state.events.find((e) => e.id === a.eventId), a.twist.effect)
         playActionSfx(a.twist.effect === 'good' ? 'twistGood' : a.twist.effect === 'bad' ? 'twistBad' : 'twistNeutral')
         pulseScene()
         state.playerState.stress = clamp(state.playerState.stress + (a.twist.effect === 'bad' ? 20 : a.twist.effect === 'good' ? -8 : 6), 0, 130)
+        persistActionLock()
       }
 
       const phaseStep = Math.floor((elapsed / a.total) * a.phases.length)
@@ -2185,6 +2403,7 @@
         appendNarrativeLine(a.phases[phaseStep], 'neutral')
         playActionSfx('phase')
         pulseScene()
+        persistActionLock()
       }
 
       if (Math.random() > 0.55) {
@@ -2200,6 +2419,7 @@
 
       if (a.remaining <= 0) {
         a.finished = true
+        clearPersistedAction()
         const ev = state.events.find((e) => e.id === a.eventId)
         const outcome = computeOutcome(ev, a)
         applyOutcome(outcome)
@@ -2264,10 +2484,17 @@
     }
 
     function leaveActionScreen() {
+      if (state.action && !state.action.finished) {
+        persistActionLock()
+        actionScreen.classList.add('show')
+        updateHUD()
+        return
+      }
       actionScreen.classList.remove('show')
       actionScreen.classList.remove('risk-medium', 'risk-high', 'risk-very-high', 'twist-good', 'twist-bad', 'twist-neutral')
       resultPanel.classList.remove('show')
       state.action = null
+      clearPersistedAction()
       if (state.playerState.status === 'preso') {
         if (window.top) {
           try { window.top.location.assign('/prison') } catch {}
@@ -2316,6 +2543,12 @@
     btnCloseModal.addEventListener('click', closeEventModal)
     btnParticipate.addEventListener('click', () => {
       if (!selectedEvent) return
+      const activeLock = readPersistedAction()
+      if (activeLock && Number(activeLock.endsAt || 0) > Date.now() && (!state.action || state.action.eventId !== activeLock.eventId)) {
+        alert('Já tens um crime em curso. Termina ou retoma essa operação primeiro.')
+        restorePersistedActionIfNeeded()
+        return
+      }
       refreshEventRuntimeState(selectedEvent)
       if (!selectedEvent.joinable) return
       if (state.playerState.status === 'preso') {
@@ -2325,6 +2558,10 @@
       beginAction(selectedEvent)
     })
     btnBackMap.addEventListener('click', leaveActionScreen)
+    btnSoundToggle?.addEventListener('click', () => {
+      setAudioEnabled(!audioEnabled)
+      if (audioEnabled) playActionSfx('phase')
+    })
 
     canvas.addEventListener('mousemove', (ev) => {
       const rect = canvas.getBoundingClientRect()
@@ -2362,6 +2599,11 @@
     })
 
     window.addEventListener('resize', resize)
+    window.addEventListener('beforeunload', () => {
+      if (state.playerState.status === 'em_evento' && state.action && !state.action.finished) {
+        persistActionLock()
+      }
+    })
 
     async function init() {
       state.mapConfig = await loadCityMapConfig()
@@ -2378,6 +2620,8 @@
       state.city = createStaticCity(state.mapConfig)
       await refreshEvents(true)
       ensureEventSeed()
+      syncSoundToggle()
+      restorePersistedActionIfNeeded()
       updateHUD()
       resize()
       requestAnimationFrame(loop)
