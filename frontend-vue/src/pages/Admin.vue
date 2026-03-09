@@ -1,12 +1,13 @@
 <template>
-  <section class="admin-container">
-    <header class="admin-header">
-      <div>
+  <section class="admin-layout">
+    <aside class="admin-sidebar">
+      <div class="sidebar-brand">
         <p class="eyebrow">Painel Operacional</p>
         <h2>Admin Console</h2>
-        <p class="subtitle">Ferramentas rápidas para suporte, economia e mundo.</p>
+        <p class="subtitle">Centro de controlo para suporte, economia e mundo.</p>
       </div>
-      <div class="tabs">
+
+      <div class="tabs tabs-vertical">
         <button
           v-for="tab in tabs"
           :key="tab"
@@ -17,9 +18,27 @@
           {{ tab }}
         </button>
       </div>
-    </header>
 
-    <section class="section-block">
+      <div class="sidebar-foot muted">
+        <span>Target: {{ profile?.name || 'Nenhum' }}</span>
+        <span>Estado: {{ profile?.playerStatus || '—' }}</span>
+      </div>
+    </aside>
+
+    <section class="admin-container">
+      <header class="admin-header">
+        <div>
+          <p class="eyebrow">Configuração ativa</p>
+          <h3>{{ currentTab }}</h3>
+          <p class="subtitle">Tudo organizado por módulos para administração rápida.</p>
+        </div>
+        <div class="header-pills">
+          <span class="badge">{{ profile?.playerRole || 'No target' }}</span>
+          <span class="badge">{{ profile?.playerStatus || 'Offline' }}</span>
+        </div>
+      </header>
+
+      <section class="section-block section-focus">
       <div class="section-heading">
         <div>
           <p class="eyebrow mini">Seleção rápida</p>
@@ -1742,6 +1761,7 @@
         </div>
       </section>
     </div>
+    </section>
   </section>
 </template>
 
@@ -3803,28 +3823,85 @@ watch(targetUserId, (val) => {
 
 <style scoped>
 .admin-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 24px 20px 80px;
+  width: 100%;
+  margin: 0;
+  padding: 24px 28px 80px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 22px;
+  border-radius: 22px;
+  border: 1px solid rgba(120, 144, 169, 0.22);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(57, 98, 129, 0.17), rgba(7, 10, 16, 0)),
+    rgba(5, 8, 14, 0.9);
+  box-shadow: 0 28px 50px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(8px);
+}
+.admin-layout {
+  width: min(1600px, 100%);
+  margin: 0 auto;
+  padding: 24px 20px 40px;
+  display: grid;
+  grid-template-columns: 270px minmax(0, 1fr);
+  gap: 18px;
+}
+.admin-sidebar {
+  position: sticky;
+  top: 18px;
+  align-self: start;
+  max-height: calc(100vh - 36px);
+  overflow-y: auto;
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(140, 165, 195, 0.25);
+  background: linear-gradient(170deg, rgba(10, 16, 28, 0.96), rgba(6, 10, 19, 0.9));
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 22px 42px rgba(0, 0, 0, 0.36);
+}
+.sidebar-brand h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+.sidebar-foot {
+  margin-top: 8px;
+  display: grid;
+  gap: 4px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(184, 206, 233, 0.2);
 }
 .admin-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: center;
   flex-wrap: wrap;
-  gap: 24px;
+  gap: 16px;
+}
+.admin-header h3 {
+  margin: 0;
+  font-size: 1.6rem;
+  letter-spacing: 0.01em;
+}
+.header-pills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 .section-block {
-  background: rgba(255,255,255,0.02);
-  border: 1px solid var(--border);
-  border-radius: 16px;
+  background: rgba(9, 14, 22, 0.7);
+  border: 1px solid rgba(142, 164, 188, 0.2);
+  border-radius: 18px;
   padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 20px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+}
+.section-focus {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(54, 110, 140, 0.2), rgba(8, 12, 20, 0)),
+    rgba(8, 13, 22, 0.82);
 }
 .section-heading {
   display: flex;
@@ -3868,10 +3945,6 @@ watch(targetUserId, (val) => {
   color: var(--muted);
   margin: 0 0 4px;
 }
-.admin-header h2 {
-  margin: 0;
-  font-size: 1.8rem;
-}
 .subtitle {
   margin: 4px 0 0;
   color: var(--muted);
@@ -3880,6 +3953,9 @@ watch(targetUserId, (val) => {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+.tabs-vertical {
+  flex-direction: column;
 }
 .card-grid {
   display: grid;
@@ -3892,18 +3968,25 @@ watch(targetUserId, (val) => {
   grid-column: 1 / -1;
 }
 .tab-btn {
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--text);
-  padding: 8px 14px;
-  border-radius: 999px;
+  border: 1px solid rgba(160, 184, 212, 0.24);
+  background: rgba(255, 255, 255, 0.02);
+  color: #dbe7f7;
+  padding: 10px 14px;
+  border-radius: 10px;
   font-size: 13px;
   cursor: pointer;
+  text-align: left;
+  transition: 180ms ease;
 }
 .tab-btn.active {
-  background: var(--accent);
+  background: linear-gradient(120deg, var(--accent), #44a4e0);
   color: #fff;
-  border-color: var(--accent);
+  border-color: transparent;
+  box-shadow: 0 10px 22px rgba(55, 126, 194, 0.35);
+}
+.tab-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(171, 203, 235, 0.45);
 }
 .target-grid {
   display: grid;
@@ -3911,11 +3994,12 @@ watch(targetUserId, (val) => {
   gap: 16px;
 }
 .card {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px;
+  background: linear-gradient(180deg, rgba(10, 15, 24, 0.94), rgba(8, 12, 19, 0.94));
+  border: 1px solid rgba(146, 171, 200, 0.2);
+  border-radius: 14px;
+  padding: 18px;
   color: var(--text);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
 }
 .card-header {
   display: flex;
@@ -4006,11 +4090,13 @@ button {
   background: var(--accent);
   color: #fff;
   border: 1px solid var(--accent);
-  padding: 8px 14px;
-  border-radius: 999px;
+  padding: 9px 14px;
+  border-radius: 10px;
   cursor: pointer;
   font-weight: 600;
+  transition: 160ms ease;
 }
+button:hover { transform: translateY(-1px); filter: brightness(1.06); }
 button.secondary {
   background: transparent;
   color: var(--text);
@@ -4257,13 +4343,44 @@ button:disabled {
   font-size: 13px;
   color: var(--accent);
 }
+@media (max-width: 1180px) {
+  .admin-layout {
+    grid-template-columns: 1fr;
+  }
+  .admin-sidebar {
+    position: static;
+  }
+  .tabs-vertical {
+    flex-direction: row;
+  }
+}
 @media (max-width: 640px) {
+  .admin-container {
+    padding: 18px 14px 48px;
+  }
+  .admin-layout {
+    padding: 14px 10px 28px;
+  }
   .tabs {
     width: 100%;
+    gap: 6px;
+  }
+  .tabs-vertical {
+    flex-direction: column;
   }
   .tab-btn {
-    flex: 1;
-    text-align: center;
+    width: 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tab-btn,
+  button {
+    transition: none;
+  }
+  .tab-btn:hover,
+  button:hover {
+    transform: none;
+    filter: none;
   }
 }
 </style>
