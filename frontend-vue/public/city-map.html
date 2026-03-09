@@ -1050,7 +1050,6 @@
 
     function drawEventChips() {
       eventLayer.innerHTML = ''
-      hideEventHoverCard()
       if (state.playerState.status === 'em_evento') return
       const nowMs = Date.now()
       for (const e of state.events) {

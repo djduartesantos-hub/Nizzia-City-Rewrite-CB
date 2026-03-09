@@ -3,6 +3,10 @@ const { getConfigs, updateConfig, setConfig } = require('../services/worldConfig
 
 const cityEventsRuntime = new Map()
 
+function resetCityEventsRuntime() {
+  cityEventsRuntime.clear()
+}
+
 async function ensureAdmin(req) {
   const userId = req.authUserId
   if (!userId) throw new Error('Unauthorized')
@@ -85,6 +89,7 @@ async function createCityMapZone(req, res) {
     }
     zones.push(zone)
     const config = await updateConfig('cityMap', { zones })
+    resetCityEventsRuntime()
     return res.status(201).json({ zone, config })
   } catch (err) {
     const status = err.message === 'Unauthorized' ? 401 : err.message === 'Forbidden' ? 403 : 500
@@ -110,6 +115,7 @@ async function updateCityMapZone(req, res) {
 
     zones[index] = zone
     const config = await updateConfig('cityMap', { zones })
+    resetCityEventsRuntime()
     return res.json({ zone, config })
   } catch (err) {
     const status = err.message === 'Unauthorized' ? 401 : err.message === 'Forbidden' ? 403 : 500
@@ -130,6 +136,7 @@ async function deleteCityMapZone(req, res) {
     if (filtered.length === zones.length) return res.status(404).json({ error: 'Zona não encontrada' })
 
     const config = await updateConfig('cityMap', { zones: filtered })
+    resetCityEventsRuntime()
     return res.json({ ok: true, config })
   } catch (err) {
     const status = err.message === 'Unauthorized' ? 401 : err.message === 'Forbidden' ? 403 : 500
@@ -701,6 +708,7 @@ async function updateCityMapConfig(req, res) {
     const payload = sanitizeCityMapPayload(req.body || {})
     if (!payload) return res.status(400).json({ error: 'Nenhum campo válido enviado' })
     const config = await updateConfig('cityMap', payload)
+    resetCityEventsRuntime()
     return res.json({ config })
   } catch (err) {
     const status = err.message === 'Unauthorized' ? 401 : err.message === 'Forbidden' ? 403 : 500
@@ -742,6 +750,7 @@ async function updateCityMapEventsConfig(req, res) {
           : [],
     }
     const config = await updateConfig('cityMap', { events: nextEvents })
+    resetCityEventsRuntime()
     return res.json({ config, events: config?.events || {} })
   } catch (err) {
     const status = err.message === 'Unauthorized' ? 401 : err.message === 'Forbidden' ? 403 : 500
@@ -782,6 +791,7 @@ async function createCityMapEventType(req, res) {
 
     types.push(eventType)
     const config = await updateConfig('cityMap', { events: { ...events, types } })
+    resetCityEventsRuntime()
     return res.status(201).json({ eventType, config })
   } catch (err) {
     const status = err.message === 'Unauthorized' ? 401 : err.message === 'Forbidden' ? 403 : 500
@@ -808,6 +818,7 @@ async function updateCityMapEventType(req, res) {
 
     types[index] = eventType
     const config = await updateConfig('cityMap', { events: { ...events, types } })
+    resetCityEventsRuntime()
     return res.json({ eventType, config })
   } catch (err) {
     const status = err.message === 'Unauthorized' ? 401 : err.message === 'Forbidden' ? 403 : 500
@@ -829,6 +840,7 @@ async function deleteCityMapEventType(req, res) {
     if (filtered.length === types.length) return res.status(404).json({ error: 'Tipo de evento não encontrado' })
 
     const config = await updateConfig('cityMap', { events: { ...events, types: filtered } })
+    resetCityEventsRuntime()
     return res.json({ ok: true, config })
   } catch (err) {
     const status = err.message === 'Unauthorized' ? 401 : err.message === 'Forbidden' ? 403 : 500
