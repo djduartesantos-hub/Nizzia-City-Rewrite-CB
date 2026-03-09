@@ -38,6 +38,22 @@ function sanitizeMapZoneEntry(zone, index = 0) {
   }
 }
 
+async function getPublicCityEvents(req, res) {
+  try {
+    const seed = Number(req.params?.seed || req.query?.seed || 1) || 1
+    const configs = await getConfigs(['cityMap'])
+    const cityMap = configs.cityMap || {}
+    const events = buildCityEventsSnapshot(cityMap, seed)
+    return res.json({
+      seed,
+      serverTime: Date.now(),
+      events,
+    })
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Falha ao carregar eventos da cidade' })
+  }
+}
+
 async function listCityMapZones(req, res) {
   try {
     await ensureAdmin(req)
@@ -129,6 +145,76 @@ function sanitizeMapLocationEntry(loc) {
   return { key, name, col, row }
 }
 
+function sanitizeNumericRange(range, { min = 0, max = null, fallback = [0, 0] } = {}) {
+  if (!Array.isArray(range) || range.length < 2) return fallback
+  const start = asNumber(range[0], { min, defaultValue: fallback[0] })
+  const end = asNumber(range[1], { min: start, max, defaultValue: fallback[1] })
+  return [start, end]
+}
+
+function sanitizeEventRewardConfig(entry) {
+  const reward = entry && typeof entry === 'object' ? entry : {}
+  return {
+    money: sanitizeNumericRange(reward.money, { min: 0, fallback: [500, 1500] }),
+    xp: sanitizeNumericRange(reward.xp, { min: 0, fallback: [20, 80] }),
+    rep: sanitizeNumericRange(reward.rep, { min: 0, fallback: [1, 4] }),
+    items: ensureStringArray(reward.items),
+  }
+}
+
+function sanitizeCityMapEventTypeEntry(entry, idx = 0) {
+  if (!entry || typeof entry !== 'object') return null
+  const key = asString(entry.key, `event_${idx + 1}`)
+  const name = asString(entry.name, key)
+  if (!key || !name) return null
+  const modeRaw = asString(entry.mode, 'solo').toLowerCase()
+  const mode = modeRaw === 'group' ? 'group' : 'solo'
+  const zones = ensureStringArray(entry.zones)
+  return {
+    key,
+    name,
+    icon: asString(entry.icon, '⚡') || '⚡',
+    danger: asString(entry.danger, 'Médio') || 'Médio',
+    riskClass: asString(entry.riskClass, 'medium') || 'medium',
+    mode,
+    durationRange: sanitizeNumericRange(entry.durationRange, { min: 30, fallback: [120, 240] }),
+    participationDuration: asNumber(entry.participationDuration, { min: 10, defaultValue: 90 }),
+    zones,
+    desc: asString(entry.desc, ''),
+    reward: sanitizeEventRewardConfig(entry.reward),
+    phases: ensureStringArray(entry.phases),
+    twists: Array.isArray(entry.twists)
+      ? entry.twists
+        .map((tw) => ({
+          text: asString(tw?.text),
+          effect: ['good', 'bad', 'neutral'].includes(asString(tw?.effect).toLowerCase()) ? asString(tw?.effect).toLowerCase() : 'neutral',
+        }))
+        .filter((tw) => tw.text)
+      : [],
+  }
+}
+
+function sanitizeCityMapEventsPayload(events = {}) {
+  if (!events || typeof events !== 'object') return null
+  const out = {}
+  if (Object.prototype.hasOwnProperty.call(events, 'refreshIntervalSeconds')) {
+    out.refreshIntervalSeconds = asNumber(events.refreshIntervalSeconds, { min: 5, max: 300, defaultValue: 20 })
+  }
+  if (Object.prototype.hasOwnProperty.call(events, 'maxActiveEvents')) {
+    out.maxActiveEvents = asNumber(events.maxActiveEvents, { min: 1, max: 50, defaultValue: 12 })
+  }
+  if (Object.prototype.hasOwnProperty.call(events, 'spawnGraceSeconds')) {
+    out.spawnGraceSeconds = asNumber(events.spawnGraceSeconds, { min: 0, max: 600, defaultValue: 45 })
+  }
+  if (Array.isArray(events.types)) {
+    out.types = events.types
+      .map((entry, idx) => sanitizeCityMapEventTypeEntry(entry, idx))
+      .filter(Boolean)
+  }
+  if (!Object.keys(out).length) return null
+  return out
+}
+
 function sanitizeCityMapPayload(input = {}) {
   if (!input || typeof input !== 'object') return null
   const out = {}
@@ -165,8 +251,107 @@ function sanitizeCityMapPayload(input = {}) {
       .map((entry) => sanitizeMapLocationEntry(entry))
       .filter(Boolean)
   }
+  if (input.events && typeof input.events === 'object') {
+    const events = sanitizeCityMapEventsPayload(input.events)
+    if (events) out.events = events
+  }
   if (!Object.keys(out).length) return null
   return out
+}
+
+function makeSeededRng(seed = 1) {
+  let s = (Number(seed) || 1) >>> 0
+  return {
+    next() {
+      s = (1664525 * s + 1013904223) >>> 0
+      return s / 0x100000000
+    },
+    int(min, max) {
+      return Math.floor(this.next() * (max - min + 1)) + min
+    },
+    pick(arr = []) {
+      if (!arr.length) return null
+      return arr[this.int(0, arr.length - 1)]
+    },
+  }
+}
+
+function weightedPickType(types, zoneKey, rng) {
+  if (!types.length) return null
+  const weighted = types.map((entry) => {
+    const score = Array.isArray(entry.zones) && entry.zones.includes(zoneKey) ? 4 : 1
+    return { entry, score }
+  })
+  const total = weighted.reduce((acc, item) => acc + item.score, 0)
+  let point = rng.next() * total
+  for (const item of weighted) {
+    point -= item.score
+    if (point <= 0) return item.entry
+  }
+  return weighted[0].entry
+}
+
+function rollFromRange(range, rng, fallback = [0, 0]) {
+  const arr = Array.isArray(range) && range.length >= 2 ? range : fallback
+  const min = Number(arr[0]) || 0
+  const max = Number(arr[1]) || min
+  return rng.int(Math.min(min, max), Math.max(min, max))
+}
+
+function buildCityEventsSnapshot(cityMap, seedInput = 1) {
+  const zones = Array.isArray(cityMap?.zones) ? cityMap.zones : []
+  const eventsConfig = cityMap?.events && typeof cityMap.events === 'object' ? cityMap.events : {}
+  const types = Array.isArray(eventsConfig.types) ? eventsConfig.types : []
+  if (!zones.length || !types.length) return []
+
+  const seed = Number(seedInput) || 1
+  const now = Date.now()
+  const rng = makeSeededRng(seed * 8191 + Math.floor(now / 1000))
+  const maxActive = Math.max(1, Number(eventsConfig.maxActiveEvents) || 12)
+  const spawnGrace = Math.max(0, Number(eventsConfig.spawnGraceSeconds) || 45)
+  const events = []
+
+  for (let i = 0; i < maxActive; i += 1) {
+    const zone = rng.pick(zones)
+    if (!zone) break
+    const type = weightedPickType(types, zone.key, rng)
+    if (!type) continue
+
+    const duration = rollFromRange(type.durationRange, rng, [120, 240])
+    const participationDuration = Math.max(10, Number(type.participationDuration) || 90)
+    const elapsedMax = Math.max(0, duration - spawnGrace)
+    const elapsed = rng.int(0, elapsedMax)
+    const startedAt = now - elapsed * 1000
+    const rewardCfg = type.reward || {}
+
+    events.push({
+      id: `city_${seed}_${Math.floor(now / 1000)}_${i}`,
+      typeKey: type.key,
+      name: type.name,
+      icon: type.icon,
+      danger: type.danger,
+      riskClass: type.riskClass,
+      mode: type.mode || 'solo',
+      zoneKey: zone.key,
+      zoneLabel: zone.label,
+      description: type.desc || '',
+      x: null,
+      y: null,
+      startedAt,
+      duration,
+      participationDuration,
+      reward: {
+        money: rollFromRange(rewardCfg.money, rng, [500, 1500]),
+        xp: rollFromRange(rewardCfg.xp, rng, [20, 80]),
+        rep: rollFromRange(rewardCfg.rep, rng, [1, 4]),
+        item: Array.isArray(rewardCfg.items) && rewardCfg.items.length ? rng.pick(rewardCfg.items) : 'Nenhum',
+      },
+      phases: Array.isArray(type.phases) ? type.phases : [],
+      twists: Array.isArray(type.twists) ? type.twists : [],
+    })
+  }
+
+  return events
 }
 
 function sanitizeWalkInConfig(payload = {}) {
@@ -445,6 +630,121 @@ async function updateCityMapConfig(req, res) {
   }
 }
 
+async function getCityMapEventsConfig(req, res) {
+  try {
+    await ensureAdmin(req)
+    const configs = await getConfigs(['cityMap'])
+    const cityMap = configs.cityMap || {}
+    return res.json({
+      events: cityMap.events || {},
+      cityMap,
+    })
+  } catch (err) {
+    const status = err.message === 'Unauthorized' ? 401 : err.message === 'Forbidden' ? 403 : 500
+    return res.status(status).json({ error: err.message || 'Falha ao carregar config de eventos do mapa' })
+  }
+}
+
+async function updateCityMapEventsConfig(req, res) {
+  try {
+    await ensureAdmin(req)
+    const payload = sanitizeCityMapEventsPayload(req.body || {})
+    if (!payload) return res.status(400).json({ error: 'Nenhum campo válido enviado' })
+    const config = await updateConfig('cityMap', { events: payload })
+    return res.json({ config, events: config?.events || {} })
+  } catch (err) {
+    const status = err.message === 'Unauthorized' ? 401 : err.message === 'Forbidden' ? 403 : 500
+    return res.status(status).json({ error: err.message || 'Falha ao guardar config de eventos do mapa' })
+  }
+}
+
+async function listCityMapEventTypes(req, res) {
+  try {
+    await ensureAdmin(req)
+    const configs = await getConfigs(['cityMap'])
+    const cityMap = configs.cityMap || {}
+    const types = Array.isArray(cityMap?.events?.types) ? cityMap.events.types : []
+    return res.json({
+      types,
+      events: cityMap.events || {},
+      cityMap,
+    })
+  } catch (err) {
+    const status = err.message === 'Unauthorized' ? 401 : err.message === 'Forbidden' ? 403 : 500
+    return res.status(status).json({ error: err.message || 'Falha ao listar tipos de evento do mapa' })
+  }
+}
+
+async function createCityMapEventType(req, res) {
+  try {
+    await ensureAdmin(req)
+    const eventType = sanitizeCityMapEventTypeEntry(req.body || {}, Date.now())
+    if (!eventType) return res.status(400).json({ error: 'Tipo de evento inválido' })
+
+    const configs = await getConfigs(['cityMap'])
+    const cityMap = configs.cityMap || {}
+    const events = cityMap.events && typeof cityMap.events === 'object' ? cityMap.events : {}
+    const types = Array.isArray(events.types) ? [...events.types] : []
+    if (types.some((entry) => asString(entry?.key) === eventType.key)) {
+      return res.status(409).json({ error: 'Já existe um tipo de evento com essa key' })
+    }
+
+    types.push(eventType)
+    const config = await updateConfig('cityMap', { events: { ...events, types } })
+    return res.status(201).json({ eventType, config })
+  } catch (err) {
+    const status = err.message === 'Unauthorized' ? 401 : err.message === 'Forbidden' ? 403 : 500
+    return res.status(status).json({ error: err.message || 'Falha ao criar tipo de evento do mapa' })
+  }
+}
+
+async function updateCityMapEventType(req, res) {
+  try {
+    await ensureAdmin(req)
+    const typeKey = asString(req.params?.typeKey)
+    if (!typeKey) return res.status(400).json({ error: 'typeKey inválida' })
+
+    const configs = await getConfigs(['cityMap'])
+    const cityMap = configs.cityMap || {}
+    const events = cityMap.events && typeof cityMap.events === 'object' ? cityMap.events : {}
+    const types = Array.isArray(events.types) ? [...events.types] : []
+    const index = types.findIndex((entry) => asString(entry?.key) === typeKey)
+    if (index < 0) return res.status(404).json({ error: 'Tipo de evento não encontrado' })
+
+    const merged = { ...types[index], ...(req.body || {}), key: typeKey }
+    const eventType = sanitizeCityMapEventTypeEntry(merged, index)
+    if (!eventType) return res.status(400).json({ error: 'Tipo de evento inválido' })
+
+    types[index] = eventType
+    const config = await updateConfig('cityMap', { events: { ...events, types } })
+    return res.json({ eventType, config })
+  } catch (err) {
+    const status = err.message === 'Unauthorized' ? 401 : err.message === 'Forbidden' ? 403 : 500
+    return res.status(status).json({ error: err.message || 'Falha ao atualizar tipo de evento do mapa' })
+  }
+}
+
+async function deleteCityMapEventType(req, res) {
+  try {
+    await ensureAdmin(req)
+    const typeKey = asString(req.params?.typeKey)
+    if (!typeKey) return res.status(400).json({ error: 'typeKey inválida' })
+
+    const configs = await getConfigs(['cityMap'])
+    const cityMap = configs.cityMap || {}
+    const events = cityMap.events && typeof cityMap.events === 'object' ? cityMap.events : {}
+    const types = Array.isArray(events.types) ? [...events.types] : []
+    const filtered = types.filter((entry) => asString(entry?.key) !== typeKey)
+    if (filtered.length === types.length) return res.status(404).json({ error: 'Tipo de evento não encontrado' })
+
+    const config = await updateConfig('cityMap', { events: { ...events, types: filtered } })
+    return res.json({ ok: true, config })
+  } catch (err) {
+    const status = err.message === 'Unauthorized' ? 401 : err.message === 'Forbidden' ? 403 : 500
+    return res.status(status).json({ error: err.message || 'Falha ao remover tipo de evento do mapa' })
+  }
+}
+
 async function getPublicCityMapConfig(req, res) {
   try {
     const configs = await getConfigs(['cityMap'])
@@ -466,4 +766,11 @@ module.exports = {
   updateCityMapZone,
   deleteCityMapZone,
   getPublicCityMapConfig,
+  getPublicCityEvents,
+  getCityMapEventsConfig,
+  updateCityMapEventsConfig,
+  listCityMapEventTypes,
+  createCityMapEventType,
+  updateCityMapEventType,
+  deleteCityMapEventType,
 }

@@ -678,6 +678,26 @@
       },
       zones: ZONE_GRID_LAYOUT,
       locations: LOCATION_GRID_LAYOUT,
+      events: {
+        refreshIntervalSeconds: EVENT_REFRESH_SECONDS,
+        maxActiveEvents: 12,
+        spawnGraceSeconds: 45,
+        types: Object.entries(EVENT_TYPES).map(([key, tpl]) => ({
+          key,
+          name: tpl.name,
+          icon: tpl.icon,
+          danger: tpl.danger,
+          riskClass: tpl.riskClass,
+          mode: tpl.mode,
+          durationRange: tpl.duration,
+          participationDuration: tpl.participationDuration,
+          zones: Array.isArray(tpl.zones) ? [...tpl.zones] : [],
+          reward: tpl.rewards,
+          desc: tpl.desc,
+          phases: Array.isArray(tpl.phases) ? [...tpl.phases] : [],
+          twists: Array.isArray(tpl.twists) ? [...tpl.twists] : [],
+        })),
+      },
     }
 
     function clamp(v, min, max) { return Math.max(min, Math.min(max, v)) }
@@ -703,6 +723,42 @@
       return JSON.parse(JSON.stringify(obj))
     }
 
+    function normalizeEventCatalog(mapConfig) {
+      const rawTypes = mapConfig?.events?.types
+      if (!Array.isArray(rawTypes) || !rawTypes.length) {
+        return deepClone(EVENT_TYPES)
+      }
+
+      const out = {}
+      rawTypes.forEach((entry, idx) => {
+        const key = String(entry?.key || `event_${idx + 1}`).trim()
+        if (!key) return
+        const durationRange = Array.isArray(entry?.durationRange) ? entry.durationRange : entry?.duration
+        const reward = entry?.reward && typeof entry.reward === 'object' ? entry.reward : entry?.rewards
+        out[key] = {
+          name: String(entry?.name || key),
+          icon: String(entry?.icon || '⚡'),
+          danger: String(entry?.danger || 'Médio'),
+          riskClass: String(entry?.riskClass || 'medium'),
+          mode: entry?.mode === 'group' ? 'group' : 'solo',
+          duration: Array.isArray(durationRange) ? durationRange : [120, 240],
+          participationDuration: Math.max(10, Number(entry?.participationDuration || 90)),
+          zones: Array.isArray(entry?.zones) ? entry.zones.map((z) => String(z || '').trim()).filter(Boolean) : [],
+          desc: String(entry?.desc || ''),
+          rewards: {
+            money: Array.isArray(reward?.money) ? reward.money : [500, 1500],
+            xp: Array.isArray(reward?.xp) ? reward.xp : [20, 80],
+            rep: Array.isArray(reward?.rep) ? reward.rep : [1, 4],
+            items: Array.isArray(reward?.items) ? reward.items : ['Nenhum'],
+          },
+          phases: Array.isArray(entry?.phases) ? entry.phases : [],
+          twists: Array.isArray(entry?.twists) ? entry.twists : [],
+        }
+      })
+
+      return Object.keys(out).length ? out : deepClone(EVENT_TYPES)
+    }
+
     function normalizeCityMapConfig(input) {
       const raw = input && typeof input === 'object' ? input : {}
       const cfg = {
@@ -723,6 +779,14 @@
         },
         zones: Array.isArray(raw.zones) && raw.zones.length ? raw.zones : deepClone(DEFAULT_CITY_MAP_CONFIG.zones),
         locations: Array.isArray(raw.locations) && raw.locations.length ? raw.locations : deepClone(DEFAULT_CITY_MAP_CONFIG.locations),
+        events: {
+          refreshIntervalSeconds: Math.max(5, Number(raw.events?.refreshIntervalSeconds || DEFAULT_CITY_MAP_CONFIG.events.refreshIntervalSeconds)),
+          maxActiveEvents: Math.max(1, Number(raw.events?.maxActiveEvents || DEFAULT_CITY_MAP_CONFIG.events.maxActiveEvents)),
+          spawnGraceSeconds: Math.max(0, Number(raw.events?.spawnGraceSeconds || DEFAULT_CITY_MAP_CONFIG.events.spawnGraceSeconds)),
+          types: Array.isArray(raw.events?.types) && raw.events.types.length
+            ? raw.events.types
+            : deepClone(DEFAULT_CITY_MAP_CONFIG.events.types),
+        },
       }
       if (cfg.zoom.max < cfg.zoom.min) cfg.zoom.max = cfg.zoom.min
       cfg.zoom.initial = clamp(cfg.zoom.initial, cfg.zoom.min, cfg.zoom.max)
@@ -804,6 +868,8 @@
         cy: CITY_H / 2,
       },
       events: [],
+      eventTypes: deepClone(EVENT_TYPES),
+      eventRefreshSeconds: EVENT_REFRESH_SECONDS,
       eventsSource: 'fallback',
       lastEventFetchAt: 0,
       eventsLoading: false,
@@ -1088,7 +1154,7 @@
     }
 
     function weightedEventType(zoneKey, rng) {
-      const entries = Object.entries(EVENT_TYPES)
+      const entries = Object.entries(state.eventTypes || EVENT_TYPES)
       const scored = entries.map(([k, v]) => {
         let score = 1
         if (v.zones.includes(zoneKey)) score += 3
@@ -1142,8 +1208,26 @@
 
     function normalizeEventEntry(entry, rng) {
       const typeKey = String(entry?.typeKey || entry?.type || '').trim()
-      const template = EVENT_TYPES[typeKey]
-      if (!template) return null
+      const fromCatalog = state.eventTypes?.[typeKey]
+      const template = fromCatalog || {
+        name: String(entry?.name || 'Evento urbano'),
+        icon: String(entry?.icon || '⚡'),
+        danger: String(entry?.danger || 'Médio'),
+        riskClass: String(entry?.riskClass || 'medium'),
+        duration: Array.isArray(entry?.durationRange) ? entry.durationRange : [120, 240],
+        participationDuration: Math.max(10, Number(entry?.participationDuration || 90)),
+        mode: entry?.mode === 'group' ? 'group' : 'solo',
+        zones: [],
+        desc: String(entry?.description || entry?.desc || ''),
+        rewards: {
+          money: [500, 1500],
+          xp: [20, 80],
+          rep: [1, 4],
+          items: ['Nenhum'],
+        },
+        phases: Array.isArray(entry?.phases) ? entry.phases : [],
+        twists: Array.isArray(entry?.twists) ? entry.twists : [],
+      }
 
       const zone = resolveZoneForEvent(entry, rng)
       const duration = normalizeDurationSec(entry?.duration, randomInRange(template.duration, rng))
@@ -1162,7 +1246,7 @@
 
       return {
         id: String(entry?.id || `ev_${Date.now()}_${rng.int(1000, 9999)}`),
-        typeKey,
+        typeKey: typeKey || template.name.toLowerCase().replace(/\s+/g, '_'),
         template,
         zone,
         x,
@@ -1227,12 +1311,13 @@
 
     function regenerateEvents() {
       const rng = new RNG(MAP_SEED * 73129 + Date.now())
-      const count = 8 + rng.int(0, 6)
+      const maxActive = Math.max(1, Number(state.mapConfig?.events?.maxActiveEvents || 12))
+      const count = Math.max(4, maxActive - 2) + rng.int(0, 2)
       const events = []
       for (let i = 0; i < count; i += 1) {
         const zone = rng.pick(state.city.zones)
         const typeKey = weightedEventType(zone.key, rng)
-        const tpl = EVENT_TYPES[typeKey]
+        const tpl = (state.eventTypes || EVENT_TYPES)[typeKey]
         const duration = randomInRange(tpl.duration, rng)
         const participationDuration = Number(tpl.participationDuration || Math.floor(duration * 0.45))
         const startedAt = Date.now() - rng.int(0, Math.floor(duration * 0.7)) * 1000
@@ -1511,7 +1596,7 @@
       if (state.eventsLoading) return
       if (state.playerState.status === 'em_evento') return
 
-      const stale = force || (Date.now() - state.lastEventFetchAt) >= EVENT_REFRESH_SECONDS * 1000
+      const stale = force || (Date.now() - state.lastEventFetchAt) >= state.eventRefreshSeconds * 1000
       if (!stale && state.events.length) return
 
       state.eventsLoading = true
@@ -1569,6 +1654,8 @@
 
     async function init() {
       state.mapConfig = await loadCityMapConfig()
+      state.eventTypes = normalizeEventCatalog(state.mapConfig)
+      state.eventRefreshSeconds = Math.max(5, Number(state.mapConfig?.events?.refreshIntervalSeconds || EVENT_REFRESH_SECONDS))
       const zcfg = state.mapConfig.zoom || DEFAULT_CITY_MAP_CONFIG.zoom
       state.camera.minZoom = Math.max(0.25, Number(zcfg.min || 1))
       state.camera.maxZoom = Math.max(state.camera.minZoom, Number(zcfg.max || 4))
@@ -1600,7 +1687,7 @@
         tickAction(delta)
       }
 
-      if (state.playerState.status !== 'em_evento' && (Date.now() - state.lastEventFetchAt >= EVENT_REFRESH_SECONDS * 1000 || state.events.length < 4)) {
+      if (state.playerState.status !== 'em_evento' && (Date.now() - state.lastEventFetchAt >= state.eventRefreshSeconds * 1000 || state.events.length < 4)) {
         refreshEvents(false)
       }
 

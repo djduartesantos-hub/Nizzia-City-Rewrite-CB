@@ -66,6 +66,12 @@ const {
   createCityMapZone,
   updateCityMapZone,
   deleteCityMapZone,
+  getCityMapEventsConfig,
+  updateCityMapEventsConfig,
+  listCityMapEventTypes,
+  createCityMapEventType,
+  updateCityMapEventType,
+  deleteCityMapEventType,
 } = require('../controllers/worldAdminController');
 
 // All admin routes require authentication
@@ -147,6 +153,12 @@ router.get('/world/city-map/zones', listCityMapZones);
 router.post('/world/city-map/zones', createCityMapZone);
 router.patch('/world/city-map/zones/:zoneId', updateCityMapZone);
 router.delete('/world/city-map/zones/:zoneId', deleteCityMapZone);
+router.get('/world/city-map/events', getCityMapEventsConfig);
+router.post('/world/city-map/events', updateCityMapEventsConfig);
+router.get('/world/city-map/event-types', listCityMapEventTypes);
+router.post('/world/city-map/event-types', createCityMapEventType);
+router.patch('/world/city-map/event-types/:typeKey', updateCityMapEventType);
+router.delete('/world/city-map/event-types/:typeKey', deleteCityMapEventType);
 
 // Database maintenance (danger)
 router.post('/database/purge', purgeDatabase);
