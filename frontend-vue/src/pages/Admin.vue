@@ -1266,6 +1266,119 @@
               <button class="secondary" :disabled="mapZoneSaving || !mapZoneExists" @click="deleteMapZone">Apagar</button>
             </div>
           </div>
+
+          <div class="card card-full">
+            <div class="card-header">
+              <h3>Eventos do mapa (configuração global)</h3>
+              <small>Controla frequência, número máximo e janela de graça para spawn.</small>
+            </div>
+            <div class="row">
+              <div><label>Refresh (segundos)</label><input v-model.number="worldConfigs.cityMap.events.refreshIntervalSeconds" type="number" min="5" /></div>
+              <div><label>Máximo de eventos ativos</label><input v-model.number="worldConfigs.cityMap.events.maxActiveEvents" type="number" min="1" /></div>
+              <div><label>Spawn grace (segundos)</label><input v-model.number="worldConfigs.cityMap.events.spawnGraceSeconds" type="number" min="0" /></div>
+            </div>
+            <div class="actions">
+              <button :disabled="worldSaving.cityMapEvents" @click="saveCityMapEventsConfig">Guardar config de eventos</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h3>Tipos de evento ({{ mapEventTypes.length }})</h3>
+              <small>Seleciona um tipo para editar ou cria um novo.</small>
+            </div>
+            <div class="actions">
+              <button class="secondary" @click="newMapEventType">Novo tipo</button>
+              <button class="secondary" :disabled="mapEventTypeLoading" @click="loadCityMapEventTypes(true)">Recarregar</button>
+            </div>
+            <div class="list">
+              <div v-if="mapEventTypeLoading" class="muted">A carregar tipos…</div>
+              <div v-else-if="!mapEventTypes.length" class="muted">Sem tipos configurados</div>
+              <div
+                v-else
+                v-for="entry in mapEventTypes"
+                :key="entry.key"
+                class="list-row crime-row"
+                :class="{ active: entry.key === selectedMapEventTypeKey }"
+                @click="selectMapEventType(entry)"
+              >
+                <div>
+                  <strong>{{ entry.icon }} {{ entry.name }}</strong>
+                  <div class="muted">{{ entry.key }} · {{ entry.mode === 'group' ? 'Grupo' : 'Solo' }}</div>
+                </div>
+                <span class="muted">{{ entry.danger }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card card-full">
+            <div class="card-header">
+              <h3>Editor de tipo de evento</h3>
+              <small>Formato twists: texto|good|bad|neutral (uma linha por twist).</small>
+            </div>
+            <div class="row">
+              <div><label>Key</label><input v-model.trim="mapEventTypeEditor.key" /></div>
+              <div><label>Nome</label><input v-model.trim="mapEventTypeEditor.name" /></div>
+              <div><label>Icone</label><input v-model.trim="mapEventTypeEditor.icon" maxlength="3" /></div>
+            </div>
+            <div class="row">
+              <div><label>Perigo</label><input v-model.trim="mapEventTypeEditor.danger" placeholder="Baixo/Médio/Alto" /></div>
+              <div>
+                <label>Classe de risco</label>
+                <select v-model="mapEventTypeEditor.riskClass">
+                  <option value="low">low</option>
+                  <option value="medium">medium</option>
+                  <option value="high">high</option>
+                </select>
+              </div>
+              <div>
+                <label>Modo</label>
+                <select v-model="mapEventTypeEditor.mode">
+                  <option value="solo">Solo</option>
+                  <option value="group">Grupo</option>
+                </select>
+              </div>
+            </div>
+            <div class="row">
+              <div><label>Duração mín (s)</label><input v-model.number="mapEventTypeEditor.durationRange[0]" type="number" min="0" /></div>
+              <div><label>Duração máx (s)</label><input v-model.number="mapEventTypeEditor.durationRange[1]" type="number" :min="mapEventTypeEditor.durationRange[0] || 0" /></div>
+              <div><label>Participação (s)</label><input v-model.number="mapEventTypeEditor.participationDuration" type="number" min="10" /></div>
+            </div>
+            <div>
+              <label>Descrição</label>
+              <textarea v-model.trim="mapEventTypeEditor.desc" rows="2"></textarea>
+            </div>
+            <div>
+              <label>Zonas (uma key por linha)</label>
+              <textarea :value="mapEventTypeZonesText()" @input="updateMapEventTypeZones($event.target.value)" rows="3"></textarea>
+            </div>
+            <div class="row">
+              <div><label>Money mín</label><input v-model.number="mapEventTypeEditor.reward.money[0]" type="number" min="0" /></div>
+              <div><label>Money máx</label><input v-model.number="mapEventTypeEditor.reward.money[1]" type="number" :min="mapEventTypeEditor.reward.money[0] || 0" /></div>
+              <div><label>XP mín</label><input v-model.number="mapEventTypeEditor.reward.xp[0]" type="number" min="0" /></div>
+              <div><label>XP máx</label><input v-model.number="mapEventTypeEditor.reward.xp[1]" type="number" :min="mapEventTypeEditor.reward.xp[0] || 0" /></div>
+              <div><label>REP mín</label><input v-model.number="mapEventTypeEditor.reward.rep[0]" type="number" min="0" /></div>
+              <div><label>REP máx</label><input v-model.number="mapEventTypeEditor.reward.rep[1]" type="number" :min="mapEventTypeEditor.reward.rep[0] || 0" /></div>
+            </div>
+            <div class="row">
+              <div>
+                <label>Itens (uma linha por item)</label>
+                <textarea :value="mapEventTypeItemsText()" @input="updateMapEventTypeItems($event.target.value)" rows="4"></textarea>
+              </div>
+              <div>
+                <label>Fases (uma linha por fase)</label>
+                <textarea :value="mapEventTypePhasesText()" @input="updateMapEventTypePhases($event.target.value)" rows="4"></textarea>
+              </div>
+              <div>
+                <label>Twists (texto|efeito)</label>
+                <textarea :value="mapEventTypeTwistsText()" @input="updateMapEventTypeTwists($event.target.value)" rows="4"></textarea>
+              </div>
+            </div>
+            <div class="actions">
+              <button :disabled="mapEventTypeSaving" @click="saveMapEventType">{{ mapEventTypeExists ? 'Guardar tipo' : 'Criar tipo' }}</button>
+              <button class="secondary" :disabled="mapEventTypeSaving || !mapEventTypeExists" @click="deleteMapEventType">Apagar</button>
+            </div>
+          </div>
         </div>
       </section>
     </div>
@@ -1901,6 +2014,12 @@ const worldBase = {
       step: 0.25,
       initial: 1,
     },
+    events: {
+      refreshIntervalSeconds: 20,
+      maxActiveEvents: 12,
+      spawnGraceSeconds: 45,
+      types: [],
+    },
   },
 }
 
@@ -1911,7 +2030,7 @@ function cloneWorldBase() {
 const worldConfigs = reactive(cloneWorldBase())
 const worldLoading = ref(false)
 const worldLoaded = ref(false)
-const worldSaving = reactive({ prison: false, hospital: false, crime: false, cityMap: false })
+const worldSaving = reactive({ prison: false, hospital: false, crime: false, cityMap: false, cityMapEvents: false })
 const crimeCatalog = ref([])
 const selectedCrimeId = ref('')
 const catalogSaving = ref(false)
@@ -1919,6 +2038,10 @@ const mapZones = ref([])
 const mapZoneLoading = ref(false)
 const mapZoneSaving = ref(false)
 const selectedMapZoneId = ref('')
+const mapEventTypes = ref([])
+const mapEventTypeLoading = ref(false)
+const mapEventTypeSaving = ref(false)
+const selectedMapEventTypeKey = ref('')
 
 function emptyMapZone() {
   return {
@@ -1938,6 +2061,32 @@ function emptyMapZone() {
 
 const mapZoneEditor = reactive(emptyMapZone())
 const mapZoneExists = computed(() => mapZones.value.some((zone) => zone.id === mapZoneEditor.id))
+
+function emptyMapEventType() {
+  return {
+    key: '',
+    name: '',
+    icon: '⚡',
+    danger: 'Médio',
+    riskClass: 'medium',
+    mode: 'solo',
+    durationRange: [120, 240],
+    participationDuration: 90,
+    zones: [],
+    desc: '',
+    reward: {
+      money: [500, 1500],
+      xp: [20, 80],
+      rep: [1, 4],
+      items: ['Nenhum'],
+    },
+    phases: [],
+    twists: [],
+  }
+}
+
+const mapEventTypeEditor = reactive(emptyMapEventType())
+const mapEventTypeExists = computed(() => mapEventTypes.value.some((entry) => entry.key === mapEventTypeEditor.key))
 
 const prisonOverview = reactive({
   loading: false,
@@ -2025,9 +2174,11 @@ function mergeWorldSection(section, incoming = {}) {
   if (section === 'cityMap') {
     const grid = incoming?.grid || {}
     const zoom = incoming?.zoom || {}
+    const events = incoming?.events || {}
     const rest = { ...(incoming || {}) }
     delete rest.grid
     delete rest.zoom
+    delete rest.events
     Object.assign(worldConfigs.cityMap, rest)
     worldConfigs.cityMap.grid = {
       ...worldConfigs.cityMap.grid,
@@ -2036,6 +2187,15 @@ function mergeWorldSection(section, incoming = {}) {
     worldConfigs.cityMap.zoom = {
       ...worldConfigs.cityMap.zoom,
       ...zoom,
+    }
+    worldConfigs.cityMap.events = {
+      ...worldConfigs.cityMap.events,
+      ...events,
+      types: Array.isArray(events?.types)
+        ? events.types
+        : Array.isArray(worldConfigs.cityMap.events?.types)
+          ? worldConfigs.cityMap.events.types
+          : [],
     }
     return
   }
@@ -2084,6 +2244,216 @@ const savePrisonConfig = () => saveWorldSection('prison', '/admin/world/config/p
 const saveHospitalConfig = () => saveWorldSection('hospital', '/admin/world/config/hospital', 'hospital')
 const saveCrimeConfig = () => saveWorldSection('crime', '/admin/world/config/crime', 'crime')
 const saveCityMapConfig = () => saveWorldSection('cityMap', '/admin/world/config/city-map', 'cityMap')
+
+function clampPositiveRange(arr, fallback = [0, 0]) {
+  const min = Math.max(0, Number(arr?.[0] ?? fallback[0]) || 0)
+  const max = Math.max(min, Number(arr?.[1] ?? fallback[1]) || min)
+  return [min, max]
+}
+
+function linesToArray(text) {
+  return String(text || '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+}
+
+function normalizeMapEventTypeInput(entry = {}) {
+  return {
+    key: String(entry.key || '').trim(),
+    name: String(entry.name || '').trim(),
+    icon: String(entry.icon || '⚡').trim() || '⚡',
+    danger: String(entry.danger || 'Médio').trim() || 'Médio',
+    riskClass: String(entry.riskClass || 'medium').trim() || 'medium',
+    mode: entry.mode === 'group' ? 'group' : 'solo',
+    durationRange: clampPositiveRange(entry.durationRange, [120, 240]),
+    participationDuration: Math.max(10, Number(entry.participationDuration ?? 90) || 90),
+    zones: Array.isArray(entry.zones)
+      ? entry.zones.map((zone) => String(zone || '').trim()).filter(Boolean)
+      : [],
+    desc: String(entry.desc || '').trim(),
+    reward: {
+      money: clampPositiveRange(entry.reward?.money, [500, 1500]),
+      xp: clampPositiveRange(entry.reward?.xp, [20, 80]),
+      rep: clampPositiveRange(entry.reward?.rep, [1, 4]),
+      items: Array.isArray(entry.reward?.items)
+        ? entry.reward.items.map((item) => String(item || '').trim()).filter(Boolean)
+        : ['Nenhum'],
+    },
+    phases: Array.isArray(entry.phases)
+      ? entry.phases.map((phase) => String(phase || '').trim()).filter(Boolean)
+      : [],
+    twists: Array.isArray(entry.twists)
+      ? entry.twists
+        .map((twist) => ({
+          text: String(twist?.text || '').trim(),
+          effect: ['good', 'bad', 'neutral'].includes(String(twist?.effect || '').toLowerCase())
+            ? String(twist.effect).toLowerCase()
+            : 'neutral',
+        }))
+        .filter((twist) => twist.text)
+      : [],
+  }
+}
+
+function writeMapEventTypeEditor(entry = {}) {
+  const normalized = normalizeMapEventTypeInput(entry)
+  Object.assign(mapEventTypeEditor, normalized)
+}
+
+function selectMapEventType(entry) {
+  selectedMapEventTypeKey.value = entry?.key || ''
+  writeMapEventTypeEditor(entry || emptyMapEventType())
+}
+
+function newMapEventType() {
+  selectedMapEventTypeKey.value = ''
+  writeMapEventTypeEditor({
+    ...emptyMapEventType(),
+    key: `event_${Date.now()}`,
+    name: 'Novo evento',
+  })
+}
+
+function mapEventTypePhasesText() {
+  return (mapEventTypeEditor.phases || []).join('\n')
+}
+
+function updateMapEventTypePhases(value) {
+  mapEventTypeEditor.phases = linesToArray(value)
+}
+
+function mapEventTypeItemsText() {
+  return (mapEventTypeEditor.reward?.items || []).join('\n')
+}
+
+function updateMapEventTypeItems(value) {
+  mapEventTypeEditor.reward.items = linesToArray(value)
+}
+
+function mapEventTypeZonesText() {
+  return (mapEventTypeEditor.zones || []).join('\n')
+}
+
+function updateMapEventTypeZones(value) {
+  mapEventTypeEditor.zones = linesToArray(value)
+}
+
+function mapEventTypeTwistsText() {
+  return (mapEventTypeEditor.twists || [])
+    .map((twist) => `${twist.text}|${twist.effect || 'neutral'}`)
+    .join('\n')
+}
+
+function updateMapEventTypeTwists(value) {
+  mapEventTypeEditor.twists = linesToArray(value)
+    .map((line) => {
+      const [textRaw, effectRaw] = line.split('|')
+      const text = String(textRaw || '').trim()
+      const effect = ['good', 'bad', 'neutral'].includes(String(effectRaw || '').trim().toLowerCase())
+        ? String(effectRaw).trim().toLowerCase()
+        : 'neutral'
+      return { text, effect }
+    })
+    .filter((twist) => twist.text)
+}
+
+async function saveCityMapEventsConfig() {
+  if (worldSaving.cityMapEvents) return
+  try {
+    worldSaving.cityMapEvents = true
+    const payload = {
+      refreshIntervalSeconds: Math.max(5, Number(worldConfigs.cityMap.events?.refreshIntervalSeconds || 20)),
+      maxActiveEvents: Math.max(1, Number(worldConfigs.cityMap.events?.maxActiveEvents || 12)),
+      spawnGraceSeconds: Math.max(0, Number(worldConfigs.cityMap.events?.spawnGraceSeconds || 45)),
+    }
+    const res = await api.post('/admin/world/city-map/events', payload)
+    const events = res.data?.events
+    if (events && typeof events === 'object') {
+      worldConfigs.cityMap.events = {
+        ...worldConfigs.cityMap.events,
+        ...events,
+      }
+    }
+    toast.ok('Configuração de eventos do mapa guardada')
+  } catch (e) {
+    toast.error(e?.response?.data?.error || 'Falha ao guardar configuração de eventos do mapa')
+  } finally {
+    worldSaving.cityMapEvents = false
+  }
+}
+
+async function loadCityMapEventTypes(force = false) {
+  if (mapEventTypeLoading.value && !force) return
+  try {
+    mapEventTypeLoading.value = true
+    const res = await api.get('/admin/world/city-map/event-types')
+    const types = Array.isArray(res.data?.types) ? res.data.types : []
+    mapEventTypes.value = types.map((entry) => normalizeMapEventTypeInput(entry))
+
+    const eventsCfg = res.data?.events
+    if (eventsCfg && typeof eventsCfg === 'object') {
+      worldConfigs.cityMap.events = {
+        ...worldConfigs.cityMap.events,
+        ...eventsCfg,
+      }
+    }
+
+    if (selectedMapEventTypeKey.value) {
+      const selected = mapEventTypes.value.find((entry) => entry.key === selectedMapEventTypeKey.value)
+      if (selected) {
+        writeMapEventTypeEditor(selected)
+      }
+    } else if (mapEventTypes.value.length) {
+      selectMapEventType(mapEventTypes.value[0])
+    }
+  } catch (e) {
+    toast.error(e?.response?.data?.error || 'Falha ao carregar tipos de evento do mapa')
+  } finally {
+    mapEventTypeLoading.value = false
+  }
+}
+
+async function saveMapEventType() {
+  if (mapEventTypeSaving.value) return
+  const payload = normalizeMapEventTypeInput(mapEventTypeEditor)
+  if (!payload.key || !payload.name) {
+    toast.error('Preenche key e nome do tipo de evento')
+    return
+  }
+  try {
+    mapEventTypeSaving.value = true
+    if (mapEventTypes.value.some((entry) => entry.key === payload.key)) {
+      await api.patch(`/admin/world/city-map/event-types/${encodeURIComponent(payload.key)}`, payload)
+      toast.ok('Tipo de evento atualizado')
+    } else {
+      await api.post('/admin/world/city-map/event-types', payload)
+      toast.ok('Tipo de evento criado')
+    }
+    selectedMapEventTypeKey.value = payload.key
+    await loadCityMapEventTypes(true)
+  } catch (e) {
+    toast.error(e?.response?.data?.error || 'Falha ao guardar tipo de evento do mapa')
+  } finally {
+    mapEventTypeSaving.value = false
+  }
+}
+
+async function deleteMapEventType() {
+  if (mapEventTypeSaving.value || !mapEventTypeExists.value) return
+  try {
+    mapEventTypeSaving.value = true
+    await api.delete(`/admin/world/city-map/event-types/${encodeURIComponent(mapEventTypeEditor.key)}`)
+    toast.ok('Tipo de evento removido')
+    selectedMapEventTypeKey.value = ''
+    writeMapEventTypeEditor(emptyMapEventType())
+    await loadCityMapEventTypes(true)
+  } catch (e) {
+    toast.error(e?.response?.data?.error || 'Falha ao remover tipo de evento do mapa')
+  } finally {
+    mapEventTypeSaving.value = false
+  }
+}
 
 function normalizeMapZoneInput(entry = {}) {
   return {
@@ -2375,6 +2745,7 @@ async function hydrateWorldTab(force = false) {
   await Promise.all([
     loadWorldConfigs(force),
     loadCityMapZones(force),
+    loadCityMapEventTypes(force),
     refreshPrisonOverview(force || !prisonOverview.lastFetched),
     refreshHospitalOverview(force || !hospitalOverview.lastFetched),
   ])
