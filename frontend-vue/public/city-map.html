@@ -930,8 +930,6 @@
       const canvasH = canvas.clientHeight
       canvas.width = Math.floor(canvasW * dpr)
       canvas.height = Math.floor(canvasH * dpr)
-      canvas.style.width = `${canvasW}px`
-      canvas.style.height = `${canvasH}px`
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
 
     }
