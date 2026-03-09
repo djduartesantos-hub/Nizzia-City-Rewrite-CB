@@ -173,6 +173,7 @@
       position: absolute;
       z-index: 15;
       transform: translate(-50%, -100%);
+      opacity: 0;
       color: #e8eef8;
       font-size: 0.64rem;
       text-align: center;
@@ -188,6 +189,17 @@
       pointer-events: auto;
       font-weight: 600;
       line-height: 1.15;
+      transition: opacity 170ms ease, filter 170ms ease;
+    }
+
+    .event-chip.is-visible {
+      opacity: 1;
+    }
+
+    .event-chip.is-leaving {
+      opacity: 0;
+      filter: blur(1px);
+      pointer-events: none;
     }
 
     .event-chip::after {
@@ -254,11 +266,18 @@
       box-shadow: 0 10px 20px rgba(0, 0, 0, 0.45);
       z-index: 23;
       pointer-events: none;
-      display: none;
-      transform: translate(-50%, -115%);
+      opacity: 0;
+      visibility: hidden;
+      transform: translate(-50%, -108%) scale(0.98);
+      transition: opacity 140ms ease, transform 140ms ease, visibility 0ms linear 140ms;
     }
 
-    .event-hover-card.show { display: block; }
+    .event-hover-card.show {
+      opacity: 1;
+      visibility: visible;
+      transform: translate(-50%, -115%) scale(1);
+      transition-delay: 0ms;
+    }
     .event-hover-card b {
       display: block;
       font-size: 0.78rem;
@@ -905,6 +924,7 @@
       lastEventFetchAt: 0,
       eventsLoading: false,
       hover: { x: 0, y: 0 },
+      hoveredEventId: null,
       selectedEventId: null,
       playerState: {
         hp: 100,
@@ -937,6 +957,7 @@
     const modalRewards = document.getElementById('modalRewards')
     const btnCloseModal = document.getElementById('btnCloseModal')
     const btnParticipate = document.getElementById('btnParticipate')
+    const eventChipEls = new Map()
 
     const statusLock = document.getElementById('statusLock')
     const actionScreen = document.getElementById('actionScreen')
@@ -1049,30 +1070,71 @@
     }
 
     function drawEventChips() {
-      eventLayer.innerHTML = ''
-      if (state.playerState.status === 'em_evento') return
+      if (state.playerState.status === 'em_evento') {
+        for (const [eventId, chip] of eventChipEls.entries()) {
+          removeEventChip(eventId, chip)
+        }
+        return
+      }
+
       const nowMs = Date.now()
+      const activeIds = new Set()
       for (const e of state.events) {
         refreshEventRuntimeState(e, nowMs)
         if (e.state === 'expired') continue
+        activeIds.add(e.id)
         const p = worldToScreen(e.x, e.y)
-        const chip = document.createElement('button')
-        chip.className = `event-chip ${e.template.riskClass}${e.joinable ? '' : ' late'}`
-        chip.style.left = `${p.x}px`
-        chip.style.top = `${p.y}px`
-        chip.innerHTML = `<span class="chip-top">${e.template.icon} ${fmtTime(e.remaining)}</span><span class="chip-zone">${e.zone.label}</span>`
-        chip.title = `${e.template.name} · ${e.zone.label} · ${eventStateLabel(e)}`
+        upsertEventChip(e, p)
+      }
+
+      for (const [eventId, chip] of eventChipEls.entries()) {
+        if (!activeIds.has(eventId)) removeEventChip(eventId, chip)
+      }
+    }
+
+    function upsertEventChip(eventObj, point) {
+      const eventId = eventObj.id
+      let chip = eventChipEls.get(eventId)
+      if (!chip) {
+        chip = document.createElement('button')
+        chip.dataset.eventId = eventId
         chip.addEventListener('click', (ev) => {
           ev.preventDefault()
           ev.stopPropagation()
-          openEventModal(e.id)
+          openEventModal(eventId)
         })
-        chip.setAttribute('aria-label', `${e.template.name} - ${eventStateLabel(e)}`)
-        chip.addEventListener('mouseenter', (ev) => showEventHoverCard(e, pointerToLayerPoint(ev)))
-        chip.addEventListener('mousemove', (ev) => showEventHoverCard(e, pointerToLayerPoint(ev)))
+        chip.addEventListener('mouseenter', (ev) => {
+          const currentEvent = state.events.find((entry) => entry.id === eventId)
+          if (currentEvent) showEventHoverCard(currentEvent, pointerToLayerPoint(ev))
+        })
+        chip.addEventListener('mousemove', (ev) => {
+          const currentEvent = state.events.find((entry) => entry.id === eventId)
+          if (currentEvent) showEventHoverCard(currentEvent, pointerToLayerPoint(ev))
+        })
         chip.addEventListener('mouseleave', hideEventHoverCard)
         eventLayer.appendChild(chip)
+        eventChipEls.set(eventId, chip)
+        requestAnimationFrame(() => chip.classList.add('is-visible'))
       }
+
+      chip.className = `event-chip ${eventObj.template.riskClass}${eventObj.joinable ? '' : ' late'} is-visible`
+      chip.style.left = `${point.x}px`
+      chip.style.top = `${point.y}px`
+      chip.innerHTML = `<span class="chip-top">${eventObj.template.icon} ${fmtTime(eventObj.remaining)}</span><span class="chip-zone">${eventObj.zone.label}</span>`
+      chip.title = `${eventObj.template.name} · ${eventObj.zone.label} · ${eventStateLabel(eventObj)}`
+      chip.setAttribute('aria-label', `${eventObj.template.name} - ${eventStateLabel(eventObj)}`)
+    }
+
+    function removeEventChip(eventId, chip) {
+      if (!chip || chip.dataset.leaving === '1') return
+      chip.dataset.leaving = '1'
+      chip.classList.remove('is-visible')
+      chip.classList.add('is-leaving')
+      if (state.hoveredEventId === eventId) hideEventHoverCard()
+      window.setTimeout(() => {
+        if (chip.parentElement) chip.parentElement.removeChild(chip)
+      }, 180)
+      eventChipEls.delete(eventId)
     }
 
     function pointerToLayerPoint(ev) {
@@ -1085,6 +1147,7 @@
 
     function showEventHoverCard(ev, point) {
       if (!eventHoverCard || !ev || !point) return
+      state.hoveredEventId = ev.id || null
       eventHoverCard.style.left = `${point.x}px`
       eventHoverCard.style.top = `${point.y}px`
       eventHoverCard.innerHTML = `<b>${ev.template.icon} ${ev.template.name}</b><span>${ev.zone.label} · ${eventStateLabel(ev)}</span><span>Clique para abrir</span>`
@@ -1092,6 +1155,7 @@
     }
 
     function hideEventHoverCard() {
+      state.hoveredEventId = null
       eventHoverCard?.classList.remove('show')
     }
 
