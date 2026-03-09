@@ -362,9 +362,37 @@
         radial-gradient(80% 60% at 80% 90%, rgba(105, 47, 47, 0.3), rgba(0, 0, 0, 0)),
         linear-gradient(180deg, #050505, #111);
       overflow: hidden;
+      opacity: 0;
+      transform: scale(1.015);
+      transition: opacity 220ms ease, transform 220ms ease;
     }
 
-    .action-screen.show { display: block; }
+    .action-screen.show {
+      display: block;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .action-screen.risk-medium {
+      background:
+        radial-gradient(70% 50% at 40% 20%, rgba(52, 117, 89, 0.28), rgba(0, 0, 0, 0)),
+        radial-gradient(80% 60% at 80% 90%, rgba(35, 94, 74, 0.25), rgba(0, 0, 0, 0)),
+        linear-gradient(180deg, #050d09, #111);
+    }
+
+    .action-screen.risk-high {
+      background:
+        radial-gradient(70% 50% at 40% 20%, rgba(138, 89, 44, 0.35), rgba(0, 0, 0, 0)),
+        radial-gradient(80% 60% at 80% 90%, rgba(120, 58, 42, 0.3), rgba(0, 0, 0, 0)),
+        linear-gradient(180deg, #130b06, #120f0b);
+    }
+
+    .action-screen.risk-very-high {
+      background:
+        radial-gradient(70% 50% at 40% 20%, rgba(149, 45, 45, 0.4), rgba(0, 0, 0, 0)),
+        radial-gradient(80% 60% at 80% 90%, rgba(114, 26, 52, 0.35), rgba(0, 0, 0, 0)),
+        linear-gradient(180deg, #1a0909, #110c10);
+    }
 
     .particle {
       position: absolute;
@@ -397,6 +425,92 @@
       border-left: 4px solid #e3ae43;
       padding-left: 12px;
       background: rgba(5, 5, 5, 0.5);
+      transition: border-color 180ms ease, background 180ms ease;
+    }
+
+    .phase-text.is-updating {
+      animation: phasePop 320ms ease;
+    }
+
+    @keyframes phasePop {
+      0% { transform: translateY(6px); opacity: 0.25; }
+      100% { transform: translateY(0); opacity: 1; }
+    }
+
+    .scene-banner {
+      margin-top: 10px;
+      padding: 9px 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      background: linear-gradient(130deg, rgba(240, 186, 71, 0.2), rgba(51, 76, 111, 0.2));
+      display: grid;
+      grid-template-columns: 42px 1fr;
+      gap: 9px;
+      align-items: center;
+    }
+
+    .scene-banner.pulse {
+      animation: scenePulse 360ms ease;
+    }
+
+    @keyframes scenePulse {
+      0% { box-shadow: 0 0 0 0 rgba(234, 157, 54, 0.4); transform: scale(0.995); }
+      100% { box-shadow: 0 0 0 16px rgba(234, 157, 54, 0); transform: scale(1); }
+    }
+
+    .scene-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      font-size: 1.2rem;
+    }
+
+    .scene-title {
+      display: block;
+      font-size: 0.84rem;
+      letter-spacing: .07em;
+      color: #f5d38b;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+
+    .scene-sub {
+      margin: 0;
+      color: #d4d8df;
+      font-size: .76rem;
+      line-height: 1.35;
+    }
+
+    .narrative-feed {
+      margin-top: 10px;
+      max-height: 132px;
+      overflow: auto;
+      display: grid;
+      gap: 6px;
+      padding-right: 2px;
+    }
+
+    .narrative-line {
+      border-left: 3px solid rgba(227, 174, 67, 0.65);
+      padding: 6px 8px;
+      border-radius: 0 8px 8px 0;
+      background: rgba(3, 3, 3, 0.44);
+      color: #cdd5e1;
+      font-size: .72rem;
+      line-height: 1.35;
+      animation: lineIn 250ms ease;
+    }
+
+    .narrative-line.good { border-left-color: rgba(95, 220, 147, 0.9); color: #d3ffe5; }
+    .narrative-line.bad { border-left-color: rgba(235, 91, 91, 0.9); color: #ffd3d3; }
+
+    @keyframes lineIn {
+      from { opacity: 0; transform: translateX(-6px); }
+      to { opacity: 1; transform: translateX(0); }
     }
 
     .progress {
@@ -423,6 +537,86 @@
       border: 1px solid rgba(255,255,255,.15);
       border-radius: 10px;
       padding: 12px;
+    }
+
+    .result-panel {
+      opacity: 0;
+      transform: translateY(10px) scale(0.99);
+      transition: opacity 220ms ease, transform 220ms ease;
+    }
+
+    .result-panel.show {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+
+    .result-head {
+      display: grid;
+      grid-template-columns: 96px 1fr;
+      gap: 10px;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 10px;
+      padding: 8px;
+    }
+
+    .result-poster {
+      width: 96px;
+      height: 96px;
+      border-radius: 8px;
+      object-fit: cover;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .result-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: .74rem;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      border: 1px solid rgba(255,255,255,.2);
+    }
+
+    .status-success { background: rgba(65, 158, 89, 0.24); color: #9ff1b4; }
+    .status-captured { background: rgba(173, 49, 63, 0.24); color: #ffb3bc; }
+    .status-failed { background: rgba(163, 88, 47, 0.24); color: #ffd0a5; }
+    .status-no-effect { background: rgba(88, 102, 131, 0.24); color: #d4dff4; }
+
+    .result-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .result-item {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.13);
+      border-radius: 8px;
+      padding: 7px 8px;
+      font-size: .78rem;
+    }
+
+    .result-item b {
+      display: block;
+      font-size: .64rem;
+      color: #aeb7c7;
+      letter-spacing: .06em;
+      margin-bottom: 2px;
+    }
+
+    .delta-pos { color: #8ff4aa; }
+    .delta-neg { color: #ffb0b0; }
+    .delta-neutral { color: #cfd6e4; }
+
+    @media (max-width: 700px) {
+      .result-grid { grid-template-columns: 1fr; }
+      .result-head { grid-template-columns: 1fr; }
+      .result-poster { width: 100%; height: 120px; }
     }
 
     .status-lock { display: none !important; }
@@ -479,6 +673,14 @@
           <h2 style="margin:0;font-family:'Bebas Neue';font-size:2rem;letter-spacing:.08em" id="actionTitle">Ação</h2>
           <div class="meta" id="actionMeta"></div>
           <div class="phase-text" id="phaseText">A preparar operação...</div>
+          <div class="scene-banner" id="sceneBanner">
+            <div class="scene-icon" id="sceneIcon">⚡</div>
+            <div>
+              <strong class="scene-title" id="sceneTitle">Operação em curso</strong>
+              <p class="scene-sub" id="sceneSub">A recolher dados táticos da zona...</p>
+            </div>
+          </div>
+          <div class="narrative-feed" id="narrativeFeed"></div>
           <div style="display:grid;gap:8px;margin-top:10px">
             <div class="progress"><i id="progressFill"></i></div>
             <div style="display:flex;justify-content:space-between;font-size:.86rem;color:var(--muted)">
@@ -497,7 +699,7 @@
           </div>
         </div>
 
-        <div class="panel" id="resultPanel" style="display:none">
+        <div class="panel result-panel" id="resultPanel" style="display:none">
           <h2 style="margin:0 0 8px;font-family:'Bebas Neue';letter-spacing:.08em">Resultado Final</h2>
           <div class="result" id="resultData"></div>
           <div class="actions" style="justify-content:flex-start">
@@ -967,6 +1169,11 @@
     const progressFill = document.getElementById('progressFill')
     const progressTime = document.getElementById('progressTime')
     const twistInfo = document.getElementById('twistInfo')
+    const narrativeFeed = document.getElementById('narrativeFeed')
+    const sceneBanner = document.getElementById('sceneBanner')
+    const sceneIcon = document.getElementById('sceneIcon')
+    const sceneTitle = document.getElementById('sceneTitle')
+    const sceneSub = document.getElementById('sceneSub')
     const liveHp = document.getElementById('liveHp')
     const liveStress = document.getElementById('liveStress')
     const liveRisk = document.getElementById('liveRisk')
@@ -1593,6 +1800,61 @@
       }
     }
 
+    function setActionVisualTone(riskClass, twistEffect = null) {
+      actionScreen.classList.remove('risk-medium', 'risk-high', 'risk-very-high', 'twist-good', 'twist-bad', 'twist-neutral')
+      if (riskClass === 'very-high') actionScreen.classList.add('risk-very-high')
+      else if (riskClass === 'high') actionScreen.classList.add('risk-high')
+      else actionScreen.classList.add('risk-medium')
+      if (twistEffect) actionScreen.classList.add(`twist-${twistEffect}`)
+    }
+
+    function pulseScene() {
+      if (!sceneBanner) return
+      sceneBanner.classList.remove('pulse')
+      void sceneBanner.offsetWidth
+      sceneBanner.classList.add('pulse')
+    }
+
+    function appendNarrativeLine(text, tone = 'neutral') {
+      if (!narrativeFeed || !text) return
+      const line = document.createElement('div')
+      line.className = `narrative-line${tone === 'good' || tone === 'bad' ? ` ${tone}` : ''}`
+      line.textContent = text
+      narrativeFeed.appendChild(line)
+      if (narrativeFeed.children.length > 8) {
+        narrativeFeed.removeChild(narrativeFeed.firstElementChild)
+      }
+      narrativeFeed.scrollTop = narrativeFeed.scrollHeight
+    }
+
+    function formatDelta(value, prefix = '') {
+      if (value > 0) return `<span class="delta-pos">+${prefix}${value}</span>`
+      if (value < 0) return `<span class="delta-neg">${prefix}${value}</span>`
+      return `<span class="delta-neutral">${prefix}${value}</span>`
+    }
+
+    function buildResultPoster(status, ev) {
+      const tone = status === 'success'
+        ? { a: '#2f8f55', b: '#1a3e32', title: 'SUCESSO' }
+        : status === 'captured'
+          ? { a: '#a03446', b: '#3f1520', title: 'CAPTURADO' }
+          : status === 'no_effect'
+            ? { a: '#54698f', b: '#2c364e', title: 'SEM IMPACTO' }
+            : { a: '#b96f3f', b: '#51311f', title: 'FALHA' }
+
+      const safeName = `${ev?.template?.name || 'Operação'}`.slice(0, 22)
+      const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='320' height='320'>
+        <defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='${tone.a}'/><stop offset='100%' stop-color='${tone.b}'/></linearGradient></defs>
+        <rect width='100%' height='100%' fill='url(#g)'/>
+        <circle cx='78' cy='90' r='46' fill='rgba(255,255,255,0.12)'/>
+        <rect x='36' y='168' width='250' height='110' rx='10' fill='rgba(0,0,0,0.28)'/>
+        <text x='36' y='52' font-size='30' fill='#f4f4f4' font-family='monospace'>${tone.title}</text>
+        <text x='48' y='194' font-size='19' fill='#ffffff' font-family='monospace'>${safeName}</text>
+        <text x='48' y='222' font-size='15' fill='#dce6ff' font-family='monospace'>Resumo da operação</text>
+      </svg>`
+      return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`
+    }
+
     function beginAction(eventObj) {
       refreshEventRuntimeState(eventObj)
       if (!eventObj.joinable) {
@@ -1609,12 +1871,19 @@
       closeEventModal()
 
       actionScreen.classList.add('show')
+      setActionVisualTone(eventObj.template.riskClass)
       resultPanel.style.display = 'none'
+      resultPanel.classList.remove('show')
       resultData.innerHTML = ''
+      narrativeFeed.innerHTML = ''
 
       actionTitle.textContent = `${eventObj.template.icon} ${eventObj.template.name}`
       actionMeta.innerHTML = `<span>Zona: ${eventObj.zone.label}</span><span>Perigo: ${eventObj.template.danger}</span><span>Modo: ${eventObj.mode === 'group' ? 'Grupo' : 'Solo'}</span>`
       liveRisk.textContent = eventObj.template.danger
+      sceneIcon.textContent = eventObj.template.icon || '⚡'
+      sceneTitle.textContent = `Cenário: ${eventObj.zone.label}`
+      sceneSub.textContent = 'Equipa posicionada. A operação começou e a resposta policial está em monitorização.'
+      appendNarrativeLine(`Entraste em ${eventObj.zone.label}. Objetivo: ${eventObj.template.name}.`, 'neutral')
 
       const rng = new RNG(Date.now() + eventObj.duration)
       const total = Math.max(30, Math.min(eventObj.participationDuration, eventObj.remaining))
@@ -1651,6 +1920,8 @@
       }
       phaseText.textContent = phases[0]
       twistInfo.textContent = 'Twist: por revelar...'
+      appendNarrativeLine(phases[0], 'neutral')
+      pulseScene()
       spawnParticles()
     }
 
@@ -1681,6 +1952,11 @@
         a.twist = rng.pick(a.twistPool)
         twistInfo.textContent = `Twist: ${a.twist.text}`
         phaseText.textContent = `${phaseText.textContent}\n\n⚡ ${a.twist.text}`
+        setActionVisualTone(a.riskFactor >= 0.2 ? 'very-high' : a.riskFactor >= 0.12 ? 'high' : 'medium', a.twist.effect)
+        sceneTitle.textContent = 'Mudança repentina no terreno'
+        sceneSub.textContent = a.twist.text
+        appendNarrativeLine(`TWIST: ${a.twist.text}`, a.twist.effect)
+        pulseScene()
         state.playerState.stress = clamp(state.playerState.stress + (a.twist.effect === 'bad' ? 20 : a.twist.effect === 'good' ? -8 : 6), 0, 130)
       }
 
@@ -1688,6 +1964,13 @@
       if (phaseStep !== a.phaseIndex && phaseStep < a.phases.length) {
         a.phaseIndex = phaseStep
         phaseText.textContent = a.phases[phaseStep]
+        phaseText.classList.remove('is-updating')
+        void phaseText.offsetWidth
+        phaseText.classList.add('is-updating')
+        sceneTitle.textContent = `Fase ${phaseStep + 1} de ${a.phases.length}`
+        sceneSub.textContent = a.phases[phaseStep]
+        appendNarrativeLine(a.phases[phaseStep], 'neutral')
+        pulseScene()
       }
 
       if (Math.random() > 0.55) {
@@ -1730,17 +2013,35 @@
       const captured = outcome.status === 'captured'
       const noEffect = outcome.status === 'no_effect'
       const label = success ? '✅ Sucesso' : captured ? '⛓️ Capturado' : noEffect ? '😶 Sem consequências' : '❌ Falha'
+      const statusClass = success ? 'status-success' : captured ? 'status-captured' : noEffect ? 'status-no-effect' : 'status-failed'
+      const poster = buildResultPoster(outcome.status, ev)
+      const hpAfter = Math.round(state.playerState.hp)
+      const prisonInfo = captured
+        ? `Até ${new Date(state.playerState.prisonUntil || Date.now()).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}`
+        : 'Não'
 
       resultData.innerHTML = `
-        <div><strong>Estado:</strong> ${label}</div>
-        <div><strong>Dinheiro:</strong> ${outcome.moneyDelta >= 0 ? '+' : ''}$${outcome.moneyDelta}</div>
-        <div><strong>XP:</strong> ${outcome.xpDelta >= 0 ? '+' : ''}${outcome.xpDelta}</div>
-        <div><strong>Reputação:</strong> ${outcome.repDelta >= 0 ? '+' : ''}${outcome.repDelta}</div>
-        <div><strong>HP perdido:</strong> ${outcome.hpLoss}</div>
-        <div><strong>Item:</strong> ${outcome.item || 'Nenhum'}</div>
-        <div><strong>Narrativa:</strong> ${captured ? 'A operação foi comprometida e foste redirecionado para a prisão.' : success ? 'Execução limpa. Conseguiste sair com ganhos.' : noEffect ? 'A operação caiu por terra, mas saíste sem perdas relevantes.' : 'A operação falhou sem colapso total.'}</div>
+        <div class="result-head">
+          <img class="result-poster" src="${poster}" alt="Poster do resultado da operação" />
+          <div>
+            <span class="result-status ${statusClass}">${label}</span>
+            <div style="font-size:.95rem;color:#ecf1ff;line-height:1.4">${captured ? 'A operação foi comprometida. Foste preso e transferido para a prisão.' : success ? 'Execução limpa, retirada concluída e ganhos garantidos.' : noEffect ? 'A ação foi neutralizada sem impacto relevante no teu progresso.' : 'A operação falhou e deixaste rastros no terreno.'}</div>
+          </div>
+        </div>
+        <div class="result-grid">
+          <div class="result-item"><b>Dinheiro</b>${formatDelta(outcome.moneyDelta, '$')}</div>
+          <div class="result-item"><b>XP</b>${formatDelta(outcome.xpDelta)}</div>
+          <div class="result-item"><b>Reputação</b>${formatDelta(outcome.repDelta)}</div>
+          <div class="result-item"><b>Dano Sofrido</b>${formatDelta(-Math.abs(outcome.hpLoss), '')}</div>
+          <div class="result-item"><b>Vida Atual</b><span class="${hpAfter <= 30 ? 'delta-neg' : 'delta-neutral'}">${hpAfter} HP</span></div>
+          <div class="result-item"><b>Destino</b><span class="${captured ? 'delta-neg' : 'delta-neutral'}">${captured ? `Prisão (${prisonInfo})` : 'Livre'}</span></div>
+          <div class="result-item"><b>Item</b><span class="delta-neutral">${outcome.item || 'Nenhum'}</span></div>
+          <div class="result-item"><b>Cenário Final</b><span class="delta-neutral">${ev.template.name} · ${ev.zone.label}</span></div>
+        </div>
+        <div class="result-item"><b>Narrativa Final</b>${captured ? 'A tua equipa foi cercada, foste neutralizado e transportado sob custódia.' : success ? 'Conseguiste concluir a missão sob pressão e sair com os ganhos.' : noEffect ? 'A operação foi abortada no limite; retirada tática sem colapso total.' : 'A resistência foi superior e recuaste com perdas operacionais.'}</div>
       `
       resultPanel.style.display = 'block'
+      requestAnimationFrame(() => resultPanel.classList.add('show'))
 
       ev.completed = true
       ev.state = 'completed'
@@ -1749,6 +2050,8 @@
 
     function leaveActionScreen() {
       actionScreen.classList.remove('show')
+      actionScreen.classList.remove('risk-medium', 'risk-high', 'risk-very-high', 'twist-good', 'twist-bad', 'twist-neutral')
+      resultPanel.classList.remove('show')
       state.action = null
       if (state.playerState.status === 'preso') {
         if (window.top) {
