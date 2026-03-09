@@ -180,31 +180,50 @@
       transform: translate(-50%, -100%);
       opacity: 0;
       color: #e8eef8;
-      font-size: 0.64rem;
+      font-size: 0.68rem;
       text-align: center;
-      min-width: 92px;
-      padding: 5px 8px;
-      border-radius: 14px 14px 14px 4px;
-      background: linear-gradient(180deg, rgba(23, 30, 46, 0.95), rgba(13, 18, 31, 0.95));
-      border: 1px solid rgba(146, 202, 255, 0.4);
-      box-shadow: 0 2px 10px rgba(0,0,0,.45), 0 0 0 1px rgba(73, 130, 186, 0.25) inset;
-      animation: pulse 1.6s infinite;
+      min-width: 108px;
+      padding: 7px 11px;
+      border-radius: 16px 16px 16px 5px;
+      background: linear-gradient(165deg, rgba(23, 30, 46, 0.96), rgba(13, 18, 31, 0.97));
+      border: 1.5px solid rgba(146, 202, 255, 0.5);
+      box-shadow: 
+        0 4px 16px rgba(0,0,0,.55), 
+        0 0 0 1px rgba(73, 130, 186, 0.32) inset,
+        0 0 24px rgba(100, 160, 255, 0.28);
+      animation: chipPulse 2s ease-in-out infinite;
       cursor: pointer;
       user-select: none;
       pointer-events: auto;
-      font-weight: 600;
-      line-height: 1.15;
-      transition: opacity 170ms ease, filter 170ms ease;
+      font-weight: 700;
+      line-height: 1.2;
+      transition: opacity 180ms ease, filter 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+      backdrop-filter: blur(4px);
     }
 
     .event-chip.is-visible {
       opacity: 1;
     }
 
+    .event-chip:hover {
+      transform: translate(-50%, -104%) scale(1.05);
+      box-shadow: 
+        0 6px 22px rgba(0,0,0,.65), 
+        0 0 0 1.5px rgba(100, 180, 255, 0.48) inset,
+        0 0 32px rgba(120, 180, 255, 0.42);
+      filter: brightness(1.12) saturate(1.08);
+    }
+
     .event-chip.is-leaving {
       opacity: 0;
       filter: blur(1px);
       pointer-events: none;
+      animation: chipLeave 240ms ease forwards;
+    }
+
+    @keyframes chipLeave {
+      from { opacity: 1; transform: translate(-50%, -100%) scale(1); filter: blur(0); }
+      to { opacity: 0; transform: translate(-50%, -92%) scale(0.88); filter: blur(2px); }
     }
 
     .event-chip::after {
@@ -219,27 +238,78 @@
       border-top: 9px solid #1e2f4c;
     }
 
+    .event-chip .chip-icon {
+      display: block;
+      font-size: 1.4rem;
+      line-height: 1;
+      margin-bottom: 3px;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+    }
+
     .event-chip .chip-top {
       display: block;
-      font-size: 0.72rem;
-      letter-spacing: 0.04em;
+      font-size: 0.74rem;
+      letter-spacing: 0.05em;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.5);
     }
 
     .event-chip .chip-zone {
       display: block;
-      margin-top: 2px;
-      font-size: 0.56rem;
-      color: #9eb3cb;
-      letter-spacing: 0.06em;
+      margin-top: 3px;
+      font-size: 0.58rem;
+      color: #a8bdd6;
+      letter-spacing: 0.08em;
       text-transform: uppercase;
+      opacity: 0.88;
     }
 
-    .event-chip.medium { border-color: rgba(118, 219, 161, 0.56); box-shadow: 0 2px 10px rgba(0,0,0,.45), 0 0 16px rgba(66, 177, 116, 0.35); }
-    .event-chip.medium::after { border-top-color: #20573f; }
-    .event-chip.high { border-color: rgba(255, 188, 108, 0.55); box-shadow: 0 2px 10px rgba(0,0,0,.45), 0 0 16px rgba(217, 127, 54, 0.36); }
-    .event-chip.high::after { border-top-color: #7e4b25; }
-    .event-chip.very-high { border-color: rgba(255, 123, 123, 0.6); box-shadow: 0 2px 10px rgba(0,0,0,.45), 0 0 18px rgba(216, 79, 79, 0.38); }
-    .event-chip.very-high::after { border-top-color: #7a2c30; }
+    .event-chip.medium { 
+      border-color: rgba(118, 219, 161, 0.62); 
+      background: linear-gradient(165deg, rgba(32, 87, 63, 0.94), rgba(18, 42, 32, 0.96));
+      box-shadow: 
+        0 4px 16px rgba(0,0,0,.55), 
+        0 0 0 1px rgba(88, 200, 140, 0.36) inset,
+        0 0 28px rgba(88, 200, 140, 0.38);
+    }
+    .event-chip.medium::after { border-top-color: #2a6d4a; }
+    .event-chip.medium:hover {
+      box-shadow: 
+        0 6px 22px rgba(0,0,0,.65), 
+        0 0 0 1.5px rgba(118, 219, 161, 0.52) inset,
+        0 0 36px rgba(118, 219, 161, 0.48);
+    }
+
+    .event-chip.high { 
+      border-color: rgba(255, 188, 108, 0.64); 
+      background: linear-gradient(165deg, rgba(126, 75, 37, 0.94), rgba(62, 38, 20, 0.96));
+      box-shadow: 
+        0 4px 16px rgba(0,0,0,.55), 
+        0 0 0 1px rgba(240, 160, 80, 0.36) inset,
+        0 0 28px rgba(240, 160, 80, 0.38);
+    }
+    .event-chip.high::after { border-top-color: #9a5e30; }
+    .event-chip.high:hover {
+      box-shadow: 
+        0 6px 22px rgba(0,0,0,.65), 
+        0 0 0 1.5px rgba(255, 188, 108, 0.58) inset,
+        0 0 36px rgba(255, 188, 108, 0.48);
+    }
+
+    .event-chip.very-high { 
+      border-color: rgba(255, 123, 123, 0.68); 
+      background: linear-gradient(165deg, rgba(122, 44, 48, 0.95), rgba(58, 22, 26, 0.97));
+      box-shadow: 
+        0 4px 16px rgba(0,0,0,.55), 
+        0 0 0 1px rgba(255, 100, 100, 0.38) inset,
+        0 0 30px rgba(255, 100, 100, 0.42);
+    }
+    .event-chip.very-high::after { border-top-color: #9a3a3e; }
+    .event-chip.very-high:hover {
+      box-shadow: 
+        0 6px 22px rgba(0,0,0,.65), 
+        0 0 0 1.5px rgba(255, 123, 123, 0.62) inset,
+        0 0 38px rgba(255, 123, 123, 0.52);
+    }
 
     .event-chip.late {
       animation: none;
@@ -261,20 +331,22 @@
 
     .event-hover-card {
       position: absolute;
-      min-width: 190px;
-      max-width: 260px;
-      padding: 8px 10px;
-      border-radius: 10px;
-      border: 1px solid rgba(149, 199, 255, 0.42);
-      background: rgba(8, 12, 19, 0.94);
+      min-width: 220px;
+      max-width: 300px;
+      padding: 0;
+      border-radius: 12px;
+      border: 1.5px solid rgba(149, 199, 255, 0.52);
+      background: linear-gradient(165deg, rgba(18, 24, 36, 0.97), rgba(8, 12, 19, 0.98));
       color: #e8eef8;
-      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.45);
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.58), 0 0 0 1px rgba(100, 160, 220, 0.24) inset;
       z-index: 23;
       pointer-events: none;
       opacity: 0;
       visibility: hidden;
-      transform: translate(-50%, -108%) scale(0.98);
-      transition: opacity 140ms ease, transform 140ms ease, visibility 0ms linear 140ms;
+      transform: translate(-50%, -108%) scale(0.96);
+      transition: opacity 160ms ease, transform 160ms ease, visibility 0ms linear 160ms;
+      backdrop-filter: blur(6px);
+      overflow: hidden;
     }
 
     .event-hover-card.show {
@@ -283,23 +355,58 @@
       transform: translate(-50%, -115%) scale(1);
       transition-delay: 0ms;
     }
+
+    .hover-card-poster {
+      width: 100%;
+      height: 80px;
+      background-size: cover;
+      background-position: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+      position: relative;
+    }
+
+    .hover-card-poster::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.6) 100%);
+    }
+
+    .hover-card-body {
+      padding: 9px 11px;
+    }
+
     .event-hover-card b {
       display: block;
-      font-size: 0.78rem;
-      letter-spacing: 0.03em;
-      margin-bottom: 3px;
+      font-size: 0.82rem;
+      letter-spacing: 0.04em;
+      margin-bottom: 4px;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.4);
     }
     .event-hover-card span {
       display: block;
-      font-size: 0.64rem;
+      font-size: 0.66rem;
       color: #b7c6d8;
-      line-height: 1.25;
+      line-height: 1.3;
+    }
+    .event-hover-card .hover-hint {
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      font-size: 0.62rem;
+      color: #8fa8c4;
+      font-style: italic;
     }
 
-    @keyframes pulse {
-      0% { transform: translate(-50%, -100%) scale(1); }
-      50% { transform: translate(-50%, -101%) scale(1.06); }
-      100% { transform: translate(-50%, -100%) scale(1); }
+    @keyframes chipSpawn {
+      from { opacity: 0; transform: translate(-50%, -88%) scale(0.8); filter: blur(2px); }
+      to { opacity: 1; transform: translate(-50%, -100%) scale(1); filter: blur(0); }
+    }
+
+    @keyframes chipPulse {
+      0% { transform: translate(-50%, -100%) scale(1); filter: brightness(1); }
+      50% { transform: translate(-50%, -102%) scale(1.04); filter: brightness(1.08); }
+      100% { transform: translate(-50%, -100%) scale(1); filter: brightness(1); }
     }
 
     @keyframes scenePulse {
@@ -318,54 +425,245 @@
       inset: 0;
       display: none;
       z-index: 40;
-      background: rgba(3, 7, 14, 0.72);
-      backdrop-filter: blur(5px);
+      background: rgba(3, 7, 14, 0.78);
+      backdrop-filter: blur(8px);
       align-items: center;
       justify-content: center;
       padding: 20px;
+      opacity: 0;
+      transition: opacity 240ms ease;
     }
 
-    .overlay.show { display: flex; }
+    .overlay.show { 
+      display: flex;
+      animation: overlayFadeIn 240ms ease forwards;
+    }
+
+    .overlay.closing {
+      animation: overlayFadeOut 200ms ease forwards;
+    }
+
+    @keyframes overlayFadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes overlayFadeOut {
+      from { opacity: 1; }
+      to { opacity: 0; }
+    }
 
     .modal {
-      width: min(700px, 100%);
-      background: linear-gradient(160deg, rgba(29, 29, 29, 0.97), rgba(10, 10, 10, 0.97));
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 12px;
-      box-shadow: var(--shadow);
-      padding: 16px;
+      width: min(760px, 100%);
+      background: linear-gradient(165deg, rgba(22, 26, 34, 0.98), rgba(10, 12, 16, 0.98));
+      border: 1.5px solid rgba(255, 255, 255, 0.24);
+      border-radius: 16px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(120, 160, 200, 0.18) inset;
+      padding: 0;
+      overflow: hidden;
+      transform: scale(0.94);
+      opacity: 0;
+      animation: modalReveal 320ms cubic-bezier(.22, .85, .3, 1) forwards;
+    }
+
+    @keyframes modalReveal {
+      from { transform: scale(0.94); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-hero {
+      width: 100%;
+      height: 180px;
+      background-size: cover;
+      background-position: center;
+      position: relative;
+      border-bottom: 1.5px solid rgba(255, 255, 255, 0.16);
+    }
+
+    .modal-hero::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.75) 100%);
+    }
+
+    .modal-hero-content {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 16px 18px;
+      z-index: 1;
     }
 
     .modal h2 {
       margin: 0;
       font-family: 'Bebas Neue', sans-serif;
-      font-size: 2rem;
-      letter-spacing: .08em;
+      font-size: 2.2rem;
+      letter-spacing: .1em;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.6);
+      line-height: 1.1;
     }
 
     .modal .meta {
-      margin-top: 6px;
+      margin-top: 8px;
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
-      color: var(--muted);
-      font-size: 0.82rem;
+      gap: 8px;
     }
 
-    .actions { margin-top: 14px; display: flex; gap: 10px; justify-content: flex-end; }
+    .modal .meta span {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 9px;
+      border-radius: 6px;
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      font-size: 0.72rem;
+      letter-spacing: 0.04em;
+      backdrop-filter: blur(4px);
+    }
+
+    .modal-body {
+      padding: 18px;
+    }
+
+    .modal-body p {
+      margin: 0 0 14px;
+      line-height: 1.5;
+      color: #d4dce8;
+    }
+
+    .modal-rewards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .reward-badge {
+      background: linear-gradient(135deg, rgba(240, 196, 88, 0.14), rgba(180, 120, 50, 0.12));
+      border: 1px solid rgba(240, 196, 88, 0.32);
+      border-radius: 10px;
+      padding: 10px;
+      text-align: center;
+      animation: badgeIn 280ms ease backwards;
+    }
+
+    .reward-badge:nth-child(1) { animation-delay: 40ms; }
+    .reward-badge:nth-child(2) { animation-delay: 80ms; }
+    .reward-badge:nth-child(3) { animation-delay: 120ms; }
+    .reward-badge:nth-child(4) { animation-delay: 160ms; }
+
+    @keyframes badgeIn {
+      from { opacity: 0; transform: translateY(8px) scale(0.96); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .reward-badge b {
+      display: block;
+      font-size: 0.64rem;
+      color: #b8c4d4;
+      letter-spacing: 0.06em;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+
+    .reward-badge span {
+      display: block;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #f0c458;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    }
+
+    .countdown-bar {
+      height: 6px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 999px;
+      overflow: hidden;
+      margin-bottom: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .countdown-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #f0b847, #d35a40);
+      border-radius: 999px;
+      transition: width 1s linear;
+    }
+
+    .actions { 
+      margin-top: 0;
+      padding: 14px 18px;
+      display: flex; 
+      gap: 10px; 
+      justify-content: flex-end;
+      background: rgba(0, 0, 0, 0.24);
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
 
     button {
       font: inherit;
       border: none;
-      border-radius: 8px;
-      padding: 9px 13px;
+      border-radius: 10px;
+      padding: 10px 16px;
       cursor: pointer;
       font-weight: 700;
-      letter-spacing: .03em;
+      letter-spacing: .04em;
+      transition: transform 140ms ease, box-shadow 140ms ease, filter 140ms ease;
     }
 
-    .btn-primary { background: linear-gradient(120deg, #f3c854, #de8d2c); color: #1f1708; }
-    .btn-ghost { background: rgba(255,255,255,.08); color: var(--text); border: 1px solid rgba(255,255,255,.15); }
+    button {
+      position: relative;
+      overflow: hidden;
+    }
+
+    button::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%);
+      transform: scale(0);
+      opacity: 0;
+      transition: transform 0.4s ease, opacity 0.4s ease;
+    }
+
+    button:active::before {
+      transform: scale(2);
+      opacity: 1;
+      transition: transform 0s, opacity 0s;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    .btn-primary { 
+      background: linear-gradient(135deg, #f3c854, #de8d2c); 
+      color: #1f1708;
+      box-shadow: 0 4px 12px rgba(240, 180, 60, 0.3);
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 6px 18px rgba(240, 180, 60, 0.42);
+      filter: brightness(1.08);
+    }
+
+    .btn-ghost { 
+      background: rgba(255,255,255,.1); 
+      color: var(--text); 
+      border: 1px solid rgba(255,255,255,.2);
+    }
+
+    .btn-ghost:hover {
+      background: rgba(255,255,255,.14);
+      border-color: rgba(255,255,255,.28);
+    }
 
     .action-screen {
       position: fixed;
@@ -867,10 +1165,19 @@
 
     <div class="overlay" id="eventModalOverlay">
       <div class="modal">
-        <h2 id="modalTitle">Evento</h2>
-        <div class="meta" id="modalMeta"></div>
-        <p id="modalDesc"></p>
-        <div id="modalRewards"></div>
+        <div class="modal-hero" id="modalHero">
+          <div class="modal-hero-content">
+            <h2 id="modalTitle">Evento</h2>
+            <div class="meta" id="modalMeta"></div>
+          </div>
+        </div>
+        <div class="modal-body">
+          <p id="modalDesc"></p>
+          <div class="countdown-bar">
+            <div class="countdown-fill" id="countdownFill"></div>
+          </div>
+          <div class="modal-rewards" id="modalRewards"></div>
+        </div>
         <div class="actions">
           <button class="btn-ghost" id="btnCloseModal">Fechar</button>
           <button class="btn-primary" id="btnParticipate">Participar</button>
@@ -1378,6 +1685,8 @@
     const modalMeta = document.getElementById('modalMeta')
     const modalDesc = document.getElementById('modalDesc')
     const modalRewards = document.getElementById('modalRewards')
+    const modalHero = document.getElementById('modalHero')
+    const countdownFill = document.getElementById('countdownFill')
     const btnCloseModal = document.getElementById('btnCloseModal')
     const btnParticipate = document.getElementById('btnParticipate')
     const eventChipEls = new Map()
@@ -1586,11 +1895,15 @@
         chip.addEventListener('click', (ev) => {
           ev.preventDefault()
           ev.stopPropagation()
+          playEventSfx('click')
           openEventModal(eventId)
         })
         chip.addEventListener('mouseenter', (ev) => {
           const currentEvent = state.events.find((entry) => entry.id === eventId)
-          if (currentEvent) showEventHoverCard(currentEvent, pointerToLayerPoint(ev))
+          if (currentEvent) {
+            showEventHoverCard(currentEvent, pointerToLayerPoint(ev))
+            playEventSfx('hover')
+          }
         })
         chip.addEventListener('mousemove', (ev) => {
           const currentEvent = state.events.find((entry) => entry.id === eventId)
@@ -1599,13 +1912,14 @@
         chip.addEventListener('mouseleave', hideEventHoverCard)
         eventLayer.appendChild(chip)
         eventChipEls.set(eventId, chip)
+        chip.style.animation = 'chipSpawn 320ms cubic-bezier(.22, .85, .3, 1) forwards'
         requestAnimationFrame(() => chip.classList.add('is-visible'))
       }
 
       chip.className = `event-chip ${eventObj.template.riskClass}${eventObj.joinable ? '' : ' late'} is-visible`
       chip.style.left = `${point.x}px`
       chip.style.top = `${point.y}px`
-      chip.innerHTML = `<span class="chip-top">${eventObj.template.icon} ${fmtTime(eventObj.remaining)}</span><span class="chip-zone">${eventObj.zone.label}</span>`
+      chip.innerHTML = `<span class="chip-icon">${eventObj.template.icon}</span><span class="chip-top">${fmtTime(eventObj.remaining)}</span><span class="chip-zone">${eventObj.zone.label}</span>`
       chip.title = `${eventObj.template.name} · ${eventObj.zone.label} · ${eventStateLabel(eventObj)}`
       chip.setAttribute('aria-label', `${eventObj.template.name} - ${eventStateLabel(eventObj)}`)
     }
@@ -1688,7 +2002,16 @@
       state.hoveredEventId = ev.id || null
       eventHoverCard.style.left = `${point.x}px`
       eventHoverCard.style.top = `${point.y}px`
-      eventHoverCard.innerHTML = `<b>${ev.template.icon} ${ev.template.name}</b><span>${ev.zone.label} · ${eventStateLabel(ev)}</span><span>Clique para abrir</span>`
+      const posterBg = buildSceneImage(ev, null)
+      eventHoverCard.innerHTML = `
+        <div class="hover-card-poster" style="background-image: ${posterBg}"></div>
+        <div class="hover-card-body">
+          <b>${ev.template.icon} ${ev.template.name}</b>
+          <span>${ev.zone.label} · ${eventStateLabel(ev)}</span>
+          <span>Perigo: ${ev.template.danger} · ${fmtTime(ev.remaining)} restantes</span>
+          <div class="hover-hint">Clique para participar</div>
+        </div>
+      `
       eventHoverCard.classList.add('show')
     }
 
@@ -2152,26 +2475,43 @@
       selectedEvent = state.events.find((e) => e.id === eventId)
       if (!selectedEvent) return
       refreshEventRuntimeState(selectedEvent)
+      
+      const heroBg = buildSceneImage(selectedEvent, null)
+      if (modalHero) modalHero.style.backgroundImage = heroBg
+      
       modalTitle.textContent = `${selectedEvent.template.icon} ${selectedEvent.template.name}`
       modalMeta.innerHTML = `
-        <span>Zona: ${selectedEvent.zone.label}</span>
-        <span>Perigo: ${selectedEvent.template.danger}</span>
-        <span>Modo: ${selectedEvent.mode === 'group' ? 'Grupo' : 'Solo'}</span>
-        <span>Estado: ${eventStateLabel(selectedEvent)}</span>
-        <span>Janela: ${fmtTime(selectedEvent.remaining)} restantes</span>
-        <span>Participação: ${fmtTime(selectedEvent.participationDuration)}</span>
+        <span>📍 ${selectedEvent.zone.label}</span>
+        <span>⚠️ ${selectedEvent.template.danger}</span>
+        <span>👥 ${selectedEvent.mode === 'group' ? 'Grupo' : 'Solo'}</span>
+        <span>⏱️ ${fmtTime(selectedEvent.remaining)} restantes</span>
       `
       modalDesc.textContent = selectedEvent.template.desc
-      modalRewards.innerHTML = `<strong>Recompensas possíveis:</strong> $${selectedEvent.reward.money} · XP ${selectedEvent.reward.xp} · REP ${selectedEvent.reward.rep} · Item: ${selectedEvent.reward.item}`
+      
+      const timePercent = Math.max(0, Math.min(100, (selectedEvent.remaining / selectedEvent.duration) * 100))
+      if (countdownFill) countdownFill.style.width = `${timePercent}%`
+      
+      modalRewards.innerHTML = `
+        <div class="reward-badge"><b>Dinheiro</b><span>$${selectedEvent.reward.money}</span></div>
+        <div class="reward-badge"><b>Experiência</b><span>${selectedEvent.reward.xp} XP</span></div>
+        <div class="reward-badge"><b>Reputação</b><span>+${selectedEvent.reward.rep}</span></div>
+        <div class="reward-badge"><b>Item</b><span>${selectedEvent.reward.item || 'Nenhum'}</span></div>
+      `
+      
       btnParticipate.disabled = !selectedEvent.joinable
-      btnParticipate.textContent = selectedEvent.joinable ? 'Participar' : 'Tarde demais'
+      btnParticipate.textContent = selectedEvent.joinable ? '🎯 Participar Agora' : '⏰ Tarde demais'
       eventModalOverlay.classList.add('show')
+      playEventSfx('modalOpen')
     }
 
     function closeEventModal() {
       btnParticipate.disabled = false
       btnParticipate.textContent = 'Participar'
-      eventModalOverlay.classList.remove('show')
+      eventModalOverlay.classList.add('closing')
+      playEventSfx('modalClose')
+      setTimeout(() => {
+        eventModalOverlay.classList.remove('show', 'closing')
+      }, 200)
     }
 
     function computeOutcome(eventObj, actionState) {
@@ -2287,6 +2627,42 @@
       } catch {
         return null
       }
+    }
+
+    function playEventSfx(kind) {
+      if (!audioEnabled) return
+      const ctx = ensureActionAudio()
+      if (!ctx) return
+      if (ctx.state === 'suspended') {
+        try { ctx.resume() } catch { return }
+      }
+
+      const presets = {
+        hover: { freq: 520, duration: 0.08, type: 'sine', gain: 0.12 },
+        click: { freq: 680, duration: 0.12, type: 'triangle', gain: 0.18 },
+        modalOpen: { freq: 440, duration: 0.22, type: 'sine', gain: 0.2, sweep: 660 },
+        modalClose: { freq: 380, duration: 0.16, type: 'sine', gain: 0.14 },
+        participate: { freq: 880, duration: 0.28, type: 'square', gain: 0.22, sweep: 1100 },
+      }
+
+      const preset = presets[kind]
+      if (!preset) return
+
+      try {
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.type = preset.type
+        osc.frequency.setValueAtTime(preset.freq, ctx.currentTime)
+        if (preset.sweep) {
+          osc.frequency.exponentialRampToValueAtTime(preset.sweep, ctx.currentTime + preset.duration * 0.6)
+        }
+        gain.gain.setValueAtTime(preset.gain, ctx.currentTime)
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + preset.duration)
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.start(ctx.currentTime)
+        osc.stop(ctx.currentTime + preset.duration)
+      } catch {}
     }
 
     function playActionSfx(kind) {
@@ -2647,6 +3023,7 @@
         alert('Estás preso e não podes participar até seres libertado.')
         return
       }
+      playEventSfx('participate')
       beginAction(selectedEvent)
     })
     btnBackMap.addEventListener('click', leaveActionScreen)
