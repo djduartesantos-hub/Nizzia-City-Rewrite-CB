@@ -1257,6 +1257,7 @@
     const BASE_MAP_IMAGE_URL = './map-reference.png'
     const ACTION_LOCK_KEY = 'city-map-active-action-v1'
     const AUDIO_PREF_KEY = 'city-map-audio-enabled-v1'
+    const PLAYER_STATE_KEY = 'city-map-player-state-v1'
 
     const EVENT_TYPES = {
       shootout: {
@@ -1646,6 +1647,30 @@
       }
     }
 
+    function loadPlayerState() {
+      try {
+        const stored = localStorage.getItem(PLAYER_STATE_KEY)
+        if (stored) {
+          return JSON.parse(stored)
+        }
+      } catch {}
+      return {
+        hp: 100,
+        money: 5000,
+        xp: 0,
+        rep: 0,
+        stress: 0,
+        status: 'livre',
+        prisonUntil: null
+      }
+    }
+
+    function savePlayerState() {
+      try {
+        localStorage.setItem(PLAYER_STATE_KEY, JSON.stringify(state.playerState))
+      } catch {}
+    }
+
     const state = {
       city: null,
       mapConfig: normalizeCityMapConfig(DEFAULT_CITY_MAP_CONFIG),
@@ -1667,14 +1692,7 @@
       hover: { x: 0, y: 0 },
       hoveredEventId: null,
       selectedEventId: null,
-      playerState: {
-        hp: 100,
-        money: 5000,
-        xp: 0,
-        stress: 0,
-        status: 'livre',
-        prisonUntil: null,
-      },
+      playerState: loadPlayerState(),
       action: null,
       view: { x: 0, y: 0, w: CITY_W, h: CITY_H },
     }
@@ -2238,6 +2256,7 @@
       if (hudXp) hudXp.textContent = Math.round(state.playerState.xp)
       if (hudStatus) hudStatus.textContent = state.playerState.status.toUpperCase()
       statusLock?.classList.toggle('show', state.playerState.status === 'em_evento')
+      savePlayerState()
     }
 
     function weightedEventType(zoneKey, rng) {
@@ -2903,6 +2922,7 @@
       state.playerState.hp = clamp(state.playerState.hp - outcome.hpLoss, 0, 100)
       state.playerState.money = Math.max(0, state.playerState.money + outcome.moneyDelta)
       state.playerState.xp = Math.max(0, state.playerState.xp + outcome.xpDelta)
+      state.playerState.rep = Math.max(0, (state.playerState.rep || 0) + (outcome.repDelta || 0))
 
       if (outcome.status === 'captured') {
         state.playerState.status = 'preso'
@@ -3021,20 +3041,20 @@
     btnCloseModal.addEventListener('click', closeEventModal)
     btnParticipate.addEventListener('click', () => {
       if (!selectedEvent) return
-      const activeLock = readPersistedAction()
-      if (activeLock && Number(activeLock.endsAt || 0) > Date.now() && (!state.action || state.action.eventId !== activeLock.eventId)) {
-        alert('Já tens um crime em curso. Termina ou retoma essa operação primeiro.')
-        restorePersistedActionIfNeeded()
+      refreshEventRuntimeState(selectedEvent)
+      if (!selectedEvent.joinable) {
+        alert('Este evento já não está disponível para participação.')
         return
       }
-      refreshEventRuntimeState(selectedEvent)
-      if (!selectedEvent.joinable) return
       if (state.playerState.status === 'preso') {
         alert('Estás preso e não podes participar até seres libertado.')
         return
       }
       playEventSfx('participate')
-      beginAction(selectedEvent)
+      savePlayerState()
+      
+      const eventData = encodeURIComponent(JSON.stringify(selectedEvent))
+      window.location.href = `/event-action.html?event=${eventData}`
     })
     btnBackMap.addEventListener('click', leaveActionScreen)
     btnSoundToggle?.addEventListener('click', () => {

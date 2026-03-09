@@ -1,0 +1,1098 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Operação em Curso - Nizzia City</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #050505;
+      --text: #f3f3f3;
+      --muted: #adadad;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: radial-gradient(circle at 20% 10%, #161616 0%, #070707 70%);
+      color: var(--text);
+      font-family: 'Share Tech Mono', monospace;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      padding: 0;
+    }
+
+    #app {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #111;
+    }
+
+    .action-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: flex;
+      background:
+        radial-gradient(70% 50% at 40% 20%, rgba(64, 89, 138, 0.36), rgba(0, 0, 0, 0)),
+        radial-gradient(80% 60% at 80% 90%, rgba(105, 47, 47, 0.3), rgba(0, 0, 0, 0)),
+        linear-gradient(180deg, #050505, #111);
+      overflow: hidden;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .action-screen.risk-medium {
+      background:
+        radial-gradient(70% 50% at 40% 20%, rgba(52, 117, 89, 0.28), rgba(0, 0, 0, 0)),
+        radial-gradient(80% 60% at 80% 90%, rgba(35, 94, 74, 0.25), rgba(0, 0, 0, 0)),
+        linear-gradient(180deg, #050d09, #111);
+    }
+
+    .action-screen.risk-high {
+      background:
+        radial-gradient(70% 50% at 40% 20%, rgba(138, 89, 44, 0.35), rgba(0, 0, 0, 0)),
+        radial-gradient(80% 60% at 80% 90%, rgba(120, 58, 42, 0.3), rgba(0, 0, 0, 0)),
+        linear-gradient(180deg, #130b06, #120f0b);
+    }
+
+    .action-screen.risk-very-high {
+      background:
+        radial-gradient(70% 50% at 40% 20%, rgba(149, 45, 45, 0.4), rgba(0, 0, 0, 0)),
+        radial-gradient(80% 60% at 80% 90%, rgba(114, 26, 52, 0.35), rgba(0, 0, 0, 0)),
+        linear-gradient(180deg, #1a0909, #110c10);
+    }
+
+    .action-screen.twist-good { box-shadow: inset 0 0 140px rgba(88, 214, 142, 0.14); }
+    .action-screen.twist-bad { box-shadow: inset 0 0 160px rgba(239, 89, 89, 0.18); }
+    .action-screen.twist-neutral { box-shadow: inset 0 0 120px rgba(112, 141, 190, 0.14); }
+
+    .action-vignette {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1;
+      opacity: 0.42;
+      background: radial-gradient(circle at 50% 48%, rgba(0, 0, 0, 0) 22%, rgba(0, 0, 0, 0.62) 100%);
+      transition: opacity 220ms ease, filter 220ms ease;
+    }
+
+    .action-screen.risk-medium .action-vignette { opacity: 0.36; filter: saturate(1.02); }
+    .action-screen.risk-high .action-vignette { opacity: 0.46; filter: saturate(1.08); }
+    .action-screen.risk-very-high .action-vignette { opacity: 0.58; filter: saturate(1.14); }
+    .action-screen.twist-good .action-vignette { opacity: 0.34; }
+    .action-screen.twist-neutral .action-vignette { opacity: 0.44; }
+    .action-screen.twist-bad .action-vignette {
+      opacity: 0.66;
+      filter: saturate(1.2);
+      box-shadow: inset 0 0 120px rgba(255, 70, 70, 0.18);
+    }
+
+    .action-vignette.impact { animation: vignetteImpact 420ms ease; }
+    .action-screen.shake-impact { animation: actionShake 360ms cubic-bezier(.36, .07, .19, .97); }
+
+    @keyframes actionShake {
+      0% { transform: translate3d(0, 0, 0) scale(1); }
+      18% { transform: translate3d(-3px, 1px, 0) scale(1.003); }
+      36% { transform: translate3d(3px, -1px, 0) scale(1.002); }
+      54% { transform: translate3d(-2px, 1px, 0) scale(1.003); }
+      72% { transform: translate3d(2px, -1px, 0) scale(1.001); }
+      100% { transform: translate3d(0, 0, 0) scale(1); }
+    }
+
+    @keyframes vignetteImpact {
+      0% { opacity: 0.72; }
+      100% { opacity: inherit; }
+    }
+
+    .particle {
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
+      animation: drift linear infinite;
+    }
+
+    @keyframes drift {
+      from { transform: translateY(0); opacity: .8; }
+      to { transform: translateY(-120vh); opacity: 0; }
+    }
+
+    .action-ui {
+      position: relative;
+      z-index: 2;
+      height: 100%;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .panel {
+      background: rgba(34, 34, 34, 0.95);
+      border: 1px solid #484848;
+      border-radius: 12px;
+      padding: 14px;
+      box-shadow: 0 12px 26px rgba(0, 0, 0, 0.6);
+    }
+
+    .action-main-panel {
+      width: 100%;
+      max-width: 900px;
+    }
+
+    .action-stats-panel {
+      width: 100%;
+      max-width: 900px;
+      margin-top: 14px;
+    }
+
+    .action-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .sound-btn {
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      background: rgba(255, 255, 255, 0.08);
+      color: #e9f0ff;
+      border-radius: 8px;
+      padding: 5px 10px;
+      font-family: inherit;
+      cursor: pointer;
+      font-size: 0.75rem;
+      letter-spacing: 0.04em;
+    }
+
+    .sound-btn:hover {
+      background: rgba(122, 187, 255, 0.16);
+      border-color: rgba(122, 187, 255, 0.36);
+    }
+
+    .meta {
+      margin-top: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .meta span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(8, 12, 22, 0.58);
+      padding: 4px 10px;
+      font-size: .73rem;
+      letter-spacing: .04em;
+      color: #d8dfeb;
+    }
+
+    .phase-text {
+      min-height: 90px;
+      font-size: 1.06rem;
+      line-height: 1.56;
+      border-left: 4px solid #e3ae43;
+      padding: 10px 12px;
+      background: rgba(5, 5, 5, 0.5);
+      transition: border-color 180ms ease, background 180ms ease;
+      border-radius: 10px;
+      margin-top: 12px;
+    }
+
+    .phase-text.is-updating { animation: phasePop 320ms ease; }
+
+    @keyframes phasePop {
+      0% { transform: translateY(6px); opacity: 0.25; }
+      100% { transform: translateY(0); opacity: 1; }
+    }
+
+    .scene-banner {
+      margin-top: 10px;
+      padding: 9px 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      background: linear-gradient(130deg, rgba(240, 186, 71, 0.2), rgba(51, 76, 111, 0.2));
+      display: grid;
+      grid-template-columns: 42px 1fr;
+      gap: 9px;
+      align-items: center;
+    }
+
+    .scene-banner.pulse { animation: scenePulse 480ms ease; }
+
+    @keyframes scenePulse {
+      0% { transform: scale(1); filter: brightness(1); }
+      50% { transform: scale(1.012); filter: brightness(1.08); }
+      100% { transform: scale(1); filter: brightness(1); }
+    }
+
+    .scene-icon {
+      font-size: 2rem;
+      text-align: center;
+      filter: drop-shadow(0 2px 6px rgba(0,0,0,0.4));
+    }
+
+    .scene-title {
+      display: block;
+      font-size: 0.92rem;
+      letter-spacing: 0.05em;
+      margin-bottom: 2px;
+    }
+
+    .scene-sub {
+      margin: 0;
+      font-size: 0.76rem;
+      color: #b8c4d8;
+      line-height: 1.3;
+    }
+
+    .scene-illustration {
+      margin-top: 10px;
+      height: 140px;
+      border-radius: 10px;
+      background-size: cover;
+      background-position: center;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      animation: sceneKenBurns 18s ease-in-out infinite alternate;
+    }
+
+    @keyframes sceneKenBurns {
+      from { transform: scale(1); filter: saturate(1); }
+      to { transform: scale(1.03); filter: saturate(1.08); }
+    }
+
+    .narrative-feed {
+      margin-top: 10px;
+      max-height: 120px;
+      overflow-y: auto;
+      padding: 8px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      font-size: 0.82rem;
+      line-height: 1.4;
+    }
+
+    .narrative-line {
+      margin-bottom: 6px;
+      padding-left: 8px;
+      border-left: 2px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .narrative-line.good { border-left-color: #5fd69a; color: #b8f4d6; }
+    .narrative-line.bad { border-left-color: #ff6b6b; color: #ffb8b8; }
+
+    .progress {
+      height: 8px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .progress i {
+      display: block;
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #f0b847, #d35a40);
+      transition: width .18s linear;
+    }
+
+    .hud-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    .stat {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 8px;
+      padding: 8px;
+      text-align: center;
+    }
+
+    .stat b {
+      display: block;
+      font-size: 0.68rem;
+      color: #9eb3cb;
+      letter-spacing: 0.06em;
+      margin-bottom: 4px;
+    }
+
+    .stat span {
+      display: block;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #f0c458;
+    }
+
+    .result-panel {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(12px);
+    }
+
+    .result-panel.show { display: flex; }
+
+    .result-panel-content {
+      width: min(700px, 100%);
+      background: linear-gradient(165deg, rgba(22, 26, 34, 0.98), rgba(10, 12, 16, 0.98));
+      border: 1.5px solid rgba(255, 255, 255, 0.24);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+    }
+
+    .result-panel.result-reveal .result-panel-content {
+      animation: resultReveal 520ms cubic-bezier(.22, .85, .3, 1) both;
+    }
+
+    @keyframes resultReveal {
+      0% { opacity: 0; transform: translateY(18px) scale(0.97); filter: brightness(0.8) saturate(0.9); }
+      55% { opacity: 1; transform: translateY(-2px) scale(1.01); filter: brightness(1.08) saturate(1.07); }
+      100% { opacity: 1; transform: translateY(0) scale(1); filter: brightness(1) saturate(1); }
+    }
+
+    .result {
+      display: grid;
+      gap: 8px;
+      font-size: 0.95rem;
+      background: rgba(5, 5, 5, 0.5);
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: 10px;
+      padding: 12px;
+    }
+
+    .result-panel.is-dramatic .result {
+      border-color: rgba(240, 196, 88, 0.36);
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 18px 38px rgba(0, 0, 0, 0.35);
+      background: linear-gradient(165deg, rgba(6, 8, 15, 0.86), rgba(18, 13, 8, 0.84));
+    }
+
+    .result-head {
+      display: grid;
+      grid-template-columns: 96px 1fr;
+      gap: 10px;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 10px;
+      padding: 8px;
+    }
+
+    .result-poster {
+      width: 96px;
+      height: 96px;
+      border-radius: 8px;
+      object-fit: cover;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .result-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: .74rem;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      border: 1px solid rgba(255,255,255,.2);
+    }
+
+    .status-success { background: rgba(65, 158, 89, 0.24); color: #9ff1b4; }
+    .status-captured { background: rgba(173, 49, 63, 0.24); color: #ffb3bc; }
+    .status-failed { background: rgba(163, 88, 47, 0.24); color: #ffd0a5; }
+    .status-no-effect { background: rgba(88, 102, 131, 0.24); color: #d4dff4; }
+
+    .result-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .result-item {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 8px;
+      font-size: 0.86rem;
+    }
+
+    .result-item b {
+      display: block;
+      font-size: 0.72rem;
+      color: #9eb3cb;
+      letter-spacing: 0.04em;
+      margin-bottom: 4px;
+    }
+
+    .delta-pos { color: #9ff1b4; }
+    .delta-neg { color: #ffb3bc; }
+    .delta-neutral { color: #d4dff4; }
+
+    button {
+      font: inherit;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 16px;
+      cursor: pointer;
+      font-weight: 700;
+      letter-spacing: .04em;
+      transition: transform 140ms ease, box-shadow 140ms ease, filter 140ms ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    button::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%);
+      transform: scale(0);
+      opacity: 0;
+      transition: transform 0.4s ease, opacity 0.4s ease;
+    }
+
+    button:active::before {
+      transform: scale(2);
+      opacity: 1;
+      transition: transform 0s, opacity 0s;
+    }
+
+    button:hover { transform: translateY(-1px); }
+    button:active { transform: translateY(0); }
+
+    .btn-primary { 
+      background: linear-gradient(135deg, #f3c854, #de8d2c); 
+      color: #1f1708;
+      box-shadow: 0 4px 12px rgba(240, 180, 60, 0.3);
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 6px 18px rgba(240, 180, 60, 0.42);
+      filter: brightness(1.08);
+    }
+
+    .actions {
+      margin-top: 16px;
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="action-screen" id="actionScreen">
+      <div id="particleField"></div>
+      <div class="action-vignette" id="actionVignette" aria-hidden="true"></div>
+      <div class="action-ui">
+        <div class="panel action-main-panel">
+          <div class="action-header">
+            <h2 style="margin:0;font-family:'Bebas Neue';font-size:2rem;letter-spacing:.08em" id="actionTitle">Operação</h2>
+            <button class="sound-btn" id="btnSoundToggle" type="button" aria-pressed="true">🔊 Som ON</button>
+          </div>
+          <div class="meta" id="actionMeta"></div>
+          <div class="phase-text" id="phaseText">A preparar operação...</div>
+          <div class="scene-banner" id="sceneBanner">
+            <div class="scene-icon" id="sceneIcon">⚡</div>
+            <div>
+              <strong class="scene-title" id="sceneTitle">Operação em curso</strong>
+              <p class="scene-sub" id="sceneSub">A recolher dados táticos da zona...</p>
+            </div>
+          </div>
+          <div class="scene-illustration" id="sceneIllustration" aria-hidden="true"></div>
+          <div class="narrative-feed" id="narrativeFeed"></div>
+          <div style="display:grid;gap:8px;margin-top:10px">
+            <div class="progress"><i id="progressFill"></i></div>
+            <div style="display:flex;justify-content:space-between;font-size:.86rem;color:var(--muted)">
+              <span id="progressTime">00:00</span>
+              <span id="twistInfo">Twist: por revelar...</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel action-stats-panel">
+          <div class="hud-grid">
+            <div class="stat"><b>HP</b><span id="liveHp">100</span></div>
+            <div class="stat"><b>TENSÃO</b><span id="liveStress">0</span></div>
+            <div class="stat"><b>RISCO</b><span id="liveRisk">-</span></div>
+            <div class="stat"><b>TEMPO RESTANTE</b><span id="liveTimer">--</span></div>
+          </div>
+        </div>
+
+        <div class="result-panel" id="resultPanel">
+          <div class="result-panel-content">
+            <h2 style="margin:0 0 16px;font-family:'Bebas Neue';font-size:2.4rem;letter-spacing:.1em;text-align:center">Resultado Final</h2>
+            <div class="result" id="resultData"></div>
+            <div class="actions">
+              <button class="btn-primary" id="btnBackMap">Voltar ao Mapa</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const ACTION_LOCK_KEY = 'city-map-active-action-v1'
+    const AUDIO_PREF_KEY = 'city-map-audio-enabled-v1'
+    const PLAYER_STATE_KEY = 'city-map-player-state-v1'
+
+    const actionScreen = document.getElementById('actionScreen')
+    const actionTitle = document.getElementById('actionTitle')
+    const actionMeta = document.getElementById('actionMeta')
+    const phaseText = document.getElementById('phaseText')
+    const progressFill = document.getElementById('progressFill')
+    const progressTime = document.getElementById('progressTime')
+    const twistInfo = document.getElementById('twistInfo')
+    const liveHp = document.getElementById('liveHp')
+    const liveStress = document.getElementById('liveStress')
+    const liveRisk = document.getElementById('liveRisk')
+    const liveTimer = document.getElementById('liveTimer')
+    const sceneIcon = document.getElementById('sceneIcon')
+    const sceneTitle = document.getElementById('sceneTitle')
+    const sceneSub = document.getElementById('sceneSub')
+    const sceneIllustration = document.getElementById('sceneIllustration')
+    const sceneBanner = document.getElementById('sceneBanner')
+    const narrativeFeed = document.getElementById('narrativeFeed')
+    const actionVignette = document.getElementById('actionVignette')
+    const resultPanel = document.getElementById('resultPanel')
+    const resultData = document.getElementById('resultData')
+    const btnBackMap = document.getElementById('btnBackMap')
+    const btnSoundToggle = document.getElementById('btnSoundToggle')
+
+    let actionAudioContext = null
+    let audioEnabled = true
+    try {
+      const stored = localStorage.getItem(AUDIO_PREF_KEY)
+      if (stored === '0') audioEnabled = false
+    } catch {}
+
+    function syncSoundToggle() {
+      if (!btnSoundToggle) return
+      btnSoundToggle.textContent = audioEnabled ? '🔊 Som ON' : '🔇 Som OFF'
+      btnSoundToggle.setAttribute('aria-pressed', audioEnabled ? 'true' : 'false')
+    }
+
+    function setAudioEnabled(nextValue) {
+      audioEnabled = Boolean(nextValue)
+      syncSoundToggle()
+      try {
+        localStorage.setItem(AUDIO_PREF_KEY, audioEnabled ? '1' : '0')
+      } catch {}
+    }
+
+    syncSoundToggle()
+
+    function ensureActionAudio() {
+      if (actionAudioContext) return actionAudioContext
+      const Ctx = window.AudioContext || window.webkitAudioContext
+      if (!Ctx) return null
+      try {
+        actionAudioContext = new Ctx()
+        return actionAudioContext
+      } catch {
+        return null
+      }
+    }
+
+    function playActionSfx(kind) {
+      if (!audioEnabled) return
+      const ctx = ensureActionAudio()
+      if (!ctx) return
+      if (ctx.state === 'suspended') {
+        try { ctx.resume() } catch { return }
+      }
+
+      const presets = {
+        start: [
+          { freq: 220, duration: 0.08, type: 'sine', gain: 0.18 },
+          { freq: 330, duration: 0.12, type: 'sine', gain: 0.14, delay: 0.06 },
+          { freq: 440, duration: 0.16, type: 'sine', gain: 0.12, delay: 0.12 },
+        ],
+        phase: [
+          { freq: 440, duration: 0.1, type: 'triangle', gain: 0.16 },
+          { freq: 554, duration: 0.14, type: 'triangle', gain: 0.12, delay: 0.05 },
+        ],
+        twistGood: [
+          { freq: 523, duration: 0.14, type: 'sine', gain: 0.2 },
+          { freq: 659, duration: 0.18, type: 'sine', gain: 0.16, delay: 0.08 },
+          { freq: 784, duration: 0.22, type: 'sine', gain: 0.14, delay: 0.16 },
+        ],
+        twistBad: [
+          { freq: 220, duration: 0.18, type: 'sawtooth', gain: 0.22 },
+          { freq: 185, duration: 0.24, type: 'sawtooth', gain: 0.18, delay: 0.1 },
+        ],
+        twistNeutral: [
+          { freq: 330, duration: 0.16, type: 'square', gain: 0.16 },
+          { freq: 294, duration: 0.2, type: 'square', gain: 0.12, delay: 0.08 },
+        ],
+        resultSuccess: [
+          { freq: 523, duration: 0.12, type: 'sine', gain: 0.2 },
+          { freq: 659, duration: 0.14, type: 'sine', gain: 0.18, delay: 0.08 },
+          { freq: 784, duration: 0.16, type: 'sine', gain: 0.16, delay: 0.16 },
+          { freq: 1047, duration: 0.24, type: 'sine', gain: 0.14, delay: 0.24 },
+        ],
+        resultCaptured: [
+          { freq: 220, duration: 0.3, type: 'sawtooth', gain: 0.24 },
+          { freq: 165, duration: 0.4, type: 'sawtooth', gain: 0.2, delay: 0.15 },
+        ],
+        resultFailed: [
+          { freq: 294, duration: 0.2, type: 'triangle', gain: 0.18 },
+          { freq: 247, duration: 0.26, type: 'triangle', gain: 0.14, delay: 0.12 },
+        ],
+      }
+
+      const preset = presets[kind]
+      if (!preset) return
+
+      try {
+        preset.forEach((note) => {
+          const osc = ctx.createOscillator()
+          const gain = ctx.createGain()
+          osc.type = note.type
+          osc.frequency.setValueAtTime(note.freq, ctx.currentTime + (note.delay || 0))
+          gain.gain.setValueAtTime(note.gain, ctx.currentTime + (note.delay || 0))
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + (note.delay || 0) + note.duration)
+          osc.connect(gain)
+          gain.connect(ctx.destination)
+          osc.start(ctx.currentTime + (note.delay || 0))
+          osc.stop(ctx.currentTime + (note.delay || 0) + note.duration)
+        })
+      } catch {}
+    }
+
+    function clamp(val, min, max) {
+      return Math.max(min, Math.min(max, val))
+    }
+
+    function fmtTime(sec) {
+      const m = Math.floor(sec / 60)
+      const s = Math.floor(sec % 60)
+      return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+    }
+
+    function formatDelta(value, prefix = '') {
+      if (value > 0) return `<span class="delta-pos">+${prefix}${value}</span>`
+      if (value < 0) return `<span class="delta-neg">${prefix}${value}</span>`
+      return `<span class="delta-neutral">${prefix}${value}</span>`
+    }
+
+    class RNG {
+      constructor(seed) {
+        this.seed = seed
+      }
+      next() {
+        this.seed = (this.seed * 9301 + 49297) % 233280
+        return this.seed / 233280
+      }
+      int(min, max) {
+        return Math.floor(this.next() * (max - min + 1)) + min
+      }
+      range(min, max) {
+        return this.next() * (max - min) + min
+      }
+      pick(arr) {
+        return arr[Math.floor(this.next() * arr.length)]
+      }
+    }
+
+    function buildSceneImage(eventObj, twistEffect = null) {
+      const rng = new RNG(eventObj.id * 13 + (twistEffect ? 7 : 0))
+      const hue = twistEffect === 'good' ? rng.int(120, 160) : twistEffect === 'bad' ? rng.int(0, 30) : rng.int(200, 260)
+      const sat = rng.int(40, 70)
+      const light = rng.int(25, 45)
+      return `linear-gradient(${rng.int(120, 240)}deg, hsl(${hue}, ${sat}%, ${light}%), hsl(${hue + rng.int(-20, 20)}, ${sat - 10}%, ${light - 10}%))`
+    }
+
+    function applySceneImage(eventObj, twistEffect = null) {
+      if (!sceneIllustration || !eventObj) return
+      sceneIllustration.style.backgroundImage = buildSceneImage(eventObj, twistEffect)
+    }
+
+    function buildResultPoster(status, ev) {
+      const rng = new RNG(ev.id * 19)
+      const hue = status === 'success' ? rng.int(120, 160) : status === 'captured' ? rng.int(0, 30) : rng.int(30, 60)
+      const canvas = document.createElement('canvas')
+      canvas.width = 96
+      canvas.height = 96
+      const ctx = canvas.getContext('2d')
+      const grad = ctx.createLinearGradient(0, 0, 96, 96)
+      grad.addColorStop(0, `hsl(${hue}, 60%, 35%)`)
+      grad.addColorStop(1, `hsl(${hue + 20}, 50%, 25%)`)
+      ctx.fillStyle = grad
+      ctx.fillRect(0, 0, 96, 96)
+      return canvas.toDataURL()
+    }
+
+    function setActionVisualTone(riskClass, twistEffect = null) {
+      actionScreen.classList.remove('risk-medium', 'risk-high', 'risk-very-high', 'twist-good', 'twist-bad', 'twist-neutral')
+      if (riskClass === 'very-high') actionScreen.classList.add('risk-very-high')
+      else if (riskClass === 'high') actionScreen.classList.add('risk-high')
+      else actionScreen.classList.add('risk-medium')
+      if (twistEffect) actionScreen.classList.add(`twist-${twistEffect}`)
+    }
+
+    function pulseScene() {
+      if (!sceneBanner) return
+      sceneBanner.classList.remove('pulse')
+      void sceneBanner.offsetWidth
+      sceneBanner.classList.add('pulse')
+    }
+
+    function triggerActionImpact() {
+      actionScreen.classList.remove('shake-impact')
+      void actionScreen.offsetWidth
+      actionScreen.classList.add('shake-impact')
+      if (actionVignette) {
+        actionVignette.classList.remove('impact')
+        void actionVignette.offsetWidth
+        actionVignette.classList.add('impact')
+      }
+    }
+
+    function appendNarrativeLine(text, tone = 'neutral') {
+      if (!narrativeFeed || !text) return
+      const line = document.createElement('div')
+      line.className = `narrative-line${tone === 'good' || tone === 'bad' ? ` ${tone}` : ''}`
+      line.textContent = text
+      narrativeFeed.appendChild(line)
+      if (narrativeFeed.children.length > 8) {
+        narrativeFeed.removeChild(narrativeFeed.firstElementChild)
+      }
+      narrativeFeed.scrollTop = narrativeFeed.scrollHeight
+    }
+
+    function spawnParticles(riskClass = 'medium', twistEffect = null) {
+      const field = document.getElementById('particleField')
+      field.innerHTML = ''
+      const amount = riskClass === 'very-high' ? 96 : riskClass === 'high' ? 82 : 68
+      const palette = twistEffect === 'good'
+        ? ['rgba(105,235,162,.84)', 'rgba(95,188,255,.78)', 'rgba(241,241,178,.72)']
+        : twistEffect === 'bad'
+          ? ['rgba(255,88,88,.84)', 'rgba(255,157,88,.78)', 'rgba(196,73,126,.72)']
+          : riskClass === 'very-high'
+            ? ['rgba(255,82,82,.82)', 'rgba(236,91,170,.76)', 'rgba(239,198,92,.68)']
+            : riskClass === 'high'
+              ? ['rgba(255,167,92,.82)', 'rgba(251,111,111,.74)', 'rgba(130,206,255,.68)']
+              : ['rgba(99,220,170,.82)', 'rgba(84,198,255,.78)', 'rgba(240,205,108,.64)']
+
+      for (let i = 0; i < amount; i += 1) {
+        const p = document.createElement('i')
+        p.className = 'particle'
+        p.style.left = `${Math.random() * 100}%`
+        p.style.bottom = `${-10 - Math.random() * 60}px`
+        p.style.animationDuration = `${3.2 + Math.random() * 7.4}s`
+        p.style.animationDelay = `${Math.random() * 4}s`
+        p.style.opacity = `${0.2 + Math.random() * 0.6}`
+        p.style.background = palette[Math.floor(Math.random() * palette.length)]
+        p.style.width = `${2 + Math.random() * 2.8}px`
+        p.style.height = p.style.width
+        field.appendChild(p)
+      }
+    }
+
+    // Load player state
+    function loadPlayerState() {
+      try {
+        const stored = localStorage.getItem(PLAYER_STATE_KEY)
+        if (stored) {
+          return JSON.parse(stored)
+        }
+      } catch {}
+      return {
+        hp: 100,
+        stress: 0,
+        money: 5000,
+        xp: 0,
+        rep: 0,
+        status: 'livre',
+        prisonUntil: null
+      }
+    }
+
+    function savePlayerState(state) {
+      try {
+        localStorage.setItem(PLAYER_STATE_KEY, JSON.stringify(state))
+      } catch {}
+    }
+
+    let playerState = loadPlayerState()
+    let action = null
+
+    // Get event data from URL params
+    const params = new URLSearchParams(window.location.search)
+    const eventData = params.get('event')
+    
+    if (!eventData) {
+      alert('Dados do evento não encontrados!')
+      window.location.href = '/city-map.html'
+    }
+
+    let eventObj = null
+    try {
+      eventObj = JSON.parse(decodeURIComponent(eventData))
+    } catch {
+      alert('Erro ao carregar dados do evento!')
+      window.location.href = '/city-map.html'
+    }
+
+    function updateLiveStats() {
+      liveHp.textContent = Math.round(playerState.hp)
+      liveStress.textContent = Math.round(playerState.stress)
+      if (action) {
+        liveTimer.textContent = fmtTime(action.remaining)
+      }
+    }
+
+    function computeOutcome(eventObj, actionState) {
+      const rng = new RNG(Date.now() + 91)
+      const riskBase = actionState.riskFactor
+      const hpFactor = playerState.hp / 100
+      const stressFactor = clamp(1 - playerState.stress / 120, 0.2, 1)
+      let chance = 0.68 * hpFactor * stressFactor - riskBase
+      if (actionState.twist && actionState.twist.effect === 'good') chance += 0.16
+      if (actionState.twist && actionState.twist.effect === 'bad') chance -= 0.2
+      chance = clamp(chance, 0.08, 0.93)
+
+      const roll = rng.next()
+      let status = 'success'
+      if (roll > chance) {
+        if (rng.next() < 0.28) status = 'captured'
+        else if (rng.next() < 0.45) status = 'no_effect'
+        else status = 'failed'
+      }
+
+      const hpLoss = status === 'success' ? rng.int(0, 18) : status === 'captured' ? rng.int(15, 38) : rng.int(2, 20)
+      const moneyDelta = status === 'success' ? eventObj.reward.money : status === 'failed' ? -rng.int(200, 3000) : 0
+      const xpDelta = status === 'success' ? eventObj.reward.xp : status === 'failed' ? rng.int(0, 28) : 0
+      const repDelta = status === 'success' ? eventObj.reward.rep : status === 'failed' ? -rng.int(0, 2) : 0
+
+      return {
+        status,
+        hpLoss,
+        moneyDelta,
+        xpDelta,
+        repDelta,
+        item: status === 'success' ? eventObj.reward.item : null,
+      }
+    }
+
+    function applyOutcome(outcome) {
+      playerState.hp = clamp(playerState.hp - outcome.hpLoss, 0, 100)
+      playerState.money = Math.max(0, playerState.money + outcome.moneyDelta)
+      playerState.xp = Math.max(0, playerState.xp + outcome.xpDelta)
+      playerState.rep = Math.max(0, playerState.rep + outcome.repDelta)
+
+      if (outcome.status === 'captured') {
+        playerState.status = 'preso'
+        playerState.prisonUntil = Date.now() + 45_000
+      } else {
+        playerState.status = 'livre'
+      }
+
+      savePlayerState(playerState)
+      updateLiveStats()
+    }
+
+    function renderResult(ev, outcome) {
+      const success = outcome.status === 'success'
+      const captured = outcome.status === 'captured'
+      const noEffect = outcome.status === 'no_effect'
+      const label = success ? '✅ Sucesso' : captured ? '⛓️ Capturado' : noEffect ? '😶 Sem consequências' : '❌ Falha'
+      const statusClass = success ? 'status-success' : captured ? 'status-captured' : noEffect ? 'status-no-effect' : 'status-failed'
+      const poster = buildResultPoster(outcome.status, ev)
+      const hpAfter = Math.round(playerState.hp)
+      const prisonInfo = captured
+        ? `Até ${new Date(playerState.prisonUntil || Date.now()).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}`
+        : 'Não'
+
+      resultData.innerHTML = `
+        <div class="result-head">
+          <img class="result-poster" src="${poster}" alt="Poster do resultado da operação" />
+          <div>
+            <span class="result-status ${statusClass}">${label}</span>
+            <div style="font-size:.95rem;color:#ecf1ff;line-height:1.4">${captured ? 'A operação foi comprometida. Foste preso e transferido para a prisão.' : success ? 'Execução limpa, retirada concluída e ganhos garantidos.' : noEffect ? 'A ação foi neutralizada sem impacto relevante no teu progresso.' : 'A operação falhou e deixaste rastros no terreno.'}</div>
+          </div>
+        </div>
+        <div class="result-grid">
+          <div class="result-item"><b>Dinheiro</b>${formatDelta(outcome.moneyDelta, '$')}</div>
+          <div class="result-item"><b>XP</b>${formatDelta(outcome.xpDelta)}</div>
+          <div class="result-item"><b>Reputação</b>${formatDelta(outcome.repDelta)}</div>
+          <div class="result-item"><b>Dano Sofrido</b>${formatDelta(-Math.abs(outcome.hpLoss), '')}</div>
+          <div class="result-item"><b>Vida Atual</b><span class="${hpAfter <= 30 ? 'delta-neg' : 'delta-neutral'}">${hpAfter} HP</span></div>
+          <div class="result-item"><b>Destino</b><span class="${captured ? 'delta-neg' : 'delta-neutral'}">${captured ? `Prisão (${prisonInfo})` : 'Livre'}</span></div>
+          <div class="result-item"><b>Item</b><span class="delta-neutral">${outcome.item || 'Nenhum'}</span></div>
+          <div class="result-item"><b>Cenário Final</b><span class="delta-neutral">${ev.template.name} · ${ev.zone.label}</span></div>
+        </div>
+        <div class="result-item"><b>Narrativa Final</b>${captured ? 'A tua equipa foi cercada, foste neutralizado e transportado sob custódia.' : success ? 'Conseguiste concluir a missão sob pressão e sair com os ganhos.' : noEffect ? 'A operação foi abortada no limite; retirada tática sem colapso total.' : 'A resistência foi superior e recuaste com perdas operacionais.'}</div>
+      `
+      resultPanel.classList.remove('result-reveal', 'is-dramatic')
+      if (success || captured) resultPanel.classList.add('is-dramatic')
+      requestAnimationFrame(() => {
+        resultPanel.classList.add('show')
+        resultPanel.classList.add('result-reveal')
+      })
+      playActionSfx(success ? 'resultSuccess' : captured ? 'resultCaptured' : 'resultFailed')
+    }
+
+    function tickAction(deltaSec) {
+      if (!action || action.finished) return
+      const a = action
+      a.remaining = clamp((a.endsAt - Date.now()) / 1000, 0, a.total)
+      const elapsed = a.total - a.remaining
+
+      if (!a.twist && elapsed >= a.twistAt) {
+        const rng = new RNG(Date.now() + elapsed)
+        a.twist = rng.pick(a.twistPool)
+        twistInfo.textContent = `Twist: ${a.twist.text}`
+        phaseText.textContent = `${phaseText.textContent}\n\n⚡ ${a.twist.text}`
+        setActionVisualTone(a.riskClass, a.twist.effect)
+        sceneTitle.textContent = 'Mudança repentina no terreno'
+        sceneSub.textContent = a.twist.text
+        appendNarrativeLine(`TWIST: ${a.twist.text}`, a.twist.effect)
+        spawnParticles(a.riskClass, a.twist.effect)
+        applySceneImage(eventObj, a.twist.effect)
+        playActionSfx(a.twist.effect === 'good' ? 'twistGood' : a.twist.effect === 'bad' ? 'twistBad' : 'twistNeutral')
+        if (a.twist.effect === 'bad') triggerActionImpact()
+        pulseScene()
+        playerState.stress = clamp(playerState.stress + (a.twist.effect === 'bad' ? 20 : a.twist.effect === 'good' ? -8 : 6), 0, 130)
+      }
+
+      const phaseStep = Math.floor((elapsed / a.total) * a.phases.length)
+      if (phaseStep !== a.phaseIndex && phaseStep < a.phases.length) {
+        a.phaseIndex = phaseStep
+        phaseText.textContent = a.phases[phaseStep]
+        phaseText.classList.remove('is-updating')
+        void phaseText.offsetWidth
+        phaseText.classList.add('is-updating')
+        sceneTitle.textContent = `Fase ${phaseStep + 1} de ${a.phases.length}`
+        sceneSub.textContent = a.phases[phaseStep]
+        appendNarrativeLine(a.phases[phaseStep], 'neutral')
+        playActionSfx('phase')
+        pulseScene()
+      }
+
+      if (Math.random() > 0.55) {
+        playerState.stress = clamp(playerState.stress + (a.riskFactor * 4), 0, 130)
+      }
+
+      const progress = ((a.total - a.remaining) / a.total) * 100
+      progressFill.style.width = `${progress.toFixed(2)}%`
+      progressTime.textContent = `Restante: ${fmtTime(a.remaining)}`
+      updateLiveStats()
+
+      if (a.remaining <= 0) {
+        a.finished = true
+        const outcome = computeOutcome(eventObj, a)
+        applyOutcome(outcome)
+        renderResult(eventObj, outcome)
+      }
+    }
+
+    function startAction() {
+      if (!eventObj) return
+
+      actionTitle.textContent = `${eventObj.template.icon} ${eventObj.template.name}`
+      actionMeta.innerHTML = `<span>Zona: ${eventObj.zone.label}</span><span>Perigo: ${eventObj.template.danger}</span><span>Modo: ${eventObj.mode === 'group' ? 'Grupo' : 'Solo'}</span>`
+      liveRisk.textContent = eventObj.template.danger
+      sceneIcon.textContent = eventObj.template.icon || '⚡'
+      sceneTitle.textContent = `Cenário: ${eventObj.zone.label}`
+      sceneSub.textContent = 'Equipa posicionada. A operação começou e a resposta policial está em monitorização.'
+      applySceneImage(eventObj)
+      setActionVisualTone(eventObj.template.riskClass)
+
+      const rng = new RNG(Date.now() + eventObj.duration)
+      const total = Math.max(30, Math.min(eventObj.participationDuration, eventObj.remaining || eventObj.duration))
+      const twistAt = Math.floor(total * rng.range(0.45, 0.62))
+      const phases = Array.isArray(eventObj.template.phases) && eventObj.template.phases.length
+        ? eventObj.template.phases
+        : [
+            `Entraste na zona ${eventObj.zone.label}. O ambiente está tenso e cada movimento conta.`,
+            'Aproximas-te do alvo com cautela. Há câmaras, vigias e ruído de sirenes ao longe.',
+            'Fase crítica: qualquer erro agora muda tudo. Decides avançar mesmo com a pressão máxima.',
+            'Último sprint. Estás a tentar sair limpo antes do cerco fechar.',
+          ]
+      const twists = Array.isArray(eventObj.template.twists) && eventObj.template.twists.length
+        ? eventObj.template.twists
+        : [
+            { text: 'A polícia chegou mais cedo!', effect: 'bad' },
+            { text: 'Um aliado apareceu para cobrir a fuga!', effect: 'good' },
+            { text: 'Houve blackout no quarteirão, confusão total.', effect: 'neutral' },
+            { text: 'O líder rival entrou na cena inesperadamente.', effect: 'bad' },
+          ]
+
+      action = {
+        eventId: eventObj.id,
+        total,
+        remaining: total,
+        endsAt: Date.now() + total * 1000,
+        twistAt,
+        twist: null,
+        phaseIndex: 0,
+        phases,
+        twistPool: twists,
+        riskClass: eventObj.template.riskClass || 'medium',
+        riskFactor: eventObj.template.danger === 'Muito alto' ? 0.25 : eventObj.template.danger === 'Alto' ? 0.15 : 0.08,
+        finished: false,
+      }
+
+      phaseText.textContent = phases[0]
+      twistInfo.textContent = 'Twist: por revelar...'
+      appendNarrativeLine(`Entrada confirmada em ${eventObj.zone.label}. Objetivo: ${eventObj.template.name}.`, 'neutral')
+      appendNarrativeLine(phases[0], 'neutral')
+      pulseScene()
+      spawnParticles(eventObj.template.riskClass || 'medium')
+      playActionSfx('start')
+      updateLiveStats()
+    }
+
+    btnBackMap.addEventListener('click', () => {
+      if (playerState.status === 'preso') {
+        window.location.href = '/prison'
+      } else {
+        window.location.href = '/city-map.html'
+      }
+    })
+
+    btnSoundToggle?.addEventListener('click', () => {
+      setAudioEnabled(!audioEnabled)
+      if (audioEnabled) playActionSfx('phase')
+    })
+
+    let lastTime = performance.now()
+    function gameLoop(currentTime) {
+      const deltaSec = Math.min((currentTime - lastTime) / 1000, 0.1)
+      lastTime = currentTime
+      tickAction(deltaSec)
+      requestAnimationFrame(gameLoop)
+    }
+
+    startAction()
+    requestAnimationFrame(gameLoop)
+  </script>
+</body>
+</html>
