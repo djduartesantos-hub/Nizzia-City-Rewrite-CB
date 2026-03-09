@@ -682,6 +682,21 @@
       margin-bottom: 2px;
     }
 
+    .result-cutscene {
+      opacity: 0;
+      transform: translateY(10px);
+      animation: resultStepIn 380ms ease forwards;
+    }
+
+    .result-cutscene.step-1 { animation-delay: 30ms; }
+    .result-cutscene.step-2 { animation-delay: 140ms; }
+    .result-cutscene.step-3 { animation-delay: 250ms; }
+
+    @keyframes resultStepIn {
+      from { opacity: 0; transform: translateY(12px) scale(0.985); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
     .delta-pos { color: #8ff4aa; }
     .delta-neg { color: #ffb0b0; }
     .delta-neutral { color: #cfd6e4; }
@@ -1435,13 +1450,15 @@
       const nowMs = Date.now()
       let closest = null
       let closestDistance = Number.POSITIVE_INFINITY
-      const hitRadius = 24
+      const hitRadius = 48
 
       for (const ev of state.events) {
         refreshEventRuntimeState(ev, nowMs)
         if (ev.state === 'expired' || ev.state === 'completed') continue
         const p = worldToScreen(ev.x, ev.y)
-        const distance = Math.hypot(point.x - p.x, point.y - p.y)
+        const pinTipDistance = Math.hypot(point.x - p.x, point.y - p.y)
+        const chipBodyDistance = Math.hypot(point.x - p.x, point.y - (p.y - 24))
+        const distance = Math.min(pinTipDistance, chipBodyDistance)
         if (distance <= hitRadius && distance < closestDistance) {
           closest = ev
           closestDistance = distance
@@ -2187,14 +2204,14 @@
         : 'Não'
 
       resultData.innerHTML = `
-        <div class="result-head">
+        <div class="result-head result-cutscene step-1">
           <img class="result-poster" src="${poster}" alt="Poster do resultado da operação" />
           <div>
             <span class="result-status ${statusClass}">${label}</span>
             <div style="font-size:.95rem;color:#ecf1ff;line-height:1.4">${captured ? 'A operação foi comprometida. Foste preso e transferido para a prisão.' : success ? 'Execução limpa, retirada concluída e ganhos garantidos.' : noEffect ? 'A ação foi neutralizada sem impacto relevante no teu progresso.' : 'A operação falhou e deixaste rastros no terreno.'}</div>
           </div>
         </div>
-        <div class="result-grid">
+        <div class="result-grid result-cutscene step-2">
           <div class="result-item"><b>Dinheiro</b>${formatDelta(outcome.moneyDelta, '$')}</div>
           <div class="result-item"><b>XP</b>${formatDelta(outcome.xpDelta)}</div>
           <div class="result-item"><b>Reputação</b>${formatDelta(outcome.repDelta)}</div>
@@ -2204,7 +2221,7 @@
           <div class="result-item"><b>Item</b><span class="delta-neutral">${outcome.item || 'Nenhum'}</span></div>
           <div class="result-item"><b>Cenário Final</b><span class="delta-neutral">${ev.template.name} · ${ev.zone.label}</span></div>
         </div>
-        <div class="result-item"><b>Narrativa Final</b>${captured ? 'A tua equipa foi cercada, foste neutralizado e transportado sob custódia.' : success ? 'Conseguiste concluir a missão sob pressão e sair com os ganhos.' : noEffect ? 'A operação foi abortada no limite; retirada tática sem colapso total.' : 'A resistência foi superior e recuaste com perdas operacionais.'}</div>
+        <div class="result-item result-cutscene step-3"><b>Narrativa Final</b>${captured ? 'A tua equipa foi cercada, foste neutralizado e transportado sob custódia.' : success ? 'Conseguiste concluir a missão sob pressão e sair com os ganhos.' : noEffect ? 'A operação foi abortada no limite; retirada tática sem colapso total.' : 'A resistência foi superior e recuaste com perdas operacionais.'}</div>
       `
       resultPanel.style.display = 'block'
       requestAnimationFrame(() => resultPanel.classList.add('show'))
