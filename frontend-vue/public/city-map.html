@@ -1062,12 +1062,24 @@
         chip.style.top = `${p.y}px`
         chip.innerHTML = `<span class="chip-top">${e.template.icon} ${fmtTime(e.remaining)}</span><span class="chip-zone">${e.zone.label}</span>`
         chip.title = `${e.template.name} · ${e.zone.label} · ${eventStateLabel(e)}`
-        chip.onclick = () => openEventModal(e.id)
+        chip.addEventListener('click', (ev) => {
+          ev.preventDefault()
+          ev.stopPropagation()
+          openEventModal(e.id)
+        })
         chip.setAttribute('aria-label', `${e.template.name} - ${eventStateLabel(e)}`)
-        chip.addEventListener('mouseenter', () => showEventHoverCard(e, p))
-        chip.addEventListener('mousemove', () => showEventHoverCard(e, p))
+        chip.addEventListener('mouseenter', (ev) => showEventHoverCard(e, pointerToLayerPoint(ev)))
+        chip.addEventListener('mousemove', (ev) => showEventHoverCard(e, pointerToLayerPoint(ev)))
         chip.addEventListener('mouseleave', hideEventHoverCard)
         eventLayer.appendChild(chip)
+      }
+    }
+
+    function pointerToLayerPoint(ev) {
+      const rect = eventLayer.getBoundingClientRect()
+      return {
+        x: ev.clientX - rect.left,
+        y: ev.clientY - rect.top,
       }
     }
 
@@ -1716,6 +1728,14 @@
       const world = screenToWorld(ev.clientX - rect.left, ev.clientY - rect.top)
       state.hover.x = clamp(world.x, 0, CITY_W)
       state.hover.y = clamp(world.y, 0, CITY_H)
+    })
+
+    eventLayer.addEventListener('mouseleave', hideEventHoverCard)
+    window.addEventListener('mousemove', (ev) => {
+      const target = ev.target
+      if (!(target instanceof Element) || !target.closest('.event-chip')) {
+        hideEventHoverCard()
+      }
     })
 
     canvas.addEventListener('click', () => {

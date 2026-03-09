@@ -810,8 +810,13 @@
             <p class="muted">Ajuda a calibrar punições e métricas globais.</p>
           </div>
         </div>
-        <div class="card-grid">
-          <div class="card card-full world-config-card">
+        <div class="world-map-panels">
+          <article class="world-panel-cluster">
+            <header class="world-panel-cluster__head">
+              <h4>Prisão & Hospital</h4>
+              <p class="muted">Overviews operacionais e parâmetros de internamento/detenção.</p>
+            </header>
+            <div class="card world-config-card">
             <div class="card-header">
               <h3>Gestão de Prisão & Hospital</h3>
               <small>Parâmetros globais e ações rápidas</small>
@@ -966,9 +971,15 @@
                 </div>
               </section>
             </div>
-          </div>
+            </div>
+          </article>
 
-          <div class="card card-full world-config-card">
+          <article class="world-panel-cluster">
+            <header class="world-panel-cluster__head">
+              <h4>Punições de crimes</h4>
+              <p class="muted">Regras de dano crítico, hospitalização e prisão automática.</p>
+            </header>
+            <div class="card world-config-card">
             <div class="card-header">
               <h3>Punições de Crimes</h3>
               <small>Controla dano, hospitalizações e prisão automática</small>
@@ -1020,7 +1031,8 @@
                 </div>
               </section>
             </div>
-          </div>
+            </div>
+          </article>
         </div>
       </section>
 
@@ -1036,7 +1048,13 @@
             <button @click="saveCrimeCatalog" :disabled="catalogSaving">Guardar Catálogo</button>
           </div>
         </div>
-        <div class="card-grid two-col">
+        <div class="world-map-panels">
+          <article class="world-panel-cluster">
+            <header class="world-panel-cluster__head">
+              <h4>Catálogo de crimes</h4>
+              <p class="muted">Seleciona, duplica e ajusta crimes jogáveis com detalhe completo.</p>
+            </header>
+            <div class="card-grid two-col">
           <div class="card">
             <div class="card-header">
               <h3>Lista de crimes</h3>
@@ -1188,6 +1206,8 @@
           <div class="card empty-state" v-else>
             Seleciona um crime para editar.
           </div>
+            </div>
+          </article>
         </div>
       </section>
 
