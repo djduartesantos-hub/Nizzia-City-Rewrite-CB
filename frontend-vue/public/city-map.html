@@ -242,6 +242,36 @@
       color: #8f8f8f;
     }
 
+    .event-hover-card {
+      position: absolute;
+      min-width: 190px;
+      max-width: 260px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(149, 199, 255, 0.42);
+      background: rgba(8, 12, 19, 0.94);
+      color: #e8eef8;
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.45);
+      z-index: 23;
+      pointer-events: none;
+      display: none;
+      transform: translate(-50%, -115%);
+    }
+
+    .event-hover-card.show { display: block; }
+    .event-hover-card b {
+      display: block;
+      font-size: 0.78rem;
+      letter-spacing: 0.03em;
+      margin-bottom: 3px;
+    }
+    .event-hover-card span {
+      display: block;
+      font-size: 0.64rem;
+      color: #b7c6d8;
+      line-height: 1.25;
+    }
+
     @keyframes pulse {
       0% { transform: translate(-50%, -100%) scale(1); }
       50% { transform: translate(-50%, -101%) scale(1.06); }
@@ -393,6 +423,7 @@
       <div class="map-stage">
         <canvas id="cityCanvas"></canvas>
         <div id="eventLayer"></div>
+        <div id="eventHoverCard" class="event-hover-card"></div>
 
           <div class="hud">
             <div class="panel">
@@ -890,6 +921,7 @@
     const canvas = document.getElementById('cityCanvas')
     const ctx = canvas.getContext('2d')
     const eventLayer = document.getElementById('eventLayer')
+    const eventHoverCard = document.getElementById('eventHoverCard')
 
     const cityMetaEl = document.getElementById('cityMeta')
     const locationInfoEl = document.getElementById('locationInfo')
@@ -1018,6 +1050,7 @@
 
     function drawEventChips() {
       eventLayer.innerHTML = ''
+      hideEventHoverCard()
       if (state.playerState.status === 'em_evento') return
       const nowMs = Date.now()
       for (const e of state.events) {
@@ -1030,14 +1063,25 @@
         chip.style.top = `${p.y}px`
         chip.innerHTML = `<span class="chip-top">${e.template.icon} ${fmtTime(e.remaining)}</span><span class="chip-zone">${e.zone.label}</span>`
         chip.title = `${e.template.name} · ${e.zone.label} · ${eventStateLabel(e)}`
-        if (e.joinable) {
-          chip.onclick = () => openEventModal(e.id)
-        } else {
-          chip.disabled = true
-          chip.setAttribute('aria-label', `${e.template.name} - ${eventStateLabel(e)}`)
-        }
+        chip.onclick = () => openEventModal(e.id)
+        chip.setAttribute('aria-label', `${e.template.name} - ${eventStateLabel(e)}`)
+        chip.addEventListener('mouseenter', () => showEventHoverCard(e, p))
+        chip.addEventListener('mousemove', () => showEventHoverCard(e, p))
+        chip.addEventListener('mouseleave', hideEventHoverCard)
         eventLayer.appendChild(chip)
       }
+    }
+
+    function showEventHoverCard(ev, point) {
+      if (!eventHoverCard || !ev || !point) return
+      eventHoverCard.style.left = `${point.x}px`
+      eventHoverCard.style.top = `${point.y}px`
+      eventHoverCard.innerHTML = `<b>${ev.template.icon} ${ev.template.name}</b><span>${ev.zone.label} · ${eventStateLabel(ev)}</span><span>Clique para abrir</span>`
+      eventHoverCard.classList.add('show')
+    }
+
+    function hideEventHoverCard() {
+      eventHoverCard?.classList.remove('show')
     }
 
     function drawCursorHUD() {
@@ -1398,7 +1442,6 @@
       selectedEvent = state.events.find((e) => e.id === eventId)
       if (!selectedEvent) return
       refreshEventRuntimeState(selectedEvent)
-      if (!selectedEvent.joinable) return
       modalTitle.textContent = `${selectedEvent.template.icon} ${selectedEvent.template.name}`
       modalMeta.innerHTML = `
         <span>Zona: ${selectedEvent.zone.label}</span>

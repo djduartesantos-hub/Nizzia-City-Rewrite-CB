@@ -1,6 +1,8 @@
 const Player = require('../models/Player')
 const { getConfigs, updateConfig, setConfig } = require('../services/worldConfigService')
 
+const cityEventsRuntime = new Map()
+
 async function ensureAdmin(req) {
   const userId = req.authUserId
   if (!userId) throw new Error('Unauthorized')
@@ -43,7 +45,7 @@ async function getPublicCityEvents(req, res) {
     const seed = Number(req.params?.seed || req.query?.seed || 1) || 1
     const configs = await getConfigs(['cityMap'])
     const cityMap = configs.cityMap || {}
-    const events = buildCityEventsSnapshot(cityMap, seed)
+    const events = getRuntimeCityEventsSnapshot(cityMap, seed)
     return res.json({
       seed,
       serverTime: Date.now(),
@@ -298,20 +300,43 @@ function rollFromRange(range, rng, fallback = [0, 0]) {
   return rng.int(Math.min(min, max), Math.max(min, max))
 }
 
-function buildCityEventsSnapshot(cityMap, seedInput = 1) {
+function distance(a, b) {
+  return Math.hypot(Number(a?.x) - Number(b?.x), Number(a?.y) - Number(b?.y))
+}
+
+function buildCityEventsSnapshot(cityMap, seedInput = 1, options = {}) {
   const zones = Array.isArray(cityMap?.zones) ? cityMap.zones : []
   const eventsConfig = cityMap?.events && typeof cityMap.events === 'object' ? cityMap.events : {}
   const types = Array.isArray(eventsConfig.types) ? eventsConfig.types : []
   if (!zones.length || !types.length) return []
 
   const seed = Number(seedInput) || 1
-  const now = Date.now()
-  const rng = makeSeededRng(seed * 8191 + Math.floor(now / 1000))
+  const now = Number.isFinite(Number(options?.nowMs)) ? Number(options.nowMs) : Date.now()
+  const refreshIntervalSeconds = Math.max(5, Number(eventsConfig.refreshIntervalSeconds) || 20)
+  const requestedGeneration = Number(options?.generationKey)
+  const snapshotWindow = Number.isFinite(requestedGeneration)
+    ? requestedGeneration
+    : Math.floor(now / (refreshIntervalSeconds * 1000))
+  const rng = makeSeededRng(seed * 8191 + snapshotWindow)
   const maxActive = Math.max(1, Number(eventsConfig.maxActiveEvents) || 12)
+  const count = Math.max(1, Math.min(maxActive, Number(options?.count) || maxActive))
   const spawnGrace = Math.max(0, Number(eventsConfig.spawnGraceSeconds) || 45)
+  const grid = cityMap?.grid && typeof cityMap.grid === 'object' ? cityMap.grid : {}
+  const gridCols = Math.max(1, Number(grid.cols) || 20)
+  const gridRows = Math.max(1, Number(grid.rows) || 14)
+  const cityW = 2000
+  const cityH = 1400
+  const cellW = cityW / gridCols
+  const cellH = cityH / gridRows
+  const minEventDistance = 120
+  const occupied = Array.isArray(options?.existingEvents)
+    ? options.existingEvents
+      .filter((ev) => Number.isFinite(Number(ev?.x)) && Number.isFinite(Number(ev?.y)))
+      .map((ev) => ({ x: Number(ev.x), y: Number(ev.y) }))
+    : []
   const events = []
 
-  for (let i = 0; i < maxActive; i += 1) {
+  for (let i = 0; i < count; i += 1) {
     const zone = rng.pick(zones)
     if (!zone) break
     const type = weightedPickType(types, zone.key, rng)
@@ -323,9 +348,33 @@ function buildCityEventsSnapshot(cityMap, seedInput = 1) {
     const elapsed = rng.int(0, elapsedMax)
     const startedAt = now - elapsed * 1000
     const rewardCfg = type.reward || {}
+    const zoneCol = Number(zone?.col) || 0
+    const zoneRow = Number(zone?.row) || 0
+    const zoneCW = Math.max(1, Number(zone?.cw) || 1)
+    const zoneRH = Math.max(1, Number(zone?.rh) || 1)
+    const zoneW = zoneCW * cellW
+    const zoneH = zoneRH * cellH
+    const zoneX = (zoneCol + zoneCW * 0.5) * cellW
+    const zoneY = (zoneRow + zoneRH * 0.5) * cellH
+    let best = null
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const jitterX = (rng.next() * 2 - 1) * zoneW * 0.35
+      const jitterY = (rng.next() * 2 - 1) * zoneH * 0.35
+      const candidate = {
+        x: Math.min(cityW - 40, Math.max(40, zoneX + jitterX)),
+        y: Math.min(cityH - 40, Math.max(40, zoneY + jitterY)),
+      }
+      const nearest = occupied.length
+        ? occupied.reduce((min, point) => Math.min(min, distance(candidate, point)), Number.POSITIVE_INFINITY)
+        : Number.POSITIVE_INFINITY
+      if (!best || nearest > best.nearest) best = { ...candidate, nearest }
+      if (nearest >= minEventDistance) break
+    }
+    const x = best?.x ?? Math.min(cityW - 40, Math.max(40, zoneX))
+    const y = best?.y ?? Math.min(cityH - 40, Math.max(40, zoneY))
 
     events.push({
-      id: `city_${seed}_${Math.floor(now / 1000)}_${i}`,
+      id: `city_${seed}_${snapshotWindow}_${i}`,
       typeKey: type.key,
       name: type.name,
       icon: type.icon,
@@ -335,8 +384,8 @@ function buildCityEventsSnapshot(cityMap, seedInput = 1) {
       zoneKey: zone.key,
       zoneLabel: zone.label,
       description: type.desc || '',
-      x: null,
-      y: null,
+      x,
+      y,
       startedAt,
       duration,
       participationDuration,
@@ -349,9 +398,38 @@ function buildCityEventsSnapshot(cityMap, seedInput = 1) {
       phases: Array.isArray(type.phases) ? type.phases : [],
       twists: Array.isArray(type.twists) ? type.twists : [],
     })
+    occupied.push({ x, y })
   }
 
   return events
+}
+
+function getRuntimeCityEventsSnapshot(cityMap, seedInput = 1) {
+  const eventsConfig = cityMap?.events && typeof cityMap.events === 'object' ? cityMap.events : {}
+  const maxActive = Math.max(1, Number(eventsConfig.maxActiveEvents) || 12)
+  const seed = Number(seedInput) || 1
+  const now = Date.now()
+  const runtime = cityEventsRuntime.get(seed) || { generation: 0, events: [] }
+  const active = Array.isArray(runtime.events)
+    ? runtime.events.filter((ev) => Number(ev?.startedAt) + Number(ev?.duration || 0) * 1000 > now)
+    : []
+
+  let nextEvents = active.slice(0, maxActive)
+  if (nextEvents.length < maxActive) {
+    runtime.generation += 1
+    const missing = maxActive - nextEvents.length
+    const spawned = buildCityEventsSnapshot(cityMap, seed, {
+      count: missing,
+      nowMs: now,
+      generationKey: runtime.generation,
+      existingEvents: nextEvents,
+    })
+    nextEvents = nextEvents.concat(spawned)
+  }
+
+  runtime.events = nextEvents
+  cityEventsRuntime.set(seed, runtime)
+  return nextEvents
 }
 
 function sanitizeWalkInConfig(payload = {}) {
