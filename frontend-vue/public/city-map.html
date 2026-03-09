@@ -815,26 +815,48 @@
       z-index: 2;
       height: 100%;
       padding: 20px;
-      display: grid;
-      grid-template-columns: 1fr 300px;
-      grid-template-rows: auto auto;
-      gap: 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      max-width: 1200px;
+      margin: 0 auto;
     }
 
     .action-main-panel {
-      grid-column: 1;
-      grid-row: 1 / span 2;
+      width: 100%;
+      max-width: 900px;
     }
 
     .action-stats-panel {
-      grid-column: 2;
-      grid-row: 2;
+      width: 100%;
+      max-width: 900px;
+      margin-top: 14px;
     }
 
     .result-panel {
-      grid-column: 2;
-      grid-row: 1;
-      align-self: start;
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(12px);
+    }
+
+    .result-panel.show {
+      display: flex;
+    }
+
+    .result-panel-content {
+      width: min(700px, 100%);
+      background: linear-gradient(165deg, rgba(22, 26, 34, 0.98), rgba(10, 12, 16, 0.98));
+      border: 1.5px solid rgba(255, 255, 255, 0.24);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
     }
 
     .action-header {
@@ -1014,18 +1036,7 @@
       padding: 12px;
     }
 
-    .result-panel {
-      opacity: 0;
-      transform: translateY(10px) scale(0.99);
-      transition: opacity 260ms ease, transform 260ms ease;
-    }
-
-    .result-panel.show {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
-
-    .result-panel.result-reveal {
+    .result-panel.result-reveal .result-panel-content {
       animation: resultReveal 520ms cubic-bezier(.22, .85, .3, 1) both;
     }
 
@@ -1215,7 +1226,7 @@
         </div>
 
         <div class="panel action-stats-panel">
-          <div class="hud-grid">
+          <div class="hud-grid" style="grid-template-columns: repeat(4, 1fr);">
             <div class="stat"><b>HP</b><span id="liveHp">100</span></div>
             <div class="stat"><b>TENSÃO</b><span id="liveStress">0</span></div>
             <div class="stat"><b>RISCO</b><span id="liveRisk">-</span></div>
@@ -1223,11 +1234,13 @@
           </div>
         </div>
 
-        <div class="panel result-panel" id="resultPanel" style="display:none">
-          <h2 style="margin:0 0 8px;font-family:'Bebas Neue';letter-spacing:.08em">Resultado Final</h2>
-          <div class="result" id="resultData"></div>
-          <div class="actions" style="justify-content:flex-start">
-            <button class="btn-primary" id="btnBackMap">Voltar ao Mapa</button>
+        <div class="result-panel" id="resultPanel">
+          <div class="result-panel-content">
+            <h2 style="margin:0 0 16px;font-family:'Bebas Neue';font-size:2.4rem;letter-spacing:.1em;text-align:center">Resultado Final</h2>
+            <div class="result" id="resultData"></div>
+            <div class="actions" style="justify-content:center;margin-top:20px">
+              <button class="btn-primary" id="btnBackMap">Voltar ao Mapa</button>
+            </div>
           </div>
         </div>
       </div>
@@ -2152,8 +2165,7 @@
       setActionFullscreen(true)
       actionScreen.classList.add('show')
       setActionVisualTone(lock.riskClass || eventObj.template.riskClass, lock.twist?.effect || null)
-      resultPanel.style.display = 'none'
-      resultPanel.classList.remove('show')
+      resultPanel.classList.remove('show', 'result-reveal', 'is-dramatic')
       resultData.innerHTML = ''
       narrativeFeed.innerHTML = ''
 
@@ -2742,7 +2754,6 @@
       setActionFullscreen(true)
       actionScreen.classList.add('show')
       setActionVisualTone(eventObj.template.riskClass)
-      resultPanel.style.display = 'none'
       resultPanel.classList.remove('show', 'result-reveal', 'is-dramatic')
       resultData.innerHTML = ''
       narrativeFeed.innerHTML = ''
@@ -2937,7 +2948,6 @@
       `
       resultPanel.classList.remove('result-reveal', 'is-dramatic')
       if (success || captured) resultPanel.classList.add('is-dramatic')
-      resultPanel.style.display = 'block'
       requestAnimationFrame(() => {
         resultPanel.classList.add('show')
         resultPanel.classList.add('result-reveal')
