@@ -42,6 +42,11 @@
       background: #111;
     }
 
+    #app.action-mode .map-shell,
+    #app.action-mode #eventModalOverlay {
+      display: none !important;
+    }
+
     .map-shell {
       width: 100%;
       height: 100%;
@@ -363,7 +368,7 @@
     .btn-ghost { background: rgba(255,255,255,.08); color: var(--text); border: 1px solid rgba(255,255,255,.15); }
 
     .action-screen {
-      position: absolute;
+      position: fixed;
       inset: 0;
       z-index: 50;
       display: none;
@@ -1354,6 +1359,7 @@
       view: { x: 0, y: 0, w: CITY_W, h: CITY_H },
     }
 
+    const appRoot = document.getElementById('app')
     const canvas = document.getElementById('cityCanvas')
     const ctx = canvas.getContext('2d')
     const mapStage = canvas.closest('.map-stage')
@@ -1820,6 +1826,7 @@
       updateHUD()
       closeEventModal()
 
+      setActionFullscreen(true)
       actionScreen.classList.add('show')
       setActionVisualTone(lock.riskClass || eventObj.template.riskClass, lock.twist?.effect || null)
       resultPanel.style.display = 'none'
@@ -2208,6 +2215,10 @@
       if (twistEffect) actionScreen.classList.add(`twist-${twistEffect}`)
     }
 
+    function setActionFullscreen(active) {
+      appRoot?.classList.toggle('action-mode', Boolean(active))
+    }
+
     function pulseScene() {
       if (!sceneBanner) return
       sceneBanner.classList.remove('pulse')
@@ -2352,6 +2363,7 @@
       updateHUD()
       closeEventModal()
 
+      setActionFullscreen(true)
       actionScreen.classList.add('show')
       setActionVisualTone(eventObj.template.riskClass)
       resultPanel.style.display = 'none'
@@ -2564,6 +2576,7 @@
     function leaveActionScreen() {
       if (state.action && !state.action.finished) {
         persistActionLock()
+        setActionFullscreen(true)
         actionScreen.classList.add('show')
         updateHUD()
         return
@@ -2571,6 +2584,7 @@
       actionScreen.classList.remove('show')
       actionScreen.classList.remove('risk-medium', 'risk-high', 'risk-very-high', 'twist-good', 'twist-bad', 'twist-neutral')
       resultPanel.classList.remove('show', 'result-reveal', 'is-dramatic')
+      setActionFullscreen(false)
       state.action = null
       clearPersistedAction()
       if (state.playerState.status === 'preso') {
