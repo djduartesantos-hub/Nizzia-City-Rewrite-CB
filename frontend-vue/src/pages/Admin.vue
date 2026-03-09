@@ -1195,15 +1195,21 @@
         <div class="section-heading">
           <div>
             <p class="eyebrow mini">City Map</p>
-            <h3>Mapa da Cidade & Zonas</h3>
-            <p class="muted">Define grelha/zoom e gere zonas (criar, editar, apagar).</p>
+            <h3>Painel de configuração do mapa</h3>
+            <p class="muted">Organizado por módulos: configuração global, eventos, zonas e tipos.</p>
           </div>
           <div class="actions">
             <button class="secondary" @click="loadCityMapZones(true)" :disabled="mapZoneLoading">Recarregar zonas</button>
           </div>
         </div>
-        <div class="card-grid two-col">
-          <div class="card card-full">
+
+        <div class="world-map-panels">
+          <article class="world-panel-cluster">
+            <header class="world-panel-cluster__head">
+              <h4>Configuração global</h4>
+              <p class="muted">Parâmetros base do mapa, grelha e comportamento de zoom.</p>
+            </header>
+            <div class="card">
             <div class="card-header">
               <h3>Configuração do mapa</h3>
               <small>Controla imagem base, grelha macro e níveis de zoom.</small>
@@ -1228,176 +1234,199 @@
             <div class="actions">
               <button :disabled="worldSaving.cityMap" @click="saveCityMapConfig">Guardar config do mapa</button>
             </div>
-          </div>
+            </div>
+          </article>
 
-          <div class="card">
-            <div class="card-header">
-              <h3>Zonas ({{ mapZones.length }})</h3>
-              <small>Seleciona uma zona para editar.</small>
+          <article class="world-panel-cluster">
+            <header class="world-panel-cluster__head">
+              <h4>Eventos globais</h4>
+              <p class="muted">Frequência e limites de geração de eventos no mapa.</p>
+            </header>
+            <div class="card">
+              <div class="card-header">
+                <h3>Eventos do mapa (configuração global)</h3>
+                <small>Controla frequência, número máximo e janela de graça para spawn.</small>
+              </div>
+              <div class="row">
+                <div><label>Refresh (segundos)</label><input v-model.number="worldConfigs.cityMap.events.refreshIntervalSeconds" type="number" min="5" /></div>
+                <div><label>Máximo de eventos ativos</label><input v-model.number="worldConfigs.cityMap.events.maxActiveEvents" type="number" min="1" /></div>
+                <div><label>Spawn grace (segundos)</label><input v-model.number="worldConfigs.cityMap.events.spawnGraceSeconds" type="number" min="0" /></div>
+              </div>
+              <div class="actions">
+                <button :disabled="worldSaving.cityMapEvents" @click="saveCityMapEventsConfig">Guardar config de eventos</button>
+              </div>
             </div>
-            <div class="actions">
-              <button class="secondary" @click="newMapZone">Nova zona</button>
-            </div>
-            <div class="list">
-              <div v-if="mapZoneLoading" class="muted">A carregar zonas…</div>
-              <div v-else-if="!mapZones.length" class="muted">Sem zonas configuradas</div>
-              <div
-                v-else
-                v-for="zone in mapZones"
-                :key="zone.id"
-                class="list-row crime-row"
-                :class="{ active: zone.id === selectedMapZoneId }"
-                @click="selectMapZone(zone)"
-              >
-                <div>
-                  <strong>{{ zone.label }}</strong>
-                  <div class="muted">{{ zone.key }} · ID {{ zone.id }}</div>
+          </article>
+
+          <article class="world-panel-cluster">
+            <header class="world-panel-cluster__head">
+              <h4>Zonas</h4>
+              <p class="muted">Gestão da lista de zonas e editor de propriedades geográficas.</p>
+            </header>
+            <div class="card-grid two-col">
+              <div class="card">
+                <div class="card-header">
+                  <h3>Zonas ({{ mapZones.length }})</h3>
+                  <small>Seleciona uma zona para editar.</small>
                 </div>
-                <span class="muted">{{ zone.col }},{{ zone.row }} · {{ zone.cw }}x{{ zone.rh }}</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-header">
-              <h3>Editor de zona</h3>
-              <small>Cria nova zona ou guarda alterações.</small>
-            </div>
-            <div class="row">
-              <div><label>ID</label><input v-model.trim="mapZoneEditor.id" /></div>
-              <div><label>Key</label><input v-model.trim="mapZoneEditor.key" /></div>
-              <div><label>Nome</label><input v-model.trim="mapZoneEditor.label" /></div>
-              <div><label>Distrito</label><input v-model.trim="mapZoneEditor.districtName" /></div>
-            </div>
-            <div class="row">
-              <div><label>Cor</label><input v-model.trim="mapZoneEditor.color" placeholder="#8a946f" /></div>
-              <div><label>Densidade</label><input v-model.number="mapZoneEditor.density" type="number" min="0" max="1" step="0.01" /></div>
-              <div><label>Reveal</label><input v-model.number="mapZoneEditor.reveal" type="number" min="0" max="1" step="0.01" /></div>
-            </div>
-            <div class="row">
-              <div><label>Col</label><input v-model.number="mapZoneEditor.col" type="number" min="0" /></div>
-              <div><label>Row</label><input v-model.number="mapZoneEditor.row" type="number" min="0" /></div>
-              <div><label>Cell Width</label><input v-model.number="mapZoneEditor.cw" type="number" min="1" /></div>
-              <div><label>Cell Height</label><input v-model.number="mapZoneEditor.rh" type="number" min="1" /></div>
-            </div>
-            <div class="actions">
-              <button :disabled="mapZoneSaving" @click="saveMapZone">{{ mapZoneExists ? 'Guardar zona' : 'Criar zona' }}</button>
-              <button class="secondary" :disabled="mapZoneSaving || !mapZoneExists" @click="deleteMapZone">Apagar</button>
-            </div>
-          </div>
-
-          <div class="card card-full">
-            <div class="card-header">
-              <h3>Eventos do mapa (configuração global)</h3>
-              <small>Controla frequência, número máximo e janela de graça para spawn.</small>
-            </div>
-            <div class="row">
-              <div><label>Refresh (segundos)</label><input v-model.number="worldConfigs.cityMap.events.refreshIntervalSeconds" type="number" min="5" /></div>
-              <div><label>Máximo de eventos ativos</label><input v-model.number="worldConfigs.cityMap.events.maxActiveEvents" type="number" min="1" /></div>
-              <div><label>Spawn grace (segundos)</label><input v-model.number="worldConfigs.cityMap.events.spawnGraceSeconds" type="number" min="0" /></div>
-            </div>
-            <div class="actions">
-              <button :disabled="worldSaving.cityMapEvents" @click="saveCityMapEventsConfig">Guardar config de eventos</button>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-header">
-              <h3>Tipos de evento ({{ mapEventTypes.length }})</h3>
-              <small>Seleciona um tipo para editar ou cria um novo.</small>
-            </div>
-            <div class="actions">
-              <button class="secondary" @click="newMapEventType">Novo tipo</button>
-              <button class="secondary" :disabled="mapEventTypeLoading" @click="loadCityMapEventTypes(true)">Recarregar</button>
-            </div>
-            <div class="list">
-              <div v-if="mapEventTypeLoading" class="muted">A carregar tipos…</div>
-              <div v-else-if="!mapEventTypes.length" class="muted">Sem tipos configurados</div>
-              <div
-                v-else
-                v-for="entry in mapEventTypes"
-                :key="entry.key"
-                class="list-row crime-row"
-                :class="{ active: entry.key === selectedMapEventTypeKey }"
-                @click="selectMapEventType(entry)"
-              >
-                <div>
-                  <strong>{{ entry.icon }} {{ entry.name }}</strong>
-                  <div class="muted">{{ entry.key }} · {{ entry.mode === 'group' ? 'Grupo' : 'Solo' }}</div>
+                <div class="actions">
+                  <button class="secondary" @click="newMapZone">Nova zona</button>
                 </div>
-                <span class="muted">{{ entry.danger }}</span>
+                <div class="list">
+                  <div v-if="mapZoneLoading" class="muted">A carregar zonas…</div>
+                  <div v-else-if="!mapZones.length" class="muted">Sem zonas configuradas</div>
+                  <div
+                    v-else
+                    v-for="zone in mapZones"
+                    :key="zone.id"
+                    class="list-row crime-row"
+                    :class="{ active: zone.id === selectedMapZoneId }"
+                    @click="selectMapZone(zone)"
+                  >
+                    <div>
+                      <strong>{{ zone.label }}</strong>
+                      <div class="muted">{{ zone.key }} · ID {{ zone.id }}</div>
+                    </div>
+                    <span class="muted">{{ zone.col }},{{ zone.row }} · {{ zone.cw }}x{{ zone.rh }}</span>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
 
-          <div class="card card-full">
-            <div class="card-header">
-              <h3>Editor de tipo de evento</h3>
-              <small>Formato twists: texto|good|bad|neutral (uma linha por twist).</small>
-            </div>
-            <div class="row">
-              <div><label>Key</label><input v-model.trim="mapEventTypeEditor.key" /></div>
-              <div><label>Nome</label><input v-model.trim="mapEventTypeEditor.name" /></div>
-              <div><label>Icone</label><input v-model.trim="mapEventTypeEditor.icon" maxlength="3" /></div>
-            </div>
-            <div class="row">
-              <div><label>Perigo</label><input v-model.trim="mapEventTypeEditor.danger" placeholder="Baixo/Médio/Alto" /></div>
-              <div>
-                <label>Classe de risco</label>
-                <select v-model="mapEventTypeEditor.riskClass">
-                  <option value="low">low</option>
-                  <option value="medium">medium</option>
-                  <option value="high">high</option>
-                </select>
-              </div>
-              <div>
-                <label>Modo</label>
-                <select v-model="mapEventTypeEditor.mode">
-                  <option value="solo">Solo</option>
-                  <option value="group">Grupo</option>
-                </select>
-              </div>
-            </div>
-            <div class="row">
-              <div><label>Duração mín (s)</label><input v-model.number="mapEventTypeEditor.durationRange[0]" type="number" min="0" /></div>
-              <div><label>Duração máx (s)</label><input v-model.number="mapEventTypeEditor.durationRange[1]" type="number" :min="mapEventTypeEditor.durationRange[0] || 0" /></div>
-              <div><label>Participação (s)</label><input v-model.number="mapEventTypeEditor.participationDuration" type="number" min="10" /></div>
-            </div>
-            <div>
-              <label>Descrição</label>
-              <textarea v-model.trim="mapEventTypeEditor.desc" rows="2"></textarea>
-            </div>
-            <div>
-              <label>Zonas (uma key por linha)</label>
-              <textarea :value="mapEventTypeZonesText()" @input="updateMapEventTypeZones($event.target.value)" rows="3"></textarea>
-            </div>
-            <div class="row">
-              <div><label>Money mín</label><input v-model.number="mapEventTypeEditor.reward.money[0]" type="number" min="0" /></div>
-              <div><label>Money máx</label><input v-model.number="mapEventTypeEditor.reward.money[1]" type="number" :min="mapEventTypeEditor.reward.money[0] || 0" /></div>
-              <div><label>XP mín</label><input v-model.number="mapEventTypeEditor.reward.xp[0]" type="number" min="0" /></div>
-              <div><label>XP máx</label><input v-model.number="mapEventTypeEditor.reward.xp[1]" type="number" :min="mapEventTypeEditor.reward.xp[0] || 0" /></div>
-              <div><label>REP mín</label><input v-model.number="mapEventTypeEditor.reward.rep[0]" type="number" min="0" /></div>
-              <div><label>REP máx</label><input v-model.number="mapEventTypeEditor.reward.rep[1]" type="number" :min="mapEventTypeEditor.reward.rep[0] || 0" /></div>
-            </div>
-            <div class="row">
-              <div>
-                <label>Itens (uma linha por item)</label>
-                <textarea :value="mapEventTypeItemsText()" @input="updateMapEventTypeItems($event.target.value)" rows="4"></textarea>
-              </div>
-              <div>
-                <label>Fases (uma linha por fase)</label>
-                <textarea :value="mapEventTypePhasesText()" @input="updateMapEventTypePhases($event.target.value)" rows="4"></textarea>
-              </div>
-              <div>
-                <label>Twists (texto|efeito)</label>
-                <textarea :value="mapEventTypeTwistsText()" @input="updateMapEventTypeTwists($event.target.value)" rows="4"></textarea>
+              <div class="card">
+                <div class="card-header">
+                  <h3>Editor de zona</h3>
+                  <small>Cria nova zona ou guarda alterações.</small>
+                </div>
+                <div class="row">
+                  <div><label>ID</label><input v-model.trim="mapZoneEditor.id" /></div>
+                  <div><label>Key</label><input v-model.trim="mapZoneEditor.key" /></div>
+                  <div><label>Nome</label><input v-model.trim="mapZoneEditor.label" /></div>
+                  <div><label>Distrito</label><input v-model.trim="mapZoneEditor.districtName" /></div>
+                </div>
+                <div class="row">
+                  <div><label>Cor</label><input v-model.trim="mapZoneEditor.color" placeholder="#8a946f" /></div>
+                  <div><label>Densidade</label><input v-model.number="mapZoneEditor.density" type="number" min="0" max="1" step="0.01" /></div>
+                  <div><label>Reveal</label><input v-model.number="mapZoneEditor.reveal" type="number" min="0" max="1" step="0.01" /></div>
+                </div>
+                <div class="row">
+                  <div><label>Col</label><input v-model.number="mapZoneEditor.col" type="number" min="0" /></div>
+                  <div><label>Row</label><input v-model.number="mapZoneEditor.row" type="number" min="0" /></div>
+                  <div><label>Cell Width</label><input v-model.number="mapZoneEditor.cw" type="number" min="1" /></div>
+                  <div><label>Cell Height</label><input v-model.number="mapZoneEditor.rh" type="number" min="1" /></div>
+                </div>
+                <div class="actions">
+                  <button :disabled="mapZoneSaving" @click="saveMapZone">{{ mapZoneExists ? 'Guardar zona' : 'Criar zona' }}</button>
+                  <button class="secondary" :disabled="mapZoneSaving || !mapZoneExists" @click="deleteMapZone">Apagar</button>
+                </div>
               </div>
             </div>
-            <div class="actions">
-              <button :disabled="mapEventTypeSaving" @click="saveMapEventType">{{ mapEventTypeExists ? 'Guardar tipo' : 'Criar tipo' }}</button>
-              <button class="secondary" :disabled="mapEventTypeSaving || !mapEventTypeExists" @click="deleteMapEventType">Apagar</button>
+          </article>
+
+          <article class="world-panel-cluster">
+            <header class="world-panel-cluster__head">
+              <h4>Tipos de evento</h4>
+              <p class="muted">Catálogo de tipos com modo, risco, recompensas e narrativa.</p>
+            </header>
+            <div class="card-grid two-col">
+              <div class="card">
+                <div class="card-header">
+                  <h3>Tipos de evento ({{ mapEventTypes.length }})</h3>
+                  <small>Seleciona um tipo para editar ou cria um novo.</small>
+                </div>
+                <div class="actions">
+                  <button class="secondary" @click="newMapEventType">Novo tipo</button>
+                  <button class="secondary" :disabled="mapEventTypeLoading" @click="loadCityMapEventTypes(true)">Recarregar</button>
+                </div>
+                <div class="list">
+                  <div v-if="mapEventTypeLoading" class="muted">A carregar tipos…</div>
+                  <div v-else-if="!mapEventTypes.length" class="muted">Sem tipos configurados</div>
+                  <div
+                    v-else
+                    v-for="entry in mapEventTypes"
+                    :key="entry.key"
+                    class="list-row crime-row"
+                    :class="{ active: entry.key === selectedMapEventTypeKey }"
+                    @click="selectMapEventType(entry)"
+                  >
+                    <div>
+                      <strong>{{ entry.icon }} {{ entry.name }}</strong>
+                      <div class="muted">{{ entry.key }} · {{ entry.mode === 'group' ? 'Grupo' : 'Solo' }}</div>
+                    </div>
+                    <span class="muted">{{ entry.danger }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card card-full">
+                <div class="card-header">
+                  <h3>Editor de tipo de evento</h3>
+                  <small>Formato twists: texto|good|bad|neutral (uma linha por twist).</small>
+                </div>
+                <div class="row">
+                  <div><label>Key</label><input v-model.trim="mapEventTypeEditor.key" /></div>
+                  <div><label>Nome</label><input v-model.trim="mapEventTypeEditor.name" /></div>
+                  <div><label>Icone</label><input v-model.trim="mapEventTypeEditor.icon" maxlength="3" /></div>
+                </div>
+                <div class="row">
+                  <div><label>Perigo</label><input v-model.trim="mapEventTypeEditor.danger" placeholder="Baixo/Médio/Alto" /></div>
+                  <div>
+                    <label>Classe de risco</label>
+                    <select v-model="mapEventTypeEditor.riskClass">
+                      <option value="low">low</option>
+                      <option value="medium">medium</option>
+                      <option value="high">high</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label>Modo</label>
+                    <select v-model="mapEventTypeEditor.mode">
+                      <option value="solo">Solo</option>
+                      <option value="group">Grupo</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="row">
+                  <div><label>Duração mín (s)</label><input v-model.number="mapEventTypeEditor.durationRange[0]" type="number" min="0" /></div>
+                  <div><label>Duração máx (s)</label><input v-model.number="mapEventTypeEditor.durationRange[1]" type="number" :min="mapEventTypeEditor.durationRange[0] || 0" /></div>
+                  <div><label>Participação (s)</label><input v-model.number="mapEventTypeEditor.participationDuration" type="number" min="10" /></div>
+                </div>
+                <div>
+                  <label>Descrição</label>
+                  <textarea v-model.trim="mapEventTypeEditor.desc" rows="2"></textarea>
+                </div>
+                <div>
+                  <label>Zonas (uma key por linha)</label>
+                  <textarea :value="mapEventTypeZonesText()" @input="updateMapEventTypeZones($event.target.value)" rows="3"></textarea>
+                </div>
+                <div class="row">
+                  <div><label>Money mín</label><input v-model.number="mapEventTypeEditor.reward.money[0]" type="number" min="0" /></div>
+                  <div><label>Money máx</label><input v-model.number="mapEventTypeEditor.reward.money[1]" type="number" :min="mapEventTypeEditor.reward.money[0] || 0" /></div>
+                  <div><label>XP mín</label><input v-model.number="mapEventTypeEditor.reward.xp[0]" type="number" min="0" /></div>
+                  <div><label>XP máx</label><input v-model.number="mapEventTypeEditor.reward.xp[1]" type="number" :min="mapEventTypeEditor.reward.xp[0] || 0" /></div>
+                  <div><label>REP mín</label><input v-model.number="mapEventTypeEditor.reward.rep[0]" type="number" min="0" /></div>
+                  <div><label>REP máx</label><input v-model.number="mapEventTypeEditor.reward.rep[1]" type="number" :min="mapEventTypeEditor.reward.rep[0] || 0" /></div>
+                </div>
+                <div class="row">
+                  <div>
+                    <label>Itens (uma linha por item)</label>
+                    <textarea :value="mapEventTypeItemsText()" @input="updateMapEventTypeItems($event.target.value)" rows="4"></textarea>
+                  </div>
+                  <div>
+                    <label>Fases (uma linha por fase)</label>
+                    <textarea :value="mapEventTypePhasesText()" @input="updateMapEventTypePhases($event.target.value)" rows="4"></textarea>
+                  </div>
+                  <div>
+                    <label>Twists (texto|efeito)</label>
+                    <textarea :value="mapEventTypeTwistsText()" @input="updateMapEventTypeTwists($event.target.value)" rows="4"></textarea>
+                  </div>
+                </div>
+                <div class="actions">
+                  <button :disabled="mapEventTypeSaving" @click="saveMapEventType">{{ mapEventTypeExists ? 'Guardar tipo' : 'Criar tipo' }}</button>
+                  <button class="secondary" :disabled="mapEventTypeSaving || !mapEventTypeExists" @click="deleteMapEventType">Apagar</button>
+                </div>
+              </div>
             </div>
-          </div>
+          </article>
         </div>
       </section>
     </div>
@@ -4171,6 +4200,35 @@ button:disabled {
 .world-config-card {
   background: rgba(11,14,30,0.8);
 }
+.world-map-panels {
+  display: grid;
+  gap: 16px;
+}
+.world-panel-cluster {
+  border: 1px solid rgba(145, 171, 200, 0.2);
+  border-radius: 16px;
+  padding: 14px;
+  background: linear-gradient(180deg, rgba(9, 13, 21, 0.7), rgba(7, 11, 19, 0.7));
+}
+.world-panel-cluster__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  border-bottom: 1px dashed rgba(177, 204, 230, 0.2);
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+}
+.world-panel-cluster__head h4 {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 11px;
+  color: #9dc3e6;
+}
+.world-panel-cluster__head .muted {
+  margin: 0;
+}
 .world-sections {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -4352,6 +4410,9 @@ button:disabled {
   }
   .tabs-vertical {
     flex-direction: row;
+  }
+  .world-panel-cluster__head {
+    flex-direction: column;
   }
 }
 @media (max-width: 640px) {
