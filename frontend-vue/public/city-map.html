@@ -367,6 +367,40 @@
       transition: opacity 220ms ease, transform 220ms ease;
     }
 
+    .action-screen::before {
+      content: '';
+      position: absolute;
+      inset: -20%;
+      background:
+        radial-gradient(40% 28% at 20% 22%, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0)),
+        radial-gradient(34% 24% at 78% 68%, rgba(255, 169, 96, 0.12), rgba(255, 169, 96, 0));
+      filter: blur(20px);
+      animation: cinematicSweep 8s ease-in-out infinite;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .action-screen::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.015) 0px,
+        rgba(255, 255, 255, 0.015) 1px,
+        transparent 2px,
+        transparent 4px
+      );
+      opacity: 0.16;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    @keyframes cinematicSweep {
+      0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+      50% { transform: translate3d(2%, -1%, 0) scale(1.03); }
+    }
+
     .action-screen.show {
       display: block;
       opacity: 1;
@@ -423,21 +457,48 @@
     .action-ui {
       position: relative;
       z-index: 3;
-      max-width: 920px;
+      max-width: 1180px;
       margin: 24px auto;
       padding: 14px;
       display: grid;
       gap: 12px;
+      grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.9fr);
+      align-items: start;
+    }
+
+    .action-main-panel { grid-column: 1; }
+    .action-stats-panel,
+    .result-panel { grid-column: 2; }
+
+    .action-ui .meta {
+      margin-top: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .action-ui .meta span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(8, 12, 22, 0.58);
+      padding: 4px 10px;
+      font-size: .73rem;
+      letter-spacing: .04em;
+      color: #d8dfeb;
     }
 
     .phase-text {
       min-height: 90px;
-      font-size: 1.02rem;
-      line-height: 1.5;
+      font-size: 1.06rem;
+      line-height: 1.56;
       border-left: 4px solid #e3ae43;
-      padding-left: 12px;
+      padding: 10px 12px;
       background: rgba(5, 5, 5, 0.5);
       transition: border-color 180ms ease, background 180ms ease;
+      border-radius: 10px;
     }
 
     .phase-text.is-updating {
@@ -499,7 +560,7 @@
 
     .narrative-feed {
       margin-top: 10px;
-      max-height: 132px;
+      max-height: 164px;
       overflow: auto;
       display: grid;
       gap: 6px;
@@ -626,6 +687,10 @@
     .delta-neutral { color: #cfd6e4; }
 
     @media (max-width: 700px) {
+      .action-ui { grid-template-columns: 1fr; }
+      .action-main-panel,
+      .action-stats-panel,
+      .result-panel { grid-column: 1; }
       .result-grid { grid-template-columns: 1fr; }
       .result-head { grid-template-columns: 1fr; }
       .result-poster { width: 100%; height: 120px; }
@@ -681,7 +746,7 @@
     <div class="action-screen" id="actionScreen">
       <div id="particleField"></div>
       <div class="action-ui">
-        <div class="panel">
+        <div class="panel action-main-panel">
           <h2 style="margin:0;font-family:'Bebas Neue';font-size:2rem;letter-spacing:.08em" id="actionTitle">Ação</h2>
           <div class="meta" id="actionMeta"></div>
           <div class="phase-text" id="phaseText">A preparar operação...</div>
@@ -702,7 +767,7 @@
           </div>
         </div>
 
-        <div class="panel">
+        <div class="panel action-stats-panel">
           <div class="hud-grid">
             <div class="stat"><b>HP</b><span id="liveHp">100</span></div>
             <div class="stat"><b>TENSÃO</b><span id="liveStress">0</span></div>
@@ -1899,6 +1964,10 @@
           { f: 392, t: 0.1, g: 0.04, type: 'sine' },
           { f: 523, t: 0.14, g: 0.03, type: 'sine' },
         ],
+        twistNeutral: [
+          { f: 260, t: 0.09, g: 0.03, type: 'triangle' },
+          { f: 300, t: 0.12, g: 0.024, type: 'sine' },
+        ],
         twistBad: [
           { f: 170, t: 0.12, g: 0.045, type: 'square' },
           { f: 132, t: 0.16, g: 0.04, type: 'sawtooth' },
@@ -1962,7 +2031,6 @@
       sceneIcon.textContent = eventObj.template.icon || '⚡'
       sceneTitle.textContent = `Cenário: ${eventObj.zone.label}`
       sceneSub.textContent = 'Equipa posicionada. A operação começou e a resposta policial está em monitorização.'
-      appendNarrativeLine(`Entraste em ${eventObj.zone.label}. Objetivo: ${eventObj.template.name}.`, 'neutral')
 
       const rng = new RNG(Date.now() + eventObj.duration)
       const total = Math.max(30, Math.min(eventObj.participationDuration, eventObj.remaining))
@@ -2000,6 +2068,7 @@
       }
       phaseText.textContent = phases[0]
       twistInfo.textContent = 'Twist: por revelar...'
+      appendNarrativeLine(`Entrada confirmada em ${eventObj.zone.label}. Objetivo: ${eventObj.template.name}.`, 'neutral')
       appendNarrativeLine(phases[0], 'neutral')
       pulseScene()
       spawnParticles(eventObj.template.riskClass || 'medium')
@@ -2051,7 +2120,7 @@
         sceneSub.textContent = a.twist.text
         appendNarrativeLine(`TWIST: ${a.twist.text}`, a.twist.effect)
         spawnParticles(a.riskClass, a.twist.effect)
-        playActionSfx(a.twist.effect === 'good' ? 'twistGood' : 'twistBad')
+        playActionSfx(a.twist.effect === 'good' ? 'twistGood' : a.twist.effect === 'bad' ? 'twistBad' : 'twistNeutral')
         pulseScene()
         state.playerState.stress = clamp(state.playerState.stress + (a.twist.effect === 'bad' ? 20 : a.twist.effect === 'good' ? -8 : 6), 0, 130)
       }
