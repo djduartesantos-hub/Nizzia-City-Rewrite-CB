@@ -1155,6 +1155,10 @@
 
     function weightedEventType(zoneKey, rng) {
       const entries = Object.entries(state.eventTypes || EVENT_TYPES)
+      if (!entries.length) {
+        const defaults = Object.keys(EVENT_TYPES)
+        return defaults.length ? defaults[0] : null
+      }
       const scored = entries.map(([k, v]) => {
         let score = 1
         if (v.zones.includes(zoneKey)) score += 3
@@ -1166,7 +1170,7 @@
         pick -= s
         if (pick <= 0) return k
       }
-      return scored[0][0]
+      return scored[0]?.[0] || null
     }
 
     function randomInRange(range, rng) {
@@ -1313,11 +1317,29 @@
       const rng = new RNG(MAP_SEED * 73129 + Date.now())
       const maxActive = Math.max(1, Number(state.mapConfig?.events?.maxActiveEvents || 12))
       const count = Math.max(4, maxActive - 2) + rng.int(0, 2)
+      const zones = Array.isArray(state.city?.zones) && state.city.zones.length
+        ? state.city.zones
+        : Array.isArray(DEFAULT_CITY_MAP_CONFIG?.zones)
+          ? createStaticCity(DEFAULT_CITY_MAP_CONFIG).zones
+          : []
+      const typeCatalog = state.eventTypes && Object.keys(state.eventTypes).length
+        ? state.eventTypes
+        : EVENT_TYPES
+
+      if (!zones.length || !Object.keys(typeCatalog).length) {
+        state.eventsSource = 'fallback'
+        state.events = []
+        state.lastEventFetchAt = Date.now()
+        return
+      }
+
       const events = []
       for (let i = 0; i < count; i += 1) {
-        const zone = rng.pick(state.city.zones)
+        const zone = rng.pick(zones)
+        if (!zone) continue
         const typeKey = weightedEventType(zone.key, rng)
-        const tpl = (state.eventTypes || EVENT_TYPES)[typeKey]
+        const tpl = typeCatalog[typeKey] || typeCatalog[Object.keys(typeCatalog)[0]]
+        if (!tpl) continue
         const duration = randomInRange(tpl.duration, rng)
         const participationDuration = Number(tpl.participationDuration || Math.floor(duration * 0.45))
         const startedAt = Date.now() - rng.int(0, Math.floor(duration * 0.7)) * 1000
@@ -1603,8 +1625,17 @@
       try {
         await fetchEventsFromApi()
       } catch (error) {
-        regenerateEvents()
+        try {
+          regenerateEvents()
+        } catch (fallbackError) {
+          state.eventsSource = 'fallback'
+          state.events = []
+          state.lastEventFetchAt = Date.now()
+        }
       } finally {
+        if (!state.events.length) {
+          try { regenerateEvents() } catch {}
+        }
         state.eventsLoading = false
       }
     }

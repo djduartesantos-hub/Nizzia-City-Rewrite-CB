@@ -650,7 +650,20 @@ async function updateCityMapEventsConfig(req, res) {
     await ensureAdmin(req)
     const payload = sanitizeCityMapEventsPayload(req.body || {})
     if (!payload) return res.status(400).json({ error: 'Nenhum campo válido enviado' })
-    const config = await updateConfig('cityMap', { events: payload })
+    const configs = await getConfigs(['cityMap'])
+    const existingEvents = configs?.cityMap?.events && typeof configs.cityMap.events === 'object'
+      ? configs.cityMap.events
+      : {}
+    const nextEvents = {
+      ...existingEvents,
+      ...payload,
+      types: Array.isArray(payload.types)
+        ? payload.types
+        : Array.isArray(existingEvents.types)
+          ? existingEvents.types
+          : [],
+    }
+    const config = await updateConfig('cityMap', { events: nextEvents })
     return res.json({ config, events: config?.events || {} })
   } catch (err) {
     const status = err.message === 'Unauthorized' ? 401 : err.message === 'Forbidden' ? 403 : 500
