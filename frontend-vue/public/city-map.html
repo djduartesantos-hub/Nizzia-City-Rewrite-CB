@@ -1235,8 +1235,14 @@
       const duration = normalizeDurationSec(entry?.duration, randomInRange(template.duration, rng))
       const participationDuration = normalizeDurationSec(entry?.participationDuration, template.participationDuration || Math.floor(duration * 0.45))
       const startedAt = parseStartedAtMs(entry?.startedAt)
-      const x = Number.isFinite(Number(entry?.x)) ? clamp(Number(entry.x), 40, CITY_W - 40) : clamp(zone.x + rng.range(-zone.w * 0.35, zone.w * 0.35), 40, CITY_W - 40)
-      const y = Number.isFinite(Number(entry?.y)) ? clamp(Number(entry.y), 40, CITY_H - 40) : clamp(zone.y + rng.range(-zone.h * 0.35, zone.h * 0.35), 40, CITY_H - 40)
+      const hasCoordX = entry?.x !== null && entry?.x !== undefined && entry?.x !== ''
+      const hasCoordY = entry?.y !== null && entry?.y !== undefined && entry?.y !== ''
+      const x = hasCoordX && Number.isFinite(Number(entry?.x))
+        ? clamp(Number(entry.x), 40, CITY_W - 40)
+        : clamp(zone.x + rng.range(-zone.w * 0.35, zone.w * 0.35), 40, CITY_W - 40)
+      const y = hasCoordY && Number.isFinite(Number(entry?.y))
+        ? clamp(Number(entry.y), 40, CITY_H - 40)
+        : clamp(zone.y + rng.range(-zone.h * 0.35, zone.h * 0.35), 40, CITY_H - 40)
 
       const rewardCfg = template.rewards || { money: [500, 1200], xp: [20, 80], rep: [1, 3], items: ['Nenhum'] }
       const reward = {
