@@ -1145,6 +1145,27 @@
       }
     }
 
+    function pickEventFromLayerPoint(point) {
+      if (!point) return null
+      const nowMs = Date.now()
+      let closest = null
+      let closestDistance = Number.POSITIVE_INFINITY
+      const hitRadius = 24
+
+      for (const ev of state.events) {
+        refreshEventRuntimeState(ev, nowMs)
+        if (ev.state === 'expired' || ev.state === 'completed') continue
+        const p = worldToScreen(ev.x, ev.y)
+        const distance = Math.hypot(point.x - p.x, point.y - p.y)
+        if (distance <= hitRadius && distance < closestDistance) {
+          closest = ev
+          closestDistance = distance
+        }
+      }
+
+      return closest
+    }
+
     function showEventHoverCard(ev, point) {
       if (!eventHoverCard || !ev || !point) return
       state.hoveredEventId = ev.id || null
@@ -1802,8 +1823,14 @@
       }
     })
 
-    canvas.addEventListener('click', () => {
+    canvas.addEventListener('click', (ev) => {
       if (state.playerState.status === 'em_evento') return
+      const clickPoint = pointerToLayerPoint(ev)
+      const clickedEvent = pickEventFromLayerPoint(clickPoint)
+      if (clickedEvent) {
+        openEventModal(clickedEvent.id)
+        return
+      }
       closeEventModal()
     })
 
