@@ -1375,6 +1375,18 @@
       state.lastEventFetchAt = Date.now()
     }
 
+    function ensureEventSeed() {
+      if (!state.city || !Array.isArray(state.city.zones) || !state.city.zones.length) {
+        state.city = createStaticCity(DEFAULT_CITY_MAP_CONFIG)
+      }
+      if (!state.eventTypes || !Object.keys(state.eventTypes).length) {
+        state.eventTypes = deepClone(EVENT_TYPES)
+      }
+      if (!state.events.length) {
+        regenerateEvents()
+      }
+    }
+
     let selectedEvent = null
 
     function openEventModal(eventId) {
@@ -1634,7 +1646,7 @@
         }
       } finally {
         if (!state.events.length) {
-          try { regenerateEvents() } catch {}
+          try { ensureEventSeed() } catch {}
         }
         state.eventsLoading = false
       }
@@ -1697,6 +1709,7 @@
       state.baseMapImage = await loadBaseMapImage(imageUrl)
       state.city = createStaticCity(state.mapConfig)
       await refreshEvents(true)
+      ensureEventSeed()
       updateHUD()
       resize()
       requestAnimationFrame(loop)
@@ -1728,6 +1741,15 @@
 
     init().catch((error) => {
       console.error('Falha ao inicializar mapa:', error)
+    })
+    window.__cityMapDebug = () => ({
+      events: state.events.length,
+      eventsSource: state.eventsSource,
+      eventTypes: Object.keys(state.eventTypes || {}).length,
+      zones: state.city?.zones?.length || 0,
+      refreshSeconds: state.eventRefreshSeconds,
+      status: state.playerState.status,
+      sample: state.events.slice(0, 3).map((e) => ({ id: e.id, zone: e.zone?.key, state: e.state, remaining: Math.round(e.remaining || 0) })),
     })
     window.regenerateEvents = regenerateEvents
   </script>
