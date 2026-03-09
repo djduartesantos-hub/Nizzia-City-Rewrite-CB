@@ -1234,6 +1234,7 @@
 
     const canvas = document.getElementById('cityCanvas')
     const ctx = canvas.getContext('2d')
+    const mapStage = canvas.closest('.map-stage')
     const eventLayer = document.getElementById('eventLayer')
     const eventHoverCard = document.getElementById('eventHoverCard')
 
@@ -1466,6 +1467,26 @@
       }
 
       return closest
+    }
+
+    function handleMapClick(ev) {
+      if (state.playerState.status === 'em_evento') return
+      const target = ev.target
+      if (target instanceof Element) {
+        const chip = target.closest('.event-chip')
+        if (chip?.dataset?.eventId) {
+          openEventModal(chip.dataset.eventId)
+          return
+        }
+      }
+
+      const clickPoint = pointerToLayerPoint(ev)
+      const clickedEvent = pickEventFromLayerPoint(clickPoint)
+      if (clickedEvent) {
+        openEventModal(clickedEvent.id)
+        return
+      }
+      closeEventModal()
     }
 
     function showEventHoverCard(ev, point) {
@@ -2310,16 +2331,7 @@
       }
     })
 
-    canvas.addEventListener('click', (ev) => {
-      if (state.playerState.status === 'em_evento') return
-      const clickPoint = pointerToLayerPoint(ev)
-      const clickedEvent = pickEventFromLayerPoint(clickPoint)
-      if (clickedEvent) {
-        openEventModal(clickedEvent.id)
-        return
-      }
-      closeEventModal()
-    })
+    mapStage?.addEventListener('click', handleMapClick)
 
     canvas.addEventListener('wheel', (ev) => {
       ev.preventDefault()
