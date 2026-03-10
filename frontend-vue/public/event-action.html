@@ -1044,10 +1044,10 @@
       `
       resultPanel.classList.remove('result-reveal', 'is-dramatic')
       if (success || captured) resultPanel.classList.add('is-dramatic')
-      requestAnimationFrame(() => {
-        resultPanel.classList.add('show')
-        resultPanel.classList.add('result-reveal')
-      })
+      resultPanel.classList.add('show')
+      const animateReveal = () => resultPanel.classList.add('result-reveal')
+      if (typeof requestAnimationFrame === 'function') requestAnimationFrame(animateReveal)
+      else setTimeout(animateReveal, 16)
       playActionSfx(success ? 'resultSuccess' : captured ? 'resultCaptured' : 'resultFailed')
     }
 
