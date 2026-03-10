@@ -343,7 +343,7 @@
     .result-panel {
       position: fixed;
       inset: 0;
-      z-index: 10;
+      z-index: 120;
       display: none;
       align-items: center;
       justify-content: center;
@@ -869,6 +869,24 @@
       return payload
     }
 
+    function rememberLastActionId(eventId) {
+      if (!eventId) return
+      try {
+        localStorage.setItem('city-map-last-action-id', eventId)
+      } catch {}
+    }
+
+    function consumeRememberedAction() {
+      try {
+        const stored = localStorage.getItem('city-map-last-action-id')
+        if (stored) {
+          localStorage.removeItem('city-map-last-action-id')
+          return stored
+        }
+      } catch {}
+      return null
+    }
+
     function normalizeEventPayload(input) {
       if (!input || typeof input !== 'object') return null
       return {
@@ -907,11 +925,17 @@
     let eventObj = null
     if (eventId) {
       eventObj = consumeActionPayload(eventId)
+      rememberLastActionId(eventId)
+    } else {
+      const fallbackId = consumeRememberedAction()
+      if (fallbackId) {
+        eventObj = consumeActionPayload(fallbackId)
+      }
     }
 
     if (!eventObj && snapshotData) {
       try {
-        eventObj = JSON.parse(snapshotData)
+        eventObj = JSON.parse(decodeURIComponent(snapshotData))
       } catch {}
     }
 
