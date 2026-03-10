@@ -560,6 +560,7 @@
     const ACTION_LOCK_KEY = 'city-map-active-action-v1'
     const AUDIO_PREF_KEY = 'city-map-audio-enabled-v1'
     const PLAYER_STATE_KEY = 'city-map-player-state-v1'
+    const EVENT_ACTION_PAYLOAD_KEY = 'city-map-action-payload-v1'
 
     const actionScreen = document.getElementById('actionScreen')
     const actionTitle = document.getElementById('actionTitle')
@@ -843,20 +844,80 @@
     let playerState = loadPlayerState()
     let action = null
 
-    // Get event data from URL params
-    const params = new URLSearchParams(window.location.search)
-    const eventData = params.get('event')
-    
-    if (!eventData) {
-      alert('Dados do evento não encontrados!')
-      window.location.href = '/city-map.html'
+    function loadActionPayloadStore() {
+      try {
+        const stored = localStorage.getItem(EVENT_ACTION_PAYLOAD_KEY)
+        return stored ? JSON.parse(stored) : {}
+      } catch {
+        return {}
+      }
     }
 
+    function saveActionPayloadStore(store) {
+      try {
+        localStorage.setItem(EVENT_ACTION_PAYLOAD_KEY, JSON.stringify(store))
+      } catch {}
+    }
+
+    function consumeActionPayload(eventId) {
+      if (!eventId) return null
+      const store = loadActionPayloadStore()
+      if (!store[eventId]) return null
+      const payload = store[eventId]
+      delete store[eventId]
+      saveActionPayloadStore(store)
+      return payload
+    }
+
+    function normalizeEventPayload(input) {
+      if (!input || typeof input !== 'object') return null
+      return {
+        id: input.id || `ev_${Date.now()}`,
+        template: {
+          icon: input.template?.icon || '⚡',
+          name: input.template?.name || 'Evento',
+          danger: input.template?.danger || 'Desconhecido',
+          riskClass: input.template?.riskClass || 'medium',
+          phases: Array.isArray(input.template?.phases) ? input.template.phases : [],
+          twists: Array.isArray(input.template?.twists) ? input.template.twists : [],
+        },
+        zone: {
+          key: input.zone?.key || 'unknown',
+          label: input.zone?.label || 'Zona desconhecida',
+        },
+        reward: {
+          money: Number(input.reward?.money || 0),
+          xp: Number(input.reward?.xp || 0),
+          rep: Number(input.reward?.rep || 0),
+          item: input.reward?.item || 'Nenhum',
+        },
+        duration: Number(input.duration || 60),
+        participationDuration: Number(input.participationDuration || 60),
+        remaining: Number(input.remaining || input.duration || 60),
+        mode: input.mode || 'solo',
+      }
+    }
+
+    // Get event data from URL params ou storage
+    const params = new URLSearchParams(window.location.search)
+    const eventId = params.get('eventId')
+    const legacyEventData = params.get('event')
+
     let eventObj = null
-    try {
-      eventObj = JSON.parse(decodeURIComponent(eventData))
-    } catch {
-      alert('Erro ao carregar dados do evento!')
+    if (eventId) {
+      eventObj = consumeActionPayload(eventId)
+    }
+
+    if (!eventObj && legacyEventData) {
+      try {
+        eventObj = JSON.parse(decodeURIComponent(legacyEventData))
+      } catch {}
+    }
+
+    eventObj = normalizeEventPayload(eventObj)
+
+    if (!eventObj) {
+      alert('Dados do evento não encontrados!')
       window.location.href = '/city-map.html'
     }
 

@@ -1258,6 +1258,7 @@
     const ACTION_LOCK_KEY = 'city-map-active-action-v1'
     const AUDIO_PREF_KEY = 'city-map-audio-enabled-v1'
     const PLAYER_STATE_KEY = 'city-map-player-state-v1'
+    const EVENT_ACTION_PAYLOAD_KEY = 'city-map-action-payload-v1'
 
     const EVENT_TYPES = {
       shootout: {
@@ -1645,6 +1646,58 @@
         },
         locations,
       }
+    }
+
+    function loadActionPayloadStore() {
+      try {
+        const stored = localStorage.getItem(EVENT_ACTION_PAYLOAD_KEY)
+        return stored ? JSON.parse(stored) : {}
+      } catch {
+        return {}
+      }
+    }
+
+    function saveActionPayloadStore(store) {
+      try {
+        localStorage.setItem(EVENT_ACTION_PAYLOAD_KEY, JSON.stringify(store))
+      } catch {}
+    }
+
+    function buildActionPayload(ev) {
+      const safeTemplate = ev?.template || {}
+      return {
+        id: ev.id,
+        template: {
+          icon: safeTemplate.icon || '⚡',
+          name: safeTemplate.name || 'Evento',
+          danger: safeTemplate.danger || 'Desconhecido',
+          riskClass: safeTemplate.riskClass || 'medium',
+          phases: Array.isArray(safeTemplate.phases) ? safeTemplate.phases : [],
+          twists: Array.isArray(safeTemplate.twists) ? safeTemplate.twists : [],
+        },
+        zone: {
+          key: ev?.zone?.key || 'unknown',
+          label: ev?.zone?.label || 'Zona desconhecida',
+        },
+        reward: {
+          money: Number(ev?.reward?.money || 0),
+          xp: Number(ev?.reward?.xp || 0),
+          rep: Number(ev?.reward?.rep || 0),
+          item: ev?.reward?.item || 'Nenhum',
+        },
+        duration: Number(ev?.duration || 60),
+        participationDuration: Number(ev?.participationDuration || 60),
+        remaining: Number(ev?.remaining || ev?.duration || 60),
+        mode: ev?.mode || 'solo',
+      }
+    }
+
+    function storeActionPayload(ev) {
+      const payload = buildActionPayload(ev)
+      const store = loadActionPayloadStore()
+      store[payload.id] = payload
+      saveActionPayloadStore(store)
+      return payload
     }
 
     function loadPlayerState() {
@@ -3051,10 +3104,12 @@
         return
       }
       playEventSfx('participate')
+      state.playerState.status = 'em_evento'
       savePlayerState()
-      
-      const eventData = encodeURIComponent(JSON.stringify(selectedEvent))
-      window.location.href = `/event-action.html?event=${eventData}`
+
+      const payload = storeActionPayload(selectedEvent)
+      const eventUrl = `/event-action.html?eventId=${encodeURIComponent(payload.id)}`
+      window.location.href = eventUrl
     })
     btnBackMap.addEventListener('click', leaveActionScreen)
     btnSoundToggle?.addEventListener('click', () => {
