@@ -3108,7 +3108,8 @@
       savePlayerState()
 
       const payload = storeActionPayload(selectedEvent)
-      const eventUrl = `/event-action.html?eventId=${encodeURIComponent(payload.id)}`
+      const snapshot = encodeURIComponent(JSON.stringify(payload))
+      const eventUrl = `/event-action.html?eventId=${encodeURIComponent(payload.id)}&snapshot=${snapshot}`
       window.location.href = eventUrl
     })
     btnBackMap.addEventListener('click', leaveActionScreen)

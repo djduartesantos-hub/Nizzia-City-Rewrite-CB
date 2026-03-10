@@ -902,10 +902,17 @@
     const params = new URLSearchParams(window.location.search)
     const eventId = params.get('eventId')
     const legacyEventData = params.get('event')
+    const snapshotData = params.get('snapshot')
 
     let eventObj = null
     if (eventId) {
       eventObj = consumeActionPayload(eventId)
+    }
+
+    if (!eventObj && snapshotData) {
+      try {
+        eventObj = JSON.parse(snapshotData)
+      } catch {}
     }
 
     if (!eventObj && legacyEventData) {
